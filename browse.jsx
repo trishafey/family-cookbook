@@ -2,17 +2,23 @@
 
 const { useState, useEffect, useMemo } = React;
 
-function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selectionMode }) {
+function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selectionMode, isFavorite, onToggleFavorite }) {
   return (
     <div
       className={`card ${selected ? "selected" : ""}`}
       onClick={() => selectionMode ? onToggleSelect(recipe) : onOpen(recipe)}
       data-screen-label={recipe.title}>
-      
+
       <div className="photo" style={{ backgroundImage: `url(${recipe.photoCard || recipe.photo})` }}>
         <div className="ribbon">{recipe.course}</div>
-        {!selectionMode && recipe.favorite &&
-        <div className="fave"><Icon name="heartFill" size={13} /></div>
+        {!selectionMode && onToggleFavorite &&
+        <button
+          className={`fave ${isFavorite ? "on" : "off"}`}
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(recipe.id); }}
+          aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          aria-pressed={isFavorite}>
+          <Icon name={isFavorite ? "heartFill" : "heart"} size={13} />
+        </button>
         }
         {selectionMode && selected &&
         <div className="select-mark">{selectIdx + 1}</div>
@@ -39,7 +45,7 @@ function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selec
 
 }
 
-function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, openAddRecipe, openMealBuilder, openLab }) {
+function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab }) {
 
   // Active filter chips
   const activeChips = [];
@@ -52,10 +58,23 @@ function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, ope
     setFilters((f) => ({ ...f, [k]: k === "maxTime" ? 0 : f[k].filter((x) => x !== v) }));
   };
 
-  // Group recipes: "Family Favorites" first, then by course
-  const favs = recipes.filter((r) => r.favorite);
-  const rest = recipes.filter((r) => !r.favorite);
+  // Group recipes by favorites set, then everything else
+  const favSet = new Set(favorites);
+  const favs = recipes.filter((r) => favSet.has(r.id));
+  const rest = recipes.filter((r) => !favSet.has(r.id));
   const showingAll = !query && activeChips.length === 0;
+
+  const cardProps = (r) => ({
+    key: r.id,
+    recipe: r,
+    onOpen: openRecipe,
+    selected: selection.includes(r.id),
+    selectIdx: selection.indexOf(r.id),
+    onToggleSelect: toggleSelect,
+    selectionMode,
+    isFavorite: favSet.has(r.id),
+    onToggleFavorite: toggleFavorite,
+  });
 
   return (
     <div className="app" data-screen-label="01 Browse">
@@ -108,22 +127,20 @@ function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, ope
       {/* Section: showing-all → favorites then rest. Otherwise: flat. */}
       {showingAll ?
       <>
+          {favs.length > 0 && <>
           <div className="section-head" style={{ marginTop: 48 }}>
             <div className="lhs">
               <div className="eyebrow">Family favorites</div>
-              <h2>The ones we keep coming back to</h2>
+              <h2>The ones we keep coming back for</h2>
             </div>
             <div className="rhs">
               <span className="dim mono" style={{ fontSize: 12 }}>{favs.length} recipes</span>
             </div>
           </div>
           <div className="grid">
-            {favs.map((r) =>
-          <RecipeCard key={r.id} recipe={r} onOpen={openRecipe}
-          selected={selection.includes(r.id)} selectIdx={selection.indexOf(r.id)}
-          onToggleSelect={toggleSelect} selectionMode={selectionMode} />
-          )}
+            {favs.map((r) => <RecipeCard {...cardProps(r)} />)}
           </div>
+          </>}
 
           <div className="section-head" style={{ marginTop: 64 }}>
             <div className="lhs">
@@ -133,11 +150,7 @@ function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, ope
             <div className="rhs"><span className="dim mono" style={{ fontSize: 12 }}>{rest.length} recipes</span></div>
           </div>
           <div className="grid">
-            {rest.map((r) =>
-          <RecipeCard key={r.id} recipe={r} onOpen={openRecipe}
-          selected={selection.includes(r.id)} selectIdx={selection.indexOf(r.id)}
-          onToggleSelect={toggleSelect} selectionMode={selectionMode} />
-          )}
+            {rest.map((r) => <RecipeCard {...cardProps(r)} />)}
           </div>
         </> :
 
@@ -155,11 +168,7 @@ function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, ope
             </div> :
 
         <div className="grid">
-              {recipes.map((r) =>
-          <RecipeCard key={r.id} recipe={r} onOpen={openRecipe}
-          selected={selection.includes(r.id)} selectIdx={selection.indexOf(r.id)}
-          onToggleSelect={toggleSelect} selectionMode={selectionMode} />
-          )}
+              {recipes.map((r) => <RecipeCard {...cardProps(r)} />)}
             </div>
         }
         </>

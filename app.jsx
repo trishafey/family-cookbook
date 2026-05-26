@@ -31,6 +31,16 @@ function App() {
     setSelection(s => s.includes(r.id) ? s.filter(x => x !== r.id) : [...s, r.id]);
   };
 
+  // ─── Favorites ("the ones we keep coming back to") ───
+  const [favorites, setFavorites] = useStorage("recipes:favorites", [
+    "prime-rib",
+    "ryszards-tomato-soup",
+    "krystyna-apple-meringue-pie",
+  ]);
+  const toggleFavorite = (id) => {
+    setFavorites(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+  };
+
   // ─── Shopping list modal ───
   const [shopOpen, setShopOpen] = useState(false);
   const [shopPayload, setShopPayload] = useState(null);
@@ -154,6 +164,8 @@ function App() {
           selection={selection}
           toggleSelect={toggleSelect}
           selectionMode={false}
+          favorites={favorites}
+          toggleFavorite={toggleFavorite}
           openAddRecipe={() => setView("add")}
           openMealBuilder={() => setView("meal")}
           openLab={() => setView("lab")}
