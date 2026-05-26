@@ -2,40 +2,6 @@
 
 const { useState, useEffect, useMemo } = React;
 
-function FeaturedStrip({ recipes, onOpen }) {
-  if (recipes.length < 3) return null;
-  const [big, ...small] = recipes;
-  return (
-    <div className="featured">
-      <div className="big" onClick={() => onOpen(big)} style={{ backgroundImage: `url(${big.photo})` }} data-screen-label={`Featured: ${big.title}`}>
-        <div className="info">
-          <span className="pill" style={{ background: "rgba(255,255,255,.18)", color: "white", border: "1px solid rgba(255,255,255,.3)" }}>
-            <Icon name="starFill" size={11} /> Family favorite
-          </span>
-          <h2 style={{ marginTop: 12 }}>{big.title}</h2>
-          <div className="sub">{big.subtitle}</div>
-          <div style={{ marginTop: 16, fontFamily: "var(--mono)", fontSize: 11, letterSpacing: ".08em", opacity: .9 }}>
-            BY {big.author.toUpperCase()} · {fmtDuration(big.total)} · {big.difficulty.toUpperCase()}
-          </div>
-        </div>
-      </div>
-      {small.slice(0, 2).map((r) =>
-      <div className="card small" key={r.id} onClick={() => onOpen(r)}>
-          <div className="photo" style={{ backgroundImage: `url(${r.photoCard || r.photo})` }} />
-          <div className="body">
-            <div className="author">{r.author}</div>
-            <div className="title" style={{ fontSize: 18 }}>{r.title}</div>
-            <div className="footer">
-              <span>{fmtDuration(r.total)}</span>
-              <span>{r.course}</span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>);
-
-}
-
 function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selectionMode }) {
   return (
     <div
@@ -106,22 +72,6 @@ function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, ope
           </button>
         </div>
       </header>
-
-      {/* Featured strip — only when not filtering */}
-      {showingAll &&
-      <div style={{ marginTop: 48 }}>
-          <div className="section-head">
-            <div className="lhs">
-              <div className="eyebrow">In rotation this week</div>
-              <h2>From the inner circle</h2>
-            </div>
-            <div className="rhs">
-              <button className="btn ghost sm" onClick={openFilters}><Icon name="filter" size={14} /> Filters</button>
-            </div>
-          </div>
-          <FeaturedStrip recipes={favs.slice(0, 3)} onOpen={openRecipe} />
-        </div>
-      }
 
       {/* Active filters */}
       {activeChips.length > 0 &&

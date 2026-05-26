@@ -109,7 +109,6 @@ function App() {
           <div className="brand" onClick={backToBrowse}>
             <span className="mark">F</span>
             <span className="title">The Family Cookbook</span>
-            <span className="est">est. 1962</span>
           </div>
           <div className="search">
             <Icon name="search" />
