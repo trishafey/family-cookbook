@@ -357,6 +357,52 @@ window.RECIPES = [
     ],
     comments: [],
   },
+
+  {
+    id: "dygas-duck-dynasty",
+    title: "Dygas Duck Dynasty",
+    subtitle: "Slow-braised duck in a savory-fruity sauce with sour cherries, vermouth, and orange. Hover-around-the-stove kind of dish.",
+    author: "Grace & Patricia",
+    cuisine: "French",
+    course: "Dinner",
+    diet: ["Gluten-free", "Dairy-free", "High protein", "Low carb", "Carnivore"],
+    occasion: "Date night",
+    photo: "https://images.unsplash.com/photo-1432139509613-5c4255815697?w=1200&q=80",
+    photoTone: "#4a1a2a",
+    favorite: false,
+    rating: 4.9,
+    cookCount: 4,
+    servingsDefault: 6,
+    prep: 20, cook: 165, total: 200, // 20 prep + 15 sear + 2.5 hr braise midpoint
+    difficulty: "Patient",
+    nutrition: { cal: 540, protein: 38, carbs: 8, fat: 38, fiber: 1, sodium: 620 },
+    ingredients: [
+      { qty: 6,    unit: "",     item: "duck breasts", grp: "Duck" },
+      { qty: 0,    unit: "",     item: "salt and pepper, to taste", grp: "Duck" },
+      { qty: 1,    unit: "",     item: "large garlic clove, minced", grp: "Aromatics" },
+      { qty: 1,    unit: "",     item: "white onion, sliced", grp: "Aromatics" },
+      { qty: 2,    unit: "tbsp", item: "butter", grp: "Aromatics" },
+      { qty: 2,    unit: "cups", item: "broth or prepared bouillon", grp: "Braising Liquid" },
+      { qty: 2,    unit: "tbsp", item: "sour cherries in syrup", grp: "Braising Liquid" },
+      { qty: 0,    unit: "",     item: "heavy splash of vermouth or white wine", grp: "Braising Liquid" },
+      { qty: 0.5,  unit: "",     item: "fresh orange, juiced", grp: "Braising Liquid" },
+    ],
+    steps: [
+      { t: "Score and season the duck", d: "Pat the duck breasts dry. Score the skin in a crosshatch pattern, being careful not to cut into the meat. Season generously with salt and pepper.", mins: 10,  precision: "medium" },
+      { t: "Sear the duck",             d: "Melt butter in a large heavy-bottomed pan or Dutch oven over medium heat. Place the duck skin-side down and sear until deeply golden and crispy, about 4 minutes per side. Remove and set aside.", mins: 15, precision: "careful" },
+      { t: "Build the flavor base",     d: "In the same pan, add the onion and cook until softened and lightly golden. Add the garlic and cook another minute until fragrant.", mins: 8, precision: "easy" },
+      { t: "Braise low and slow",       d: "Return the duck breasts to the pan. Add broth, sour cherries with a little syrup, vermouth or wine, and orange juice. Lower the heat, cover, and simmer gently for 2–3 hours until tender. (Optional: slice the breasts before simmering to speed cooking and deepen flavor.)", mins: 150, precision: "patient", hands: 0 },
+      { t: "Finish and serve",          d: "Taste the sauce and adjust seasoning. Serve warm with potatoes, bread, or buttered noodles to soak up the sauce.", mins: 5, precision: "easy" },
+    ],
+    tips: [
+      "Sour cherries in syrup are the secret — subtle sweetness and richness that balance the duck.",
+      "Vermouth adds depth without overpowering. White wine works too.",
+      "Don't rush the sear — crispy browned skin builds the flavor foundation.",
+      "The sauce becomes even richer the next day.",
+      "Eat during a snowstorm with candles lit. People stop talking for the first few bites.",
+    ],
+    comments: [],
+  },
 ];
 
 window.AUTHORS  = [...new Set(window.RECIPES.map(r => r.author))];
