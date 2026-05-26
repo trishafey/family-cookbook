@@ -507,7 +507,7 @@ function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, onSaveT
       <div className="pairings-grid">
         {pairedRecipes.map(r => (
           <div key={r.id} className="pairing-tile from-book" onClick={() => openRecipe(r)}>
-            <div className="photo" style={{ backgroundImage: `url(${r.photo})` }}>
+            <div className="photo" style={{ backgroundImage: `url(${r.photoCard || r.photo})` }}>
               <div className="ribbon">In the cookbook</div>
             </div>
             <div className="body">

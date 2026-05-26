@@ -21,7 +21,7 @@ function FeaturedStrip({ recipes, onOpen }) {
       </div>
       {small.slice(0, 2).map((r) =>
       <div className="card small" key={r.id} onClick={() => onOpen(r)}>
-          <div className="photo" style={{ backgroundImage: `url(${r.photo})` }} />
+          <div className="photo" style={{ backgroundImage: `url(${r.photoCard || r.photo})` }} />
           <div className="body">
             <div className="author">{r.author}</div>
             <div className="title" style={{ fontSize: 18 }}>{r.title}</div>
@@ -43,7 +43,7 @@ function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selec
       onClick={() => selectionMode ? onToggleSelect(recipe) : onOpen(recipe)}
       data-screen-label={recipe.title}>
       
-      <div className="photo" style={{ backgroundImage: `url(${recipe.photo})` }}>
+      <div className="photo" style={{ backgroundImage: `url(${recipe.photoCard || recipe.photo})` }}>
         <div className="ribbon">{recipe.course}</div>
         {!selectionMode && recipe.favorite &&
         <div className="fave"><Icon name="heartFill" size={13} /></div>

@@ -84,7 +84,7 @@ function PlanMealModal({ open, onClose, recipes, onConfirm }) {
           <label>On the menu</label>
           {recipes.map(r => (
             <div className="recipe-pill" key={r.id}>
-              <div className="photo" style={{ backgroundImage: `url(${r.photo})` }} />
+              <div className="photo" style={{ backgroundImage: `url(${r.photoCard || r.photo})` }} />
               <div>
                 <div className="name">{r.title}</div>
                 <div style={{ fontSize: 11, color: "var(--ink-3)" }}>by {r.author}</div>
