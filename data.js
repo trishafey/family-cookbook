@@ -108,7 +108,7 @@ window.RECIPES = [
 
   {
     id: "blueberry-lemon-rolls",
-    title: "Extra Blueberry Lemon Poppyseed Sweet Rolls",
+    title: "Blueberry Lemon Pie Rolls",
     subtitle: "Soft, gooey bakery-style rolls — lemon sugar butter, jammy blueberries, crunchy crumble, tangy cream cheese glaze. Over the top in the best way.",
     author: "Patricia",
     cuisine: "American",
