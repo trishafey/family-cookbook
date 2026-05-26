@@ -3,18 +3,31 @@
 const { useState, useEffect, useMemo } = React;
 
 function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selectionMode, isFavorite, onToggleFavorite }) {
+  const handleCardClick = (e) => {
+    // Don't open the recipe if the click landed on the heart (or anything inside it)
+    if (e.target.closest && e.target.closest(".fave")) return;
+    if (selectionMode) onToggleSelect(recipe); else onOpen(recipe);
+  };
+  const handleFaveClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onToggleFavorite(recipe.id);
+  };
   return (
     <div
       className={`card ${selected ? "selected" : ""}`}
-      onClick={() => selectionMode ? onToggleSelect(recipe) : onOpen(recipe)}
+      onClick={handleCardClick}
       data-screen-label={recipe.title}>
 
       <div className="photo" style={{ backgroundImage: `url(${recipe.photoCard || recipe.photo})` }}>
         <div className="ribbon">{recipe.course}</div>
         {!selectionMode && onToggleFavorite &&
         <button
+          type="button"
           className={`fave ${isFavorite ? "on" : "off"}`}
-          onClick={(e) => { e.stopPropagation(); onToggleFavorite(recipe.id); }}
+          onClick={handleFaveClick}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
           aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
           aria-pressed={isFavorite}>
           <Icon name={isFavorite ? "heartFill" : "heart"} size={13} />
