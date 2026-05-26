@@ -20,6 +20,7 @@ window.RECIPES = [
     weightUnit: "lb",
     servingsDefault: 8,        // ~0.7 lb per person
     cookMinsPerLb: 5.09,       // 28 min for 5.5 lb
+    restMinsPerLb: 21.8,       // 120 min for 5.5 lb; smaller roasts retain less heat
     prep: 15, cook: 28, total: 28 + 120 + 17 + 15,
     difficulty: "Easy",
     nutrition: { cal: 720, protein: 58, carbs: 0, fat: 54, fiber: 0, sodium: 620 },
@@ -37,7 +38,7 @@ window.RECIPES = [
       { t: "Preheat oven",             d: "500°F. Rack in the lower-middle position.",                                                                                       mins: 15,  precision: "easy" },
       { t: "Season the roast",         d: "Pat dry. Rub with the salt-pepper-garlic-herb mix all over. Optional herb butter slather.",                                       mins: 10,  precision: "medium" },
       { t: "Roast at 500°F",           d: "Uncovered, fat-cap up. Timer for {COOKMINS} minutes.",                                                                            mins: 28,  precision: "watch",   dynamic: "cook" },
-      { t: "Turn oven OFF",            d: "Do NOT open the door. The residual heat finishes the roast. 2 hr = medium-rare (130–135°F). 2¼ hr = medium (135–140°F).",          mins: 120, precision: "patient" },
+      { t: "Turn oven OFF",            d: "Do NOT open the door. The residual heat finishes the roast — plan ~{RESTMINS} min for medium-rare at this weight. Broil time scales at ~5 min/lb at 500°F, and the off-oven rest scales with weight too (bigger roasts retain heat longer, bone-in retains better, oven insulation and starting temp matter). For accuracy, use a thermometer: rare 120–125°F, medium-rare 128–135°F, medium 135–145°F.", mins: 120, precision: "patient", dynamic: "rest" },
       { t: "Pull and check",           d: "Check internal temp. 130°F for medium-rare. The crust will be deep mahogany.",                                                    mins: 2,   precision: "careful" },
       { t: "Rest",                     d: "Tent loosely with foil. 15 minutes — non-negotiable.",                                                                            mins: 17,  precision: "easy" },
       { t: "Slice and serve",          d: "Carve along the bones, then slice across the grain. Horseradish cream or au jus alongside.",                                      mins: 10,  precision: "medium" },

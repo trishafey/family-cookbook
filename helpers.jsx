@@ -48,12 +48,18 @@ function scaleByWeight(recipe, newWeight) {
     return { ...i };
   });
   const cookMins = Math.round(newWeight * recipe.cookMinsPerLb);
-  const steps = recipe.steps.map(s =>
-    s.dynamic === "cook"
-      ? { ...s, mins: cookMins, d: s.d.replace("{COOKMINS}", cookMins) }
-      : { ...s, d: s.d.replace("{COOKMINS}", cookMins) }
-  );
-  return { ings, steps, cookMins, factor };
+  const restMins = recipe.restMinsPerLb ? Math.round(newWeight * recipe.restMinsPerLb) : null;
+  const fillTemplates = (d) => {
+    let out = d.replace("{COOKMINS}", cookMins);
+    if (restMins != null) out = out.replace("{RESTMINS}", restMins);
+    return out;
+  };
+  const steps = recipe.steps.map(s => {
+    if (s.dynamic === "cook") return { ...s, mins: cookMins, d: fillTemplates(s.d) };
+    if (s.dynamic === "rest" && restMins != null) return { ...s, mins: restMins, d: fillTemplates(s.d) };
+    return { ...s, d: fillTemplates(s.d) };
+  });
+  return { ings, steps, cookMins, restMins, factor };
 }
 
 // Combine ingredients from multiple scaled recipes into a single shopping list,
