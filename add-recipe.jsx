@@ -80,7 +80,9 @@ function AddRecipe({ onClose, onSave }) {
 
   const save = () => {
     if (!draft.title.trim()) { alert("Give it a title first."); return; }
-    onSave({ ...draft, total: draft.total || (draft.prep + draft.cook) });
+    const out = { ...draft, total: draft.total || (draft.prep + draft.cook) };
+    if (!out.link?.url) delete out.link;
+    onSave(out);
     onClose();
   };
 
@@ -172,6 +174,23 @@ function AddRecipe({ onClose, onSave }) {
             <label>Added by</label>
             <div>
               <input value={draft.author} onChange={(e) => setDraft({ ...draft, author: e.target.value })} placeholder="Your name" />
+            </div>
+          </div>
+          <div className="input-row">
+            <label>Source link</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                style={{ flex: 2 }}
+                value={draft.link?.url || ""}
+                onChange={(e) => setDraft({ ...draft, link: { ...(draft.link || {}), url: e.target.value } })}
+                placeholder="https://example.com/recipe (optional)"
+              />
+              <input
+                style={{ flex: 1 }}
+                value={draft.link?.label || ""}
+                onChange={(e) => setDraft({ ...draft, link: { ...(draft.link || {}), label: e.target.value } })}
+                placeholder="Link label"
+              />
             </div>
           </div>
           <div className="input-row">

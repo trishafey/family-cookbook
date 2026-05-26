@@ -13,12 +13,12 @@ const { useState, useEffect, useMemo } = React;
 function makeChips(recipe, currentServings, currentWeight) {
   const chips = [];
   if (recipe.scaleBy === "weight") {
-    [3, 4, 6, 8].forEach((w) => {
+    (recipe.weightOptions || [3, 4, 6, 8]).forEach((w) => {
       if (w !== currentWeight) chips.push({
-        label: `Adjust to ${w} lb`,
-        prompt: `Adjust the cook time and ingredients for a ${w} lb roast.`,
+        label: `Adjust to ${w} ${recipe.weightUnit || "lb"}`,
+        prompt: `Adjust the cook time and ingredients for a ${w} ${recipe.weightUnit || "lb"} roast.`,
         apply: (s) => s.setWeight(w),
-        summary: `Scaled to ${w} lb — cook time now ${Math.round(w * recipe.cookMinsPerLb)} min at 500°F`,
+        summary: `Scaled to ${w} ${recipe.weightUnit || "lb"} — cook time now ${Math.round(w * recipe.cookMinsPerLb)} min`,
       });
     });
   } else {
@@ -59,6 +59,28 @@ function makeChips(recipe, currentServings, currentWeight) {
     apply: () => {},
     summary: "Skip the overnight salt; use jarred sauce as a base; pre-shredded cheese. ~22 min total.",
   });
+
+  // Per-recipe extras
+  const perRecipe = {
+    "ewas-pierogies": [
+      { label: "Meat filling variation",            prompt: "How do I make a ground meat filling for these pierogies?",          apply: () => {}, summary: "Brown ground pork/beef with sautéed onion, garlic, and a pinch of marjoram. Cool fully before filling. See the 'Meat filling' card under Goes great with." },
+      { label: "Sauerkraut & mushroom filling",     prompt: "How do I make a sauerkraut and mushroom filling?",                  apply: () => {}, summary: "Sauté onion + chopped mushrooms in butter, add drained sauerkraut, cook until almost dry. The Wigilia classic. See the 'Sauerkraut & mushroom filling' suggestion." },
+      { label: "Blueberry (sweet) pierogies",       prompt: "Can I make blueberry pierogies with this dough?",                   apply: () => {}, summary: "Yes — toss blueberries with sugar + a little cornstarch right before filling. Use slightly less filling and seal extra well. Serve with butter, sour cream, sugar." },
+    ],
+    "trish-covid-bread": [
+      { label: "Olive + rosemary loaf",             prompt: "How do I add olives and rosemary to this bread?",                   apply: () => {}, summary: "Stir in ½ cup chopped olives and 1 tbsp chopped fresh rosemary when mixing the dough. Same rise, same bake." },
+      { label: "Date, walnut & cinnamon",           prompt: "How do I make a sweet date-walnut-cinnamon variation?",             apply: () => {}, summary: "Fold ½ cup chopped dates, ⅓ cup walnuts, and 1 tsp cinnamon into the dough. Lovely with butter and coffee." },
+      { label: "Surprise me with a pantry twist",   prompt: "Look at what's likely in my pantry and suggest a flavor twist.",    apply: () => {}, summary: "Try sesame + nigella seed crust; or pre-soaked dried apricots + cardamom; or grated cheddar + black pepper baked in." },
+    ],
+    "kt-turkey": [
+      { label: "Make the stuffing meatless",        prompt: "How do I make the stuffing meatless?",                              apply: () => {}, summary: "Replace the meat with ~1.5 cups sautéed mushrooms + 1 cup chopped celery + extra onion. Bind with the eggs as written; everything else stays." },
+    ],
+    "block-party-ribs": [
+      { label: "Turn rib broth into tomato soup",   prompt: "How do I use the leftover rib broth for Ryszard's tomato soup?",     apply: () => {}, summary: "Strain the rib broth, dissolve 1–2 bouillon cubes in it, and use it in place of the water in Ryszard's Creamy Tomato Soup. Add the crushed tomatoes and finish as written." },
+    ],
+  };
+  (perRecipe[recipe.id] || []).forEach(c => chips.push(c));
+
   return chips;
 }
 
@@ -164,6 +186,22 @@ function AIAdjustBox({ recipe, scaler, applied, setApplied }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Shared: Source link (when a recipe is adapted from somewhere)
+// ─────────────────────────────────────────────────────────────
+function SourceLink({ recipe }) {
+  if (!recipe.link?.url) return null;
+  return (
+    <div style={{ marginTop: 8, fontSize: 13, fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)" }}>
+      <Icon name="link" size={11} />{" "}
+      Adapted from{" "}
+      <a href={recipe.link.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "underline" }}>
+        {recipe.link.label || recipe.link.url}
+      </a>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // Shared: Tag row (filter-style tags inline on the recipe page)
 // ─────────────────────────────────────────────────────────────
 function TagRow({ recipe, scaled }) {
@@ -195,8 +233,8 @@ function TagRow({ recipe, scaled }) {
 // Helper: map a weight-based recipe's current weight to a sensible servings number
 function servingsForRecipe(recipe, scaler) {
   if (recipe.scaleBy === "weight") {
-    // ~0.7 lb per person for a roast — round to nearest whole serving
-    return Math.max(1, Math.round(scaler.weight / 0.7));
+    const lbPerServing = recipe.lbPerServing || 0.7;
+    return Math.max(1, Math.round(scaler.weight / lbPerServing));
   }
   return scaler.servings;
 }
@@ -211,8 +249,8 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
   const bumpServings = (delta) => {
     const next = Math.max(1, currentServings + delta);
     if (isWeight) {
-      // Walk weight up/down by ~0.7 lb per serving, keeping it neat
-      scaler.setWeight(+(next * 0.7).toFixed(1));
+      const lbPerServing = recipe.lbPerServing || 0.7;
+      scaler.setWeight(+(next * lbPerServing).toFixed(1));
     } else {
       scaler.setServings(next);
     }
@@ -285,7 +323,7 @@ function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
   }, [finalIngs]);
 
   const yieldLabel = recipe.scaleBy === "weight"
-    ? `${scaler.weight} lb · ~${Math.round(scaler.weight / 0.7)} servings`
+    ? `${scaler.weight} ${recipe.weightUnit || "lb"} · ~${Math.round(scaler.weight / (recipe.lbPerServing || 0.7))} servings`
     : `${scaler.servings} servings`;
 
   return (
@@ -374,13 +412,10 @@ function familySaysFor(recipe) {
   const map = {
     "prime-rib":     "Family cooks consistently pull at 125°F for true medium-rare and rest 20 minutes (not 15). For 8+ lb roasts, Mom adds 12 minutes of high heat at the start. Pete recommends buying the whole rib bone-on and tying it yourself — same result, ~$40 cheaper.",
     "linguine-vongole": "Most cooks open a second bottle of wine the moment the first hits the pan. Jules pairs with crusty sourdough for the sauce.",
-    "nonnas-lasagna":   "Dad triples the garlic. Marco swears it converted his Sicilian mother-in-law. Most family cooks make this a day ahead — they say day-old lasagna is better, and it slices cleanly cold.",
-    "grandma-biscuits": "Tom's cheddar + scallion variation has become its own family tradition. The non-twisting cut and laminated folds get echoed in nearly every comment.",
-    "dads-chili":       "Sam's coffee-with-the-stock trick (1 tbsp) gets quoted often. Dad still doesn't know.",
-    "blueberry-lemon-rolls": "Frozen-not-thawed blueberries is the consensus. Em did half-blueberry, half-raspberry and reports the family preferred the mixed pan.",
-    "sunday-roast-chicken":  "Em says save the carcass for stock every single time. Salting overnight is non-negotiable.",
-    "scallion-pancakes":     "Jay's note about the spiral being the magic comes up repeatedly. Don't rush the coiling step.",
-    "olive-oil-cake":        "Lucy's blood orange variation in winter is the recurring riff. Use the best olive oil you have.",
+    "blueberry-lemon-rolls": "Frozen-not-thawed blueberries is the consensus. The double glaze + crumble combo is the version everyone asks about.",
+    "block-party-ribs":  "The rib broth is the family's secret pantry item — strain it and use it as the base for Ryszard's Creamy Tomato Soup. Leftover ribs on Trish's Covid Bread is the standard next-day move.",
+    "kt-turkey":         "Time is a guide, temperature is the truth — pull at 165°F in the thickest part of the thigh. Most family cooks reduce the meat in the stuffing so it cooks through inside the bird.",
+    "ewas-pierogies":    "Potato & cheese is the default everyone agrees on; cabbage is a love-it-or-leave-it second. Topping ritual: butter, caramelized onions, crisp bacon, sour cream.",
   };
   return map[recipe.id] || null;
 }
@@ -480,6 +515,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
           </div>
           <h1>{recipe.title}</h1>
           <div className="sub">{recipe.subtitle}</div>
+          <SourceLink recipe={recipe} />
 
           <TagRow recipe={recipe} scaled={scaled} />
 
@@ -554,6 +590,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
             <div className="eyebrow">{recipe.course.toUpperCase()} · {recipe.cuisine.toUpperCase()}</div>
             <h1>{recipe.title}</h1>
             <div className="sub">{recipe.subtitle}</div>
+            <SourceLink recipe={recipe} />
             <div className="author-block">
               <div className="av">{recipe.author[0]}</div>
               <div>A recipe from <strong style={{ fontWeight: 500 }}>{recipe.author}</strong></div>
@@ -632,6 +669,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 18, color: "var(--ink-3)", maxWidth: "44ch" }}>
         {recipe.subtitle}
       </div>
+      <SourceLink recipe={recipe} />
 
       <div className="recipe-meta-line">
         <span><strong>{recipe.course}</strong></span>
