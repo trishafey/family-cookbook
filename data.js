@@ -261,6 +261,51 @@ window.RECIPES = [
     ],
     comments: [],
   },
+
+  {
+    id: "trish-covid-bread",
+    title: "Trish's \"Covid Bread\"",
+    subtitle: "No-knead loaf adapted from Mark Bittman — crackly crust, chewy inside, almost impossible to mess up.",
+    author: "Trish",
+    cuisine: "American",
+    course: "Breakfast",
+    diet: ["Vegan", "Dairy-free", "Nut-free"],
+    occasion: "Family style",
+    photo: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1200&q=80",
+    photoTone: "#8a5a2a",
+    favorite: false,
+    rating: 4.9,
+    cookCount: 18,
+    servingsDefault: 8,
+    prep: 10, cook: 45, total: 60 + 15 * 60, // includes 15 hr rise (midpoint of 12–18)
+    difficulty: "Easy",
+    nutrition: { cal: 170, protein: 5, carbs: 34, fat: 1, fiber: 1, sodium: 290 },
+    ingredients: [
+      { qty: 3,    unit: "cups", item: "all-purpose or bread flour (430g)", grp: "Dough" },
+      { qty: 0.25, unit: "tsp",  item: "instant yeast", grp: "Dough" },
+      { qty: 1.25, unit: "tsp",  item: "salt", grp: "Dough" },
+      { qty: 1.5,  unit: "cups", item: "water (350ml)", grp: "Dough" },
+      { qty: 0,    unit: "",     item: "extra flour, as needed", grp: "For Dusting" },
+      { qty: 0,    unit: "",     item: "cornmeal or wheat bran, for dusting (optional)", grp: "For Dusting" },
+    ],
+    steps: [
+      { t: "Mix the dough",     d: "Combine the flour, yeast, and salt in a large bowl. Add the water and stir until a shaggy, sticky dough forms. It should look rough and messy — that's right.", mins: 5,   precision: "easy" },
+      { t: "First rise",        d: "Cover the bowl tightly with plastic wrap, foil, or a towel. Leave at room temperature for 12–18 hours, until the surface is dotted with bubbles and the dough has doubled.", mins: 900, precision: "patient", hands: 0 },
+      { t: "Shape the dough",   d: "Turn the dough onto a well-floured surface. Fold it over itself once or twice and shape gently into a loose ball. Cover loosely and let rest while the oven heats.", mins: 15,  precision: "easy" },
+      { t: "Heat the pot",      d: "Place a Dutch oven with its lid into the oven and preheat to 450°F. Let the pot heat at least 30 minutes so it becomes very hot.", mins: 30,  precision: "careful" },
+      { t: "Bake covered",      d: "Carefully remove the hot pot. Dust the bottom with cornmeal or bran if using, then place the dough inside. Cover with the lid and bake for 30 minutes.", mins: 30,  precision: "medium" },
+      { t: "Bake uncovered",    d: "Remove the lid and continue baking another 10–15 minutes until deeply golden brown and crisp. The bread should sound hollow when tapped.", mins: 13,  precision: "watch" },
+      { t: "Cool before slicing", d: "Transfer to a wire rack and let cool at least 30 minutes before cutting.", mins: 30,  precision: "patient" },
+    ],
+    tips: [
+      "The wetter and stickier the dough, the better the texture.",
+      "Bread flour gives more chew, but all-purpose works beautifully too.",
+      "A longer rise (closer to 18 hours) creates deeper flavor and better bubbles.",
+      "Don't skip preheating the Dutch oven — that's what creates the bakery-style crust.",
+      "Best served warm with salted butter, soup, or olive oil. The dough looks wrong right up until it becomes amazing.",
+    ],
+    comments: [],
+  },
 ];
 
 window.AUTHORS  = [...new Set(window.RECIPES.map(r => r.author))];
