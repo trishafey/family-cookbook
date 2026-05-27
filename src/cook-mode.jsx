@@ -1,8 +1,12 @@
 // Cooking mode — one step at a time, full-screen, with reverse-timing.
 
-const { useState, useEffect, useMemo } = React;
+import { useState, useEffect, useMemo } from "react";
+import { useStorage, scheduleForFinish, fmtTime, fmtDuration, formatQty, Icon } from "./helpers.jsx";
+import { TimeOfDayInput } from "./ui.jsx";
+import { NeedHelp } from "./need-help.jsx";
+import { FLAGS } from "./config/flags.js";
 
-function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClose }) {
+export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClose }) {
   const [idx, setIdx] = useStorage(`cookmode:${recipe.id}:idx`, 0);
   const [done, setDone] = useStorage(`cookmode:${recipe.id}:done`, []);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -116,7 +120,7 @@ function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClo
             >
               <Icon name="check" size={14} /> {done.includes(idx) ? "Step completed" : "Mark step done"}
             </button>
-            {window.FLAGS.needHelp && (
+            {FLAGS.needHelp && (
             <button
               className={`btn ${helpOpen ? "primary" : ""}`}
               onClick={() => setHelpOpen(o => !o)}
@@ -167,4 +171,3 @@ function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClo
   );
 }
 
-Object.assign(window, { CookMode });

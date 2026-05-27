@@ -2,12 +2,14 @@
 // 1. PlanMealModal — pick a finish date+time
 // 2. MealPlanPage   — combined timeline + per-recipe tabs
 
-const { useState, useMemo } = React;
+import { useState, useMemo, Fragment } from "react";
+import { Icon, fmtDuration, fmtTime, scheduleForFinish } from "./helpers.jsx";
+import { Modal } from "./ui.jsx";
 
 // ─────────────────────────────────────────────────────────────
 // PlanMealModal — entry point. Asks "when do you want this done by"
 // ─────────────────────────────────────────────────────────────
-function PlanMealModal({ open, onClose, recipes, onConfirm }) {
+export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
   // Default = today @ 6pm
   const [finishTime, setFinishTime] = useState(() => {
     const d = new Date(); d.setHours(18, 0, 0, 0); return d;
@@ -114,7 +116,7 @@ function PlanMealModal({ open, onClose, recipes, onConfirm }) {
 // ─────────────────────────────────────────────────────────────
 const RECIPE_COLORS = ["#b04a2a", "#6e7a3a", "#3a5a6a", "#d68a2a", "#8a3a5a"];
 
-function MealPlanPage({ recipes, finishTime, onClose, onCookMode, onShop }) {
+export function MealPlanPage({ recipes, finishTime, onClose, onCookMode, onShop }) {
   const [tab, setTab] = useState("combined");
 
   // Each recipe gets its own back-scheduled timeline
@@ -242,7 +244,7 @@ function CombinedTimeline({ grouped }) {
   return (
     <div className="combined-timeline">
       {grouped.map((g, gi) => (
-        <React.Fragment key={gi}>
+        <Fragment key={gi}>
           <div className="timeline-marker">
             <Icon name="clock" size={13} /> {g.key}
           </div>
@@ -265,7 +267,7 @@ function CombinedTimeline({ grouped }) {
               </div>
             </div>
           ))}
-        </React.Fragment>
+        </Fragment>
       ))}
     </div>
   );
@@ -324,4 +326,3 @@ function PerRecipeView({ rec, onCookMode }) {
   );
 }
 
-Object.assign(window, { PlanMealModal, MealPlanPage });

@@ -1,6 +1,20 @@
 // Main app — router, top nav, tweaks panel, modal hosts.
 
-const { useState, useEffect, useMemo } = React;
+import { useState, useEffect, useMemo } from "react";
+import ReactDOM from "react-dom/client";
+import { Icon, useStorage, applyFilters } from "./helpers.jsx";
+import { RECIPES } from "./data.js";
+import { FLAGS } from "./config/flags.js";
+import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
+import { FiltersDrawer } from "./filters.jsx";
+import { Browse } from "./browse.jsx";
+import { RecipeDetail } from "./recipe.jsx";
+import { AddRecipe } from "./add-recipe.jsx";
+import { ExperimentationLab } from "./experiment.jsx";
+import { BuildAMeal } from "./meal.jsx";
+import { PlanMealModal, MealPlanPage } from "./meal-plan.jsx";
+import { ShoppingList } from "./shopping.jsx";
+import { CookMode } from "./cook-mode.jsx";
 
 function App() {
   // ─── View routing ───
@@ -10,7 +24,7 @@ function App() {
 
   // ─── Recipe collection ───
   const [extraRecipes, setExtraRecipes] = useStorage("recipes:added", []);
-  const recipes = useMemo(() => [...extraRecipes, ...window.RECIPES], [extraRecipes]);
+  const recipes = useMemo(() => [...extraRecipes, ...RECIPES], [extraRecipes]);
   const recipe = recipes.find(r => r.id === recipeId);
 
   // ─── Search / filter ───
@@ -99,7 +113,6 @@ function App() {
   };
 
   // ─── Tweaks ───
-  const { Tweak, TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } = window;
   const [tweaks, setTweak] = useTweaks(window.TWEAK_DEFAULTS);
   useEffect(() => {
     document.body.dataset.palette = tweaks.palette || "terracotta";
@@ -138,7 +151,7 @@ function App() {
             </button>
           </div>
           <div className="nav-actions">
-            {window.FLAGS.lab && (
+            {FLAGS.lab && (
             <button className="btn ghost sm" onClick={() => setView("lab")} title="Kitchen experimentation">
               <Icon name="sparkle" size={13} /> <span className="btn-label">The Lab</span>
             </button>
@@ -191,7 +204,7 @@ function App() {
       {view === "add" && (
         <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} />
       )}
-      {window.FLAGS.lab && view === "lab" && (
+      {FLAGS.lab && view === "lab" && (
         <ExperimentationLab
           onClose={backToBrowse}
           onPromote={onSaveRecipe}
@@ -313,3 +326,4 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+

@@ -308,7 +308,7 @@ export function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit =
   );
 }
 
-function TweakToggle({ label, value, onChange }) {
+export function TweakToggle({ label, value, onChange }) {
   return (
     <div className="twk-row twk-row-h">
       <div className="twk-lbl"><span>{label}</span></div>
@@ -319,7 +319,7 @@ function TweakToggle({ label, value, onChange }) {
   );
 }
 
-function TweakRadio({ label, value, options, onChange }) {
+export function TweakRadio({ label, value, options, onChange }) {
   const trackRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   // The active value is read by pointer-move handlers attached for the lifetime
@@ -391,7 +391,7 @@ function TweakRadio({ label, value, options, onChange }) {
   );
 }
 
-function TweakSelect({ label, value, options, onChange }) {
+export function TweakSelect({ label, value, options, onChange }) {
   return (
     <TweakRow label={label}>
       <select className="twk-field" value={value} onChange={(e) => onChange(e.target.value)}>
@@ -405,7 +405,7 @@ function TweakSelect({ label, value, options, onChange }) {
   );
 }
 
-function TweakText({ label, value, placeholder, onChange }) {
+export function TweakText({ label, value, placeholder, onChange }) {
   return (
     <TweakRow label={label}>
       <input className="twk-field" type="text" value={value} placeholder={placeholder}
@@ -414,7 +414,7 @@ function TweakText({ label, value, placeholder, onChange }) {
   );
 }
 
-function TweakNumber({ label, value, min, max, step = 1, unit = '', onChange }) {
+export function TweakNumber({ label, value, min, max, step = 1, unit = '', onChange }) {
   const clamp = (n) => {
     if (min != null && n < min) return min;
     if (max != null && n > max) return max;
@@ -474,7 +474,7 @@ const __TwkCheck = ({ light }) => (
 // rest stacked in a sharp column on the right. onChange emits the
 // option in the shape it was passed (string stays string, array stays array).
 // Without options it falls back to the native color input for back-compat.
-function TweakColor({ label, value, options, onChange }) {
+export function TweakColor({ label, value, options, onChange }) {
   if (!options || !options.length) {
     return (
       <div className="twk-row twk-row-h">
@@ -517,15 +517,9 @@ function TweakColor({ label, value, options, onChange }) {
   );
 }
 
-function TweakButton({ label, onClick, secondary = false }) {
+export function TweakButton({ label, onClick, secondary = false }) {
   return (
     <button type="button" className={secondary ? 'twk-btn secondary' : 'twk-btn'}
             onClick={onClick}>{label}</button>
   );
 }
-
-Object.assign(window, {
-  useTweaks, TweaksPanel, TweakSection, TweakRow,
-  TweakSlider, TweakToggle, TweakRadio, TweakSelect,
-  TweakText, TweakNumber, TweakColor, TweakButton,
-});

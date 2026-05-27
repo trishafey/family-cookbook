@@ -1,13 +1,16 @@
 // Add Recipe — AI paste / manual / photo / URL flows
 // AI extraction is mocked: paste text, hit "extract", a stub parses into fields.
 
-const { useState, useEffect, useMemo } = React;
+import { useState, useEffect, useMemo } from "react";
+import { Icon } from "./helpers.jsx";
+import { FLAGS } from "./config/flags.js";
+import { COURSES, OCCASIONS, DIETS } from "./data.js";
 
-function AddRecipe({ onClose, onSave }) {
+export function AddRecipe({ onClose, onSave }) {
   // Default to "manual" when no AI extraction is enabled, so users land
   // on the plain form. Once an AI flag is flipped on, "ai" becomes the
   // initial mode again.
-  const initialMode = window.FLAGS.extractText ? "ai" : "manual";
+  const initialMode = FLAGS.extractText ? "ai" : "manual";
   const [mode, setMode] = useState(initialMode); // ai | manual | photo | url
   const [aiText, setAiText] = useState("");
   const [extracting, setExtracting] = useState(false);
@@ -108,7 +111,7 @@ function AddRecipe({ onClose, onSave }) {
       </div>
 
       <div className="add-tabs">
-        {window.FLAGS.extractText && (
+        {FLAGS.extractText && (
         <button className={mode === "ai" ? "on" : ""} onClick={() => setMode("ai")}>
           <Icon name="sparkle" size={12} /> Paste & let AI fill it in
         </button>
@@ -116,12 +119,12 @@ function AddRecipe({ onClose, onSave }) {
         <button className={mode === "manual" ? "on" : ""} onClick={() => setMode("manual")}>
           <Icon name="edit" size={12} /> Manual entry
         </button>
-        {window.FLAGS.extractImage && (
+        {FLAGS.extractImage && (
         <button className={mode === "photo" ? "on" : ""} onClick={() => setMode("photo")}>
           <Icon name="camera" size={12} /> Photo of a cookbook
         </button>
         )}
-        {window.FLAGS.extractUrl && (
+        {FLAGS.extractUrl && (
         <button className={mode === "url" ? "on" : ""} onClick={() => setMode("url")}>
           <Icon name="link" size={12} /> Link to a URL
         </button>
@@ -207,7 +210,7 @@ function AddRecipe({ onClose, onSave }) {
             <label>Course / Cuisine</label>
             <div style={{ display: "flex", gap: 8 }}>
               <select value={draft.course} onChange={(e) => setDraft({ ...draft, course: e.target.value })}>
-                {window.COURSES.map(c => <option key={c}>{c}</option>)}
+                {COURSES.map(c => <option key={c}>{c}</option>)}
               </select>
               <input style={{ flex: 1 }} value={draft.cuisine} onChange={(e) => setDraft({ ...draft, cuisine: e.target.value })} placeholder="Cuisine (e.g. Italian)" />
             </div>
@@ -216,7 +219,7 @@ function AddRecipe({ onClose, onSave }) {
             <label>Occasion</label>
             <div>
               <select value={draft.occasion} onChange={(e) => setDraft({ ...draft, occasion: e.target.value })}>
-                {window.OCCASIONS.map(o => <option key={o}>{o}</option>)}
+                {OCCASIONS.map(o => <option key={o}>{o}</option>)}
               </select>
             </div>
           </div>
@@ -224,7 +227,7 @@ function AddRecipe({ onClose, onSave }) {
             <label>Diet / preferences</label>
             <div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {window.DIETS.map(d => (
+                {DIETS.map(d => (
                   <button
                     key={d}
                     className={`filter-pill ${draft.diet.includes(d) ? "on" : ""}`}
@@ -279,7 +282,7 @@ function AddRecipe({ onClose, onSave }) {
               <button className="btn ghost sm" onClick={() => setDraft({ ...draft, ingredients: [...draft.ingredients, { qty: 1, unit: "", item: "", grp: "Ingredients" }] })}>
                 <Icon name="plus" size={12} /> Add ingredient
               </button>
-              {window.FLAGS.extractText && (
+              {FLAGS.extractText && (
               <button className="btn ghost sm" style={{ marginLeft: 8 }} onClick={() => alert("AI would fill in missing quantities, units, and pantry-staple defaults.")}>
                 <Icon name="sparkle" size={12} /> AI fill missing details
               </button>
@@ -327,7 +330,7 @@ function AddRecipe({ onClose, onSave }) {
                 <div style={{ width: 100, height: 80, backgroundImage: `url(${draft.photo})`, backgroundSize: "cover", backgroundPosition: "center", border: "1px solid var(--rule)", borderRadius: 4 }} />
                 <div style={{ flex: 1 }}>
                   <button className="btn sm"><Icon name="camera" size={12} /> Upload photo</button>
-                  {window.FLAGS.extractImage && (
+                  {FLAGS.extractImage && (
                   <button className="btn ghost sm" style={{ marginLeft: 6 }}><Icon name="sparkle" size={12} /> AI-generate from title</button>
                   )}
                 </div>
@@ -381,4 +384,3 @@ function AddRecipe({ onClose, onSave }) {
   );
 }
 
-Object.assign(window, { AddRecipe });
