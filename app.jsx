@@ -117,8 +117,8 @@ function App() {
       <nav className="nav">
         <div className="nav-inner">
           <div className="brand" onClick={backToBrowse}>
-            <span className="mark">F</span>
-            <span className="title">The Family Cookbook</span>
+            <img className="mark" src="images/heirloom-tomato.png" alt="" />
+            <span className="title">Heirloom</span>
           </div>
           <div className="search">
             <Icon name="search" />
