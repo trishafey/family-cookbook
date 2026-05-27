@@ -1,8 +1,10 @@
 // Shopping-list modal — supports multiple recipes, check-off, copy/print/export.
 
-const { useState, useMemo } = React;
+import { useState, useMemo } from "react";
+import { useStorage, buildShoppingList, formatQty, Icon } from "./helpers.jsx";
+import { Modal } from "./ui.jsx";
 
-function ShoppingList({ open, onClose, payload }) {
+export function ShoppingList({ open, onClose, payload }) {
   // payload: [{ recipe, ings }]
   const [have, setHave] = useStorage("shop:have", {});
 
@@ -105,4 +107,3 @@ function ShoppingList({ open, onClose, payload }) {
   );
 }
 
-Object.assign(window, { ShoppingList });

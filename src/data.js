@@ -1,5 +1,5 @@
 // Family cookbook seed data.
-window.RECIPES = [
+export const RECIPES = [
   {
     id: "prime-rib",
     title: "Standing Prime Rib Roast",
@@ -787,8 +787,8 @@ window.RECIPES = [
   },
 ];
 
-window.AUTHORS  = [...new Set(window.RECIPES.map(r => r.author))];
-window.CUISINES = [...new Set(window.RECIPES.map(r => r.cuisine))];
-window.COURSES  = ["Breakfast", "Lunch", "Dinner", "Appetizer", "Dessert", "Snack"];
-window.DIETS    = ["Gluten-free","Dairy-free","Nut-free","Soy-free","Vegan","Vegetarian","Pescatarian","Carnivore","High protein","High fibre","Low carb","Low calorie"];
-window.OCCASIONS = ["Solo","Family style","Date night"];
+export const AUTHORS  = [...new Set(RECIPES.map(r => r.author))];
+export const CUISINES = [...new Set(RECIPES.map(r => r.cuisine))];
+export const COURSES  = ["Breakfast", "Lunch", "Dinner", "Appetizer", "Dessert", "Snack"];
+export const DIETS    = ["Gluten-free","Dairy-free","Nut-free","Soy-free","Vegan","Vegetarian","Pescatarian","Carnivore","High protein","High fibre","Low carb","Low calorie"];
+export const OCCASIONS = ["Solo","Family style","Date night"];

@@ -1,7 +1,12 @@
 // Recipe detail — 3 variants share the same state & sub-components.
 // Variants: editorial (default), magazine, binder.
 
-const { useState, useEffect, useMemo } = React;
+import { useState, useEffect, useMemo } from "react";
+import { Icon, fmtDuration, fmtTime, formatQty, scaleByWeight, scaleIngredients, scheduleForFinish } from "./helpers.jsx";
+import { TimeOfDayInput } from "./ui.jsx";
+import { NeedHelp } from "./need-help.jsx";
+import { PairingsSection } from "./pairings.jsx";
+import { FLAGS } from "./config/flags.js";
 
 // ─────────────────────────────────────────────────────────────
 // Shared: AI Adjust box
@@ -424,13 +429,13 @@ function familySaysFor(recipe) {
 // Shared: Cook's notes (disclosure)
 // ─────────────────────────────────────────────────────────────
 function CooksNotes({ recipe, defaultOpen }) {
-  const familySays = window.FLAGS.familySays ? familySaysFor(recipe) : null;
+  const familySays = FLAGS.familySays ? familySaysFor(recipe) : null;
   return (
     <details className="disclosure first" open={defaultOpen}>
       <summary>
         <span className="chev">›</span>
         <h3>Cook's notes</h3>
-        <span className="count">{recipe.tips.length} {recipe.tips.length === 1 ? "note" : "notes"}{window.FLAGS.familySays && " + AI summary"}</span>
+        <span className="count">{recipe.tips.length} {recipe.tips.length === 1 ? "note" : "notes"}{FLAGS.familySays && " + AI summary"}</span>
       </summary>
       <div className="disclosure-body">
         {familySays && (
@@ -550,14 +555,14 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="recipe-body">
         <aside className="ingredients-panel">
           <IngredientsCard recipe={recipe} finalIngs={finalIngs} scaler={scaler} onShop={() => onShop([{ recipe, ings: finalIngs }])}>
-            {window.FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />}
+            {FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />}
           </IngredientsCard>
         </aside>
 
         <div>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} />
-          {window.FLAGS.needHelp && <NeedHelp recipe={recipe} />}
+          {FLAGS.needHelp && <NeedHelp recipe={recipe} />}
         </div>
       </div>
 
@@ -630,14 +635,14 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="recipe-body">
         <aside className="ingredients-panel">
           <IngredientsCard recipe={recipe} finalIngs={finalIngs} scaler={scaler} onShop={() => onShop([{ recipe, ings: finalIngs }])}>
-            {window.FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />}
+            {FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />}
           </IngredientsCard>
         </aside>
 
         <div>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} />
-          {window.FLAGS.needHelp && <NeedHelp recipe={recipe} />}
+          {FLAGS.needHelp && <NeedHelp recipe={recipe} />}
         </div>
       </div>
 
@@ -708,14 +713,14 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="binder-body">
         <aside>
           <IngredientsCard recipe={recipe} finalIngs={finalIngs} scaler={scaler} onShop={() => onShop([{ recipe, ings: finalIngs }])}>
-            {window.FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />}
+            {FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />}
           </IngredientsCard>
         </aside>
         <div>
           <h3 style={{ marginBottom: 14, fontStyle: "italic" }}>How to make it</h3>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} />
-          {window.FLAGS.needHelp && <NeedHelp recipe={recipe} />}
+          {FLAGS.needHelp && <NeedHelp recipe={recipe} />}
         </div>
       </div>
 
@@ -731,7 +736,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
 // ─────────────────────────────────────────────────────────────
 // Top-level Recipe detail — holds all state, picks the variant
 // ─────────────────────────────────────────────────────────────
-function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, onSaveRecipe, onOpenRecipe, onSaveToLab }) {
+export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, onSaveRecipe, onOpenRecipe, onSaveToLab }) {
   // Scaling state
   const [servings, setServings] = useState(recipe.servingsDefault);
   const [weight, setWeight] = useState(recipe.weightDefault || 1);
@@ -812,4 +817,3 @@ function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop,
   );
 }
 
-Object.assign(window, { RecipeDetail });

@@ -1,7 +1,8 @@
 // Need Help — AI chat affordance. Used inline below the steps section
 // and (in compact form) inside cook mode for per-step assistance.
 
-const { useState, useEffect, useRef } = React;
+import { useState, useEffect, useRef } from "react";
+import { Icon } from "./helpers.jsx";
 
 // Curated prompts shown as chips. Adapts to whether we're in cook mode
 // (with a current step) or in the full-page steps section.
@@ -24,7 +25,7 @@ function makeHelpPrompts(recipe, currentStep) {
 
 // Mocked AI: in a real impl, this calls window.claude.complete().
 // For the demo we return a written-by-a-cook stub response based on the prompt.
-function mockHelpAnswer(prompt, recipe) {
+export function mockHelpAnswer(prompt, recipe) {
   const p = prompt.toLowerCase();
   if (p.includes("missing") || p.includes("sub")) {
     return `For ${recipe.title}, the most common swaps are: 1) Substitute fresh herbs 1:1 for dried (or use ⅓ if going dried→fresh). 2) Buttermilk = ¾ cup milk + 1 tbsp lemon juice, rest 5 min. 3) Out of red wine? Use beef stock + 1 tbsp red wine vinegar.\n\nIf you tell me which ingredient specifically, I'll give you the closest swap given what else is in the recipe.`;
@@ -44,7 +45,7 @@ function mockHelpAnswer(prompt, recipe) {
   return `Tell me a bit more — what stage are you at, and what does it look or taste like right now? I'll give you the path back.`;
 }
 
-function NeedHelp({ recipe, currentStep, compact, defaultOpen }) {
+export function NeedHelp({ recipe, currentStep, compact, defaultOpen }) {
   const [open, setOpen] = useState(!!defaultOpen);
   const [text, setText] = useState("");
   const [turns, setTurns] = useState([]);
@@ -140,4 +141,3 @@ function NeedHelp({ recipe, currentStep, compact, defaultOpen }) {
   );
 }
 
-Object.assign(window, { NeedHelp, mockHelpAnswer });

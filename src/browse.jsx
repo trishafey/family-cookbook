@@ -1,8 +1,11 @@
 // Browse / home page — the first thing the user sees.
 
-const { useState, useEffect, useMemo } = React;
+import { useState, useEffect, useMemo } from "react";
+import { Icon, Pill, fmtDuration } from "./helpers.jsx";
+import { FLAGS } from "./config/flags.js";
+import { COURSES, OCCASIONS } from "./data.js";
 
-function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selectionMode, isFavorite, onToggleFavorite }) {
+export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selectionMode, isFavorite, onToggleFavorite }) {
   const handleCardClick = (e) => {
     // Don't open the recipe if the click landed on the heart (or anything inside it)
     if (e.target.closest && e.target.closest(".fave")) return;
@@ -58,7 +61,7 @@ function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selec
 
 }
 
-function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab }) {
+export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab }) {
 
   // Active filter chips
   const activeChips = [];
@@ -99,7 +102,7 @@ function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, ope
         <div style={{ marginTop: 24, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
           <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> Add a recipe</button>
           <button className="btn" onClick={openMealBuilder}><Icon name="bowl" /> Build a meal</button>
-          {window.FLAGS.lab && (
+          {FLAGS.lab && (
           <button className="btn" onClick={openLab} style={{ borderColor: "rgba(110,122,58,.4)", color: "var(--accent-2)" }}>
             <Icon name="sparkle" /> Kitchen experimentation
           </button>
@@ -126,11 +129,11 @@ function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, ope
       {showingAll &&
       <div className="filterbar" style={{ marginTop: 56 }}>
           <span className="label">Browse by course</span>
-          {window.COURSES.map((c) =>
+          {COURSES.map((c) =>
         <button key={c} className="filter-pill" onClick={() => setFilters((f) => ({ ...f, courses: [c] }))}>{c}</button>
         )}
           <span className="label" style={{ marginLeft: 16 }}>Occasion</span>
-          {window.OCCASIONS.map((o) =>
+          {OCCASIONS.map((o) =>
         <button key={o} className="filter-pill" onClick={() => setFilters((f) => ({ ...f, occasions: [o] }))}>{o}</button>
         )}
           <button className="btn ghost sm" style={{ marginLeft: "auto" }} onClick={openFilters}>
@@ -192,4 +195,3 @@ function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, ope
 
 }
 
-Object.assign(window, { Browse, RecipeCard });

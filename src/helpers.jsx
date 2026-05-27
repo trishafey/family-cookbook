@@ -1,12 +1,11 @@
-// Shared utilities & primitives for the cookbook
-// Exports to window so all .jsx files share them.
+// Shared utilities & primitives for the cookbook.
 
-const { useState, useEffect, useMemo, useRef, useCallback } = React;
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
 // ───── Math / formatting ─────
 
 // Render a fractional quantity nicely. 0.5 → "½", 1.25 → "1¼"
-function formatQty(n) {
+export function formatQty(n) {
   if (n == null || n === 0 || isNaN(n)) return "";
   const sign = n < 0 ? "-" : "";
   n = Math.abs(n);
@@ -30,13 +29,13 @@ function formatQty(n) {
 }
 
 // Scale an ingredient list by a factor.
-function scaleIngredients(ings, factor) {
+export function scaleIngredients(ings, factor) {
   return ings.map(i => ({ ...i, qty: i.qty ? i.qty * factor : 0 }));
 }
 
 // Scale a weight-based recipe (prime rib). Updates qty proportionally
 // and the "cook" mins for any step marked dynamic:"cook".
-function scaleByWeight(recipe, newWeight) {
+export function scaleByWeight(recipe, newWeight) {
   const factor = newWeight / recipe.weightDefault;
   const ings = recipe.ingredients.map(i => {
     if (i.scalesWithWeight && i.perLb != null) {
@@ -64,7 +63,7 @@ function scaleByWeight(recipe, newWeight) {
 
 // Combine ingredients from multiple scaled recipes into a single shopping list,
 // grouped by item-name with summed quantities where units match.
-function buildShoppingList(scaledLists) {
+export function buildShoppingList(scaledLists) {
   const map = new Map();
   for (const list of scaledLists) {
     for (const ing of list) {
@@ -101,7 +100,7 @@ function buildShoppingList(scaledLists) {
 // Given a list of steps with mins and optional `hands` (overlap), and a finish
 // Date, return [{startTime, endTime}] for each step. Steps run sequentially —
 // a long simmer counts toward finish but the hands-on subset is what you do.
-function scheduleForFinish(steps, finishTime) {
+export function scheduleForFinish(steps, finishTime) {
   const totalMin = steps.reduce((s, x) => s + (x.mins || 0), 0);
   let cursor = new Date(finishTime);
   const out = new Array(steps.length);
@@ -114,7 +113,7 @@ function scheduleForFinish(steps, finishTime) {
   return { schedule: out, totalMin, startTime: cursor };
 }
 
-function fmtTime(d) {
+export function fmtTime(d) {
   if (!d) return "—";
   let h = d.getHours();
   const m = d.getMinutes();
@@ -123,7 +122,7 @@ function fmtTime(d) {
   const mm = m < 10 ? `0${m}` : m;
   return `${h}:${mm}${am ? "am" : "pm"}`;
 }
-function fmtDuration(min) {
+export function fmtDuration(min) {
   if (!min) return "0 min";
   if (min < 60) return `${min} min`;
   const h = Math.floor(min / 60);
@@ -132,7 +131,7 @@ function fmtDuration(min) {
 }
 
 // ───── Storage ─────
-function useStorage(key, initial) {
+export function useStorage(key, initial) {
   const [v, setV] = useState(() => {
     try {
       const raw = localStorage.getItem(key);
@@ -146,7 +145,7 @@ function useStorage(key, initial) {
 }
 
 // ───── Filtering ─────
-function applyFilters(recipes, { q, courses, diets, occasions, authors, cuisines, maxTime, difficulties }) {
+export function applyFilters(recipes, { q, courses, diets, occasions, authors, cuisines, maxTime, difficulties }) {
   return recipes.filter(r => {
     if (q) {
       const hay = `${r.title} ${r.author} ${r.cuisine} ${r.subtitle} ${r.course}`.toLowerCase();
@@ -164,7 +163,7 @@ function applyFilters(recipes, { q, courses, diets, occasions, authors, cuisines
 }
 
 // ───── Icons ─────
-const Icon = ({ name, size = 16 }) => {
+export const Icon = ({ name, size = 16 }) => {
   const paths = {
     search:    <path d="M11 19a8 8 0 1 1 5.3-2L21 21M15 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0Z" />,
     plus:      <path d="M12 5v14M5 12h14" />,
@@ -210,17 +209,10 @@ const Icon = ({ name, size = 16 }) => {
 };
 
 // Pill component
-const Pill = ({ children, kind = "", onClick, removable }) => (
+export const Pill = ({ children, kind = "", onClick, removable }) => (
   <span className={`pill ${kind}`} onClick={onClick}>
     {children}
     {removable && <span className="x" onClick={onClick}><Icon name="x" size={10} /></span>}
   </span>
 );
 
-Object.assign(window, {
-  formatQty, scaleIngredients, scaleByWeight, buildShoppingList,
-  scheduleForFinish, fmtTime, fmtDuration,
-  useStorage, applyFilters,
-  Icon, Pill,
-  useState, useEffect, useMemo, useRef, useCallback,
-});

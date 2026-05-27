@@ -5,12 +5,15 @@
 //      drinks, accompaniments that aren't yet in the book. Clicking opens
 //      a quick recipe modal that the user can "make" or save to the book.
 
-const { useState } = React;
+import { useState } from "react";
+import { Icon, fmtDuration, formatQty } from "./helpers.jsx";
+import { Modal } from "./ui.jsx";
+import { FLAGS } from "./config/flags.js";
 
 // ─────────────────────────────────────────────────────────────
 // Pairings data
 // ─────────────────────────────────────────────────────────────
-const PAIRINGS = {
+export const PAIRINGS = {
   "prime-rib": {
     recipes: [],
     suggestions: [
@@ -479,17 +482,17 @@ const PAIRINGS = {
   },
 };
 
-function pairingsFor(recipeId) {
+export function pairingsFor(recipeId) {
   return PAIRINGS[recipeId] || { recipes: [], suggestions: [] };
 }
 
 // ─────────────────────────────────────────────────────────────
 // PairingsSection — bottom of recipe page
 // ─────────────────────────────────────────────────────────────
-function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, onSaveToLab }) {
+export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, onSaveToLab }) {
   const { recipes: recIds, suggestions: rawSuggestions } = pairingsFor(recipe.id);
   const pairedRecipes = recIds.map(id => allRecipes.find(r => r.id === id)).filter(Boolean);
-  const suggestions = window.FLAGS.pairings ? rawSuggestions : [];
+  const suggestions = FLAGS.pairings ? rawSuggestions : [];
 
   const [activeSugg, setActiveSugg] = useState(null);
 
@@ -501,7 +504,7 @@ function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, onSaveT
         <span className="label">Goes great with</span>
       </div>
 
-      {window.FLAGS.pairings && (
+      {FLAGS.pairings && (
       <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)", marginBottom: 24, fontSize: 16 }}>
         AI-curated pairings — from the cookbook and new suggestions to round out the meal.
       </div>
@@ -705,4 +708,3 @@ function PairingSuggestionModal({ suggestion, forRecipe, onClose, onSaveRecipe, 
   );
 }
 
-Object.assign(window, { PairingsSection, PAIRINGS, pairingsFor });

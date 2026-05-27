@@ -1,7 +1,8 @@
 // Kitchen Experimentation Lab — chat-based recipe discovery / drafting.
 // Drafts live as "experiments" until promoted to the main cookbook.
 
-const { useState, useEffect, useRef, useMemo } = React;
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Icon, useStorage, fmtDuration, formatQty } from "./helpers.jsx";
 
 // ─────────────────────────────────────────────────────────────
 // Mock AI: turns a free-text request into a structured recipe.
@@ -190,7 +191,7 @@ function generateFridgeDraft(photoCount, hint) {
   };
 }
 
-function draftToRecipe(draft, status = "experiment") {
+export function draftToRecipe(draft, status = "experiment") {
   // Map the lab draft into our full recipe shape so it can live in the
   // cookbook (or in the experiment list).
   return {
@@ -225,7 +226,7 @@ function draftToRecipe(draft, status = "experiment") {
 // ─────────────────────────────────────────────────────────────
 // ExperimentationLab — the page
 // ─────────────────────────────────────────────────────────────
-function ExperimentationLab({ onClose, onPromote, allRecipes }) {
+export function ExperimentationLab({ onClose, onPromote, allRecipes }) {
   const [experiments, setExperiments] = useStorage("lab:experiments", []);
   const [activeId, setActiveId] = useState(null);
   const [chat, setChat] = useState([]); // { role: "you"|"ai", text, draft?, photos? }
@@ -632,4 +633,3 @@ function LabRecipeCard({ draft }) {
   );
 }
 
-Object.assign(window, { ExperimentationLab, draftToRecipe });
