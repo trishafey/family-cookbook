@@ -93,9 +93,11 @@ function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, ope
     <div className="app" data-screen-label="01 Browse">
       {/* Editorial masthead */}
       <header style={{ textAlign: "center", padding: "32px 0 48px", borderBottom: "1px solid var(--rule)", borderWidth: "0px" }}>
-        <h1 style={{ fontSize: 84, fontWeight: 400, margin: "12px 0 8px", letterSpacing: "-0.02em" }}>
-          The <em style={{ color: "var(--accent)" }}>Family</em> Cookbook
-        </h1>
+        <img
+          src="images/heirloom-tomato-tall-transparent.png"
+          alt="The Family Cookbook"
+          style={{ maxHeight: 360, width: "auto", maxWidth: "90%", margin: "0 auto", display: "block" }}
+        />
         <div style={{ marginTop: 24, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
           <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> Add a recipe</button>
           <button className="btn" onClick={openMealBuilder}><Icon name="bowl" /> Build a meal</button>
