@@ -99,9 +99,11 @@ function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, ope
         <div style={{ marginTop: 24, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
           <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> Add a recipe</button>
           <button className="btn" onClick={openMealBuilder}><Icon name="bowl" /> Build a meal</button>
+          {window.FLAGS.lab && (
           <button className="btn" onClick={openLab} style={{ borderColor: "rgba(110,122,58,.4)", color: "var(--accent-2)" }}>
             <Icon name="sparkle" /> Kitchen experimentation
           </button>
+          )}
         </div>
       </header>
 

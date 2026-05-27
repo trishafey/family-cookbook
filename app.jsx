@@ -138,9 +138,11 @@ function App() {
             </button>
           </div>
           <div className="nav-actions">
+            {window.FLAGS.lab && (
             <button className="btn ghost sm" onClick={() => setView("lab")} title="Kitchen experimentation">
               <Icon name="sparkle" size={13} /> <span className="btn-label">The Lab</span>
             </button>
+            )}
             <button className="btn ghost sm" onClick={() => setView("meal")} title="Build a meal">
               <Icon name="bowl" size={13} /> <span className="btn-label">Build a meal</span>
               {selection.length > 0 && <span style={{ marginLeft: 4, padding: "1px 6px", background: "var(--accent)", color: "var(--paper)", borderRadius: 999, fontSize: 10, fontWeight: 600 }}>{selection.length}</span>}
@@ -189,7 +191,7 @@ function App() {
       {view === "add" && (
         <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} />
       )}
-      {view === "lab" && (
+      {window.FLAGS.lab && view === "lab" && (
         <ExperimentationLab
           onClose={backToBrowse}
           onPromote={onSaveRecipe}

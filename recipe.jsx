@@ -424,13 +424,13 @@ function familySaysFor(recipe) {
 // Shared: Cook's notes (disclosure)
 // ─────────────────────────────────────────────────────────────
 function CooksNotes({ recipe, defaultOpen }) {
-  const familySays = familySaysFor(recipe);
+  const familySays = window.FLAGS.familySays ? familySaysFor(recipe) : null;
   return (
     <details className="disclosure first" open={defaultOpen}>
       <summary>
         <span className="chev">›</span>
         <h3>Cook's notes</h3>
-        <span className="count">{recipe.tips.length} {recipe.tips.length === 1 ? "note" : "notes"} + AI summary</span>
+        <span className="count">{recipe.tips.length} {recipe.tips.length === 1 ? "note" : "notes"}{window.FLAGS.familySays && " + AI summary"}</span>
       </summary>
       <div className="disclosure-body">
         {familySays && (
@@ -550,14 +550,14 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="recipe-body">
         <aside className="ingredients-panel">
           <IngredientsCard recipe={recipe} finalIngs={finalIngs} scaler={scaler} onShop={() => onShop([{ recipe, ings: finalIngs }])}>
-            <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />
+            {window.FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />}
           </IngredientsCard>
         </aside>
 
         <div>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} />
-          <NeedHelp recipe={recipe} />
+          {window.FLAGS.needHelp && <NeedHelp recipe={recipe} />}
         </div>
       </div>
 
@@ -630,14 +630,14 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="recipe-body">
         <aside className="ingredients-panel">
           <IngredientsCard recipe={recipe} finalIngs={finalIngs} scaler={scaler} onShop={() => onShop([{ recipe, ings: finalIngs }])}>
-            <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />
+            {window.FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />}
           </IngredientsCard>
         </aside>
 
         <div>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} />
-          <NeedHelp recipe={recipe} />
+          {window.FLAGS.needHelp && <NeedHelp recipe={recipe} />}
         </div>
       </div>
 
@@ -708,14 +708,14 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="binder-body">
         <aside>
           <IngredientsCard recipe={recipe} finalIngs={finalIngs} scaler={scaler} onShop={() => onShop([{ recipe, ings: finalIngs }])}>
-            <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />
+            {window.FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />}
           </IngredientsCard>
         </aside>
         <div>
           <h3 style={{ marginBottom: 14, fontStyle: "italic" }}>How to make it</h3>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} />
-          <NeedHelp recipe={recipe} />
+          {window.FLAGS.needHelp && <NeedHelp recipe={recipe} />}
         </div>
       </div>
 

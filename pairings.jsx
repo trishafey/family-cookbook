@@ -487,8 +487,9 @@ function pairingsFor(recipeId) {
 // PairingsSection — bottom of recipe page
 // ─────────────────────────────────────────────────────────────
 function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, onSaveToLab }) {
-  const { recipes: recIds, suggestions } = pairingsFor(recipe.id);
+  const { recipes: recIds, suggestions: rawSuggestions } = pairingsFor(recipe.id);
   const pairedRecipes = recIds.map(id => allRecipes.find(r => r.id === id)).filter(Boolean);
+  const suggestions = window.FLAGS.pairings ? rawSuggestions : [];
 
   const [activeSugg, setActiveSugg] = useState(null);
 
@@ -500,9 +501,11 @@ function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, onSaveT
         <span className="label">Goes great with</span>
       </div>
 
+      {window.FLAGS.pairings && (
       <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)", marginBottom: 24, fontSize: 16 }}>
         AI-curated pairings — from the cookbook and new suggestions to round out the meal.
       </div>
+      )}
 
       <div className="pairings-grid">
         {pairedRecipes.map(r => (

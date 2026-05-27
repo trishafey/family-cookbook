@@ -116,12 +116,14 @@ function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClo
             >
               <Icon name="check" size={14} /> {done.includes(idx) ? "Step completed" : "Mark step done"}
             </button>
+            {window.FLAGS.needHelp && (
             <button
               className={`btn ${helpOpen ? "primary" : ""}`}
               onClick={() => setHelpOpen(o => !o)}
             >
               <Icon name="sparkle" size={13} /> {helpOpen ? "Hide help" : "Need help with this step?"}
             </button>
+            )}
             <span style={{ fontSize: 12, color: "var(--ink-3)", marginLeft: "auto" }}>
               {done.length} of {steps.length} complete · press <span className="mono">SPACE</span>
             </span>
