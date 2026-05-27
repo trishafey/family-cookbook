@@ -175,6 +175,50 @@ export function useRecipes() {
   return { recipes, loading, error, refresh };
 }
 
+// ───── Auth (via Cloudflare Access) ─────
+// Returns the signed-in user's email, or null if not signed in. The
+// /api/admin/me endpoint sits behind Access; with Accept: application/json
+// it returns 401 cleanly when the user isn't authenticated, so we can
+// detect sign-in state without a redirect dance.
+export function useAuth() {
+  const [email, setEmail] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/me", {
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEmail(data.email);
+      } else {
+        setEmail(null);
+      }
+    } catch {
+      setEmail(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  return { email, loading, refresh };
+}
+
+// Build a URL that, when navigated to, will route the user through
+// Cloudflare Access (login if needed) and return them to `returnTo`.
+export function signInUrl(returnTo) {
+  const target = returnTo ?? (window.location.pathname + window.location.search);
+  return `/api/admin/login?return=${encodeURIComponent(target)}`;
+}
+
+// Cloudflare Access's built-in logout URL — clears the session cookie.
+export const SIGN_OUT_URL = "/cdn-cgi/access/logout";
+
+
 
 // ───── Filtering ─────
 export function applyFilters(recipes, { q, courses, diets, occasions, authors, cuisines, maxTime, difficulties }) {

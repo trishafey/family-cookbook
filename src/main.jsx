@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRecipes, applyFilters } from "./helpers.jsx";
+import { Icon, useStorage, useRecipes, useAuth, signInUrl, SIGN_OUT_URL, applyFilters } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
 import { FiltersDrawer } from "./filters.jsx";
@@ -24,13 +24,15 @@ function App() {
   // ─── Recipe collection ───
   // Server-of-record is the D1 cookbook via /api/recipes; useRecipes caches
   // the response in localStorage so the site loads instantly for returning
-  // visitors. `extraRecipes` is the legacy per-device localStorage list of
-  // recipes the user added before the shared backend existed — kept until
-  // writes are wired through the API (chunk 5) so nothing local is lost.
-  const { recipes: serverRecipes, loading: recipesLoading, refresh: refreshRecipes } = useRecipes();
-  const [extraRecipes, setExtraRecipes] = useStorage("recipes:added", []);
+  // visitors. `extraRecipes` is the legacy per-device list from before the
+  // shared backend — merged in so old additions don't disappear.
+  const { recipes: serverRecipes, refresh: refreshRecipes } = useRecipes();
+  const [extraRecipes] = useStorage("recipes:added", []);
   const recipes = useMemo(() => [...extraRecipes, ...serverRecipes], [extraRecipes, serverRecipes]);
   const recipe = recipes.find(r => r.id === recipeId);
+
+  // ─── Sign-in state ───
+  const { email: authEmail } = useAuth();
 
   // ─── Search / filter ───
   const [query, setQuery] = useState("");
@@ -92,8 +94,21 @@ function App() {
   };
 
   // ─── Save a new recipe from Add flow ───
-  const onSaveRecipe = (draft) => {
-    setExtraRecipes(arr => [draft, ...arr]);
+  // POSTs to the Access-protected write endpoint, then refreshes the
+  // recipe list so the new entry appears immediately. Throws so the
+  // AddRecipe form can show an error if the save fails.
+  const onSaveRecipe = async (draft) => {
+    const res = await fetch("/api/admin/recipes", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(draft),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      throw new Error(error || `Save failed (${res.status})`);
+    }
+    await refreshRecipes();
     setView("recipe");
     setRecipeId(draft.id);
   };
@@ -168,6 +183,15 @@ function App() {
             <button className="btn primary sm" onClick={() => setView("add")} title="Add recipe">
               <Icon name="plus" size={13} /> <span className="btn-label">Add recipe</span>
             </button>
+            {authEmail ? (
+              <a className="btn ghost sm" href={SIGN_OUT_URL} title={`Signed in as ${authEmail} — tap to sign out`}>
+                <span className="btn-label">{authEmail.split("@")[0]}</span>
+              </a>
+            ) : (
+              <a className="btn ghost sm" href={signInUrl()} title="Sign in to add or edit recipes">
+                <span className="btn-label">Sign in</span>
+              </a>
+            )}
           </div>
         </div>
       </nav>
@@ -207,7 +231,7 @@ function App() {
         />
       )}
       {view === "add" && (
-        <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} />
+        <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} authEmail={authEmail} />
       )}
       {FLAGS.lab && view === "lab" && (
         <ExperimentationLab
