@@ -144,6 +144,38 @@ export function useStorage(key, initial) {
   return [v, setV];
 }
 
+// ───── Recipes (from the cookbook API, with localStorage as offline cache) ─────
+// On first render this returns whatever was cached last time (instant), then
+// fetches /api/recipes in the background and updates when fresh data arrives.
+// `loading` is only true when the cache is empty AND the network hasn't
+// resolved yet — so returning visitors never see a loading spinner.
+export function useRecipes() {
+  const [recipes, setRecipes] = useStorage("recipes:cache", []);
+  const [loading, setLoading] = useState(() => {
+    try { return !localStorage.getItem("recipes:cache"); } catch { return true; }
+  });
+  const [error, setError] = useState(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/recipes");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setRecipes(data);
+      setError(null);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [setRecipes]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  return { recipes, loading, error, refresh };
+}
+
+
 // ───── Filtering ─────
 export function applyFilters(recipes, { q, courses, diets, occasions, authors, cuisines, maxTime, difficulties }) {
   return recipes.filter(r => {
