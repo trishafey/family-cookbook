@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>The Family Cookbook</title>
 
-<link rel="icon" type="image/png" href="images/heirloom-tomato-app.png" />
-<link rel="apple-touch-icon" href="images/heirloom-tomato-app.png" />
+<link rel="icon" type="image/png" href="/images/heirloom-tomato-app.png" />
+<link rel="apple-touch-icon" href="/images/heirloom-tomato-app.png" />
 <meta name="apple-mobile-web-app-title" content="Cookbook" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="theme-color" content="#f6efe4" />
@@ -15,14 +15,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,500;8..60,600;8..60,700&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-<link rel="stylesheet" href="app.css" />
-
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="/app.css" />
 
 <script>
-  // Default tweaks — direct-editable on disk
+  // Default tweaks — direct-editable on disk (the EDITMODE markers let
+  // an external tool rewrite this JSON block in place).
   window.TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
     "palette": "terracotta",
     "density": "comfortable",
@@ -33,23 +30,6 @@
 </head>
 <body>
 <div id="root"></div>
-
-<script src="flags.js"></script>
-<script src="data.js"></script>
-<script type="text/babel" src="tweaks-panel.jsx"></script>
-<script type="text/babel" src="helpers.jsx"></script>
-<script type="text/babel" src="ui.jsx"></script>
-<script type="text/babel" src="browse.jsx"></script>
-<script type="text/babel" src="recipe.jsx"></script>
-<script type="text/babel" src="cook-mode.jsx"></script>
-<script type="text/babel" src="shopping.jsx"></script>
-<script type="text/babel" src="add-recipe.jsx"></script>
-<script type="text/babel" src="meal.jsx"></script>
-<script type="text/babel" src="meal-plan.jsx"></script>
-<script type="text/babel" src="pairings.jsx"></script>
-<script type="text/babel" src="experiment.jsx"></script>
-<script type="text/babel" src="need-help.jsx"></script>
-<script type="text/babel" src="filters.jsx"></script>
-<script type="text/babel" src="app.jsx"></script>
+<script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

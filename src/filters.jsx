@@ -1,8 +1,11 @@
 // Filters drawer
 
-const { useState } = React;
+import { useState } from "react";
+import { fmtDuration } from "./helpers.jsx";
+import { Drawer } from "./ui.jsx";
+import { COURSES, OCCASIONS, DIETS, CUISINES, AUTHORS } from "./data.js";
 
-function FiltersDrawer({ open, onClose, filters, setFilters }) {
+export function FiltersDrawer({ open, onClose, filters, setFilters }) {
   const toggle = (k, v) => {
     setFilters(f => ({ ...f, [k]: f[k].includes(v) ? f[k].filter(x => x !== v) : [...f[k], v] }));
   };
@@ -24,7 +27,7 @@ function FiltersDrawer({ open, onClose, filters, setFilters }) {
       <div className="drawer-section">
         <h4>Course</h4>
         <div className="pills">
-          {window.COURSES.map(c => (
+          {COURSES.map(c => (
             <button key={c} className={`filter-pill ${filters.courses.includes(c) ? "on" : ""}`} onClick={() => toggle("courses", c)}>{c}</button>
           ))}
         </div>
@@ -33,7 +36,7 @@ function FiltersDrawer({ open, onClose, filters, setFilters }) {
       <div className="drawer-section">
         <h4>Occasion</h4>
         <div className="pills">
-          {window.OCCASIONS.map(o => (
+          {OCCASIONS.map(o => (
             <button key={o} className={`filter-pill ${filters.occasions.includes(o) ? "on" : ""}`} onClick={() => toggle("occasions", o)}>{o}</button>
           ))}
         </div>
@@ -62,7 +65,7 @@ function FiltersDrawer({ open, onClose, filters, setFilters }) {
       <div className="drawer-section">
         <h4>Allergies & preferences</h4>
         <div className="pills">
-          {window.DIETS.map(d => (
+          {DIETS.map(d => (
             <button key={d} className={`filter-pill ${filters.diets.includes(d) ? "on" : ""}`} onClick={() => toggle("diets", d)}>{d}</button>
           ))}
         </div>
@@ -74,7 +77,7 @@ function FiltersDrawer({ open, onClose, filters, setFilters }) {
       <div className="drawer-section">
         <h4>Cuisine</h4>
         <div className="pills">
-          {window.CUISINES.map(c => (
+          {CUISINES.map(c => (
             <button key={c} className={`filter-pill ${filters.cuisines.includes(c) ? "on" : ""}`} onClick={() => toggle("cuisines", c)}>{c}</button>
           ))}
         </div>
@@ -83,7 +86,7 @@ function FiltersDrawer({ open, onClose, filters, setFilters }) {
       <div className="drawer-section">
         <h4>Created by</h4>
         <div className="pills">
-          {window.AUTHORS.map(a => (
+          {AUTHORS.map(a => (
             <button key={a} className={`filter-pill ${filters.authors.includes(a) ? "on" : ""}`} onClick={() => toggle("authors", a)}>{a}</button>
           ))}
         </div>
@@ -91,5 +94,3 @@ function FiltersDrawer({ open, onClose, filters, setFilters }) {
     </Drawer>
   );
 }
-
-Object.assign(window, { FiltersDrawer });

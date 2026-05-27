@@ -10,7 +10,7 @@
 // hand-written PAIRINGS data in pairings.jsx are NOT AI — leave them
 // visible regardless of these flags.
 
-window.FLAGS = {
+export const FLAGS = {
   extractText:  false,  // Add Recipe → paste text → recipe draft
   extractUrl:   false,  // Add Recipe → URL → recipe draft
   extractImage: false,  // Add Recipe → photo of a recipe card → draft

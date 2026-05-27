@@ -1,8 +1,9 @@
 // ui.jsx — small shared UI bits
 
-const { useState, useEffect } = React;
+import { useState, useEffect } from "react";
+import { Icon } from "./helpers.jsx";
 
-function Modal({ open, onClose, title, subtitle, children, footer, size }) {
+export function Modal({ open, onClose, title, subtitle, children, footer, size }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -29,7 +30,7 @@ function Modal({ open, onClose, title, subtitle, children, footer, size }) {
   );
 }
 
-function Drawer({ open, onClose, title, children, footer }) {
+export function Drawer({ open, onClose, title, children, footer }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -57,7 +58,7 @@ function Drawer({ open, onClose, title, children, footer }) {
 }
 
 // Scaler control — number scaler with +/- buttons. step can be fractional.
-function Scaler({ value, onChange, min = 0.5, max = 99, step = 1, fmt = (v) => v }) {
+export function Scaler({ value, onChange, min = 0.5, max = 99, step = 1, fmt = (v) => v }) {
   return (
     <div className="scaler">
       <button onClick={() => onChange(Math.max(min, +(value - step).toFixed(2)))} aria-label="Decrease">
@@ -72,7 +73,7 @@ function Scaler({ value, onChange, min = 0.5, max = 99, step = 1, fmt = (v) => v
 }
 
 // Time-of-day input (used for "done by" reverse-scheduling).
-function TimeOfDayInput({ value, onChange }) {
+export function TimeOfDayInput({ value, onChange }) {
   // value: Date
   const hhmm = `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`;
   return (
@@ -92,5 +93,3 @@ function TimeOfDayInput({ value, onChange }) {
     />
   );
 }
-
-Object.assign(window, { Modal, Drawer, Scaler, TimeOfDayInput });
