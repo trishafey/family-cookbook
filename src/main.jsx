@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, applyFilters } from "./helpers.jsx";
-import { RECIPES } from "./data.js";
+import { Icon, useStorage, useRecipes, applyFilters } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
 import { FiltersDrawer } from "./filters.jsx";
@@ -23,8 +22,14 @@ function App() {
   const [recipeId, setRecipeId] = useState(null);
 
   // ─── Recipe collection ───
+  // Server-of-record is the D1 cookbook via /api/recipes; useRecipes caches
+  // the response in localStorage so the site loads instantly for returning
+  // visitors. `extraRecipes` is the legacy per-device localStorage list of
+  // recipes the user added before the shared backend existed — kept until
+  // writes are wired through the API (chunk 5) so nothing local is lost.
+  const { recipes: serverRecipes, loading: recipesLoading, refresh: refreshRecipes } = useRecipes();
   const [extraRecipes, setExtraRecipes] = useStorage("recipes:added", []);
-  const recipes = useMemo(() => [...extraRecipes, ...RECIPES], [extraRecipes]);
+  const recipes = useMemo(() => [...extraRecipes, ...serverRecipes], [extraRecipes, serverRecipes]);
   const recipe = recipes.find(r => r.id === recipeId);
 
   // ─── Search / filter ───
