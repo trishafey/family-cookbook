@@ -318,6 +318,143 @@ app.delete("/api/admin/recipes/:id", async (c) => {
 // Upload a recipe photo. Multipart with a single 'file' part; stored in
 // R2 keyed by a random id. Returns the URL the React app saves into
 // draft.photo.
+// ─── AI: paste-text → recipe draft ───
+// Sends the user's pasted text to OpenAI with a strict json_schema
+// response format matching the cookbook's recipe shape, so the model
+// can't hallucinate extra keys or skip required ones. Gated behind
+// a Workers KV-free daily-spend cap (stored in D1 ai_usage table) so
+// a runaway loop can't drain the OpenAI account.
+
+const AI_DAILY_CAP_CENTS = 100;         // $1/day. Bump in code when the family wants more.
+const AI_COST_PER_CALL_CENTS = 1;       // Coarse: real cost is ~0.06¢; we round up so the cap doubles as a call-rate limit.
+const AI_OPENAI_MODEL = "gpt-4o-mini";
+
+const AI_EXTRACT_SYSTEM_PROMPT = `You are a recipe extraction assistant for a family cookbook. The user will paste text containing a recipe — could be an email from a relative, a blog post copy-paste, a screenshot transcript, or freeform notes. Extract the recipe into structured JSON matching the provided schema.
+
+Guidelines:
+- Use the closest match for course (Breakfast / Lunch / Dinner / Appetizer / Dessert / Snack).
+- Use null for fields you can't confidently determine.
+- For ingredients, group similar items under the same "grp" (e.g., "Sauce", "Dough", "Filling", "Garnish"). Use "Ingredients" if there is only one logical group.
+- For each step, write a short title (max 60 chars) summarizing what happens, and a fuller description.
+- Step precision: "easy" (set and forget), "medium" (some attention), "careful" (precise), "watch" (don't walk away — heat, browning), "patient" (long wait — rest, rise, marinate).
+- For mins per step, give your best estimate. For passive steps (resting, marinating), include the wait time.
+- For diet tags, ONLY use values from this list when clearly applicable: Gluten-free, Dairy-free, Nut-free, Soy-free, Vegan, Vegetarian, Pescatarian, Carnivore, High protein, High fibre, Low carb, Low calorie.
+- Default servingsDefault to 4 if not specified.
+- Default difficulty to "Easy" if not clear.
+- Pull any "for best results" / "variations" / "notes" into tips as separate strings.`;
+
+const AI_RECIPE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title", "subtitle", "author", "cuisine", "course", "occasion", "diet", "prep", "cook", "servingsDefault", "difficulty", "ingredients", "steps", "tips"],
+  properties: {
+    title:    { type: "string" },
+    subtitle: { type: ["string", "null"] },
+    author:   { type: ["string", "null"] },
+    cuisine:  { type: ["string", "null"] },
+    course:   { type: "string", enum: ["Breakfast", "Lunch", "Dinner", "Appetizer", "Dessert", "Snack"] },
+    occasion: { type: "string", enum: ["Solo", "Family style", "Date night"] },
+    diet:     { type: "array", items: { type: "string" } },
+    prep:     { type: "number" },
+    cook:     { type: "number" },
+    servingsDefault: { type: "number" },
+    difficulty: { type: "string", enum: ["Easy", "Medium", "Hard"] },
+    ingredients: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["qty", "unit", "item", "grp"],
+        properties: {
+          qty: { type: "number" },
+          unit: { type: "string" },
+          item: { type: "string" },
+          grp: { type: "string" },
+        },
+      },
+    },
+    steps: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["t", "d", "mins", "precision"],
+        properties: {
+          t: { type: "string" },
+          d: { type: "string" },
+          mins: { type: "number" },
+          precision: { type: "string", enum: ["easy", "medium", "careful", "watch", "patient"] },
+        },
+      },
+    },
+    tips: { type: "array", items: { type: "string" } },
+  },
+};
+
+async function aiCapCheckAndIncrement(c) {
+  const today = new Date().toISOString().slice(0, 10);
+  const row = await c.env.DB.prepare("SELECT cost_cents FROM ai_usage WHERE date = ?").bind(today).first();
+  if ((row?.cost_cents || 0) >= AI_DAILY_CAP_CENTS) {
+    return { ok: false, error: "Daily AI spend cap reached. Try again tomorrow." };
+  }
+  await c.env.DB.prepare(
+    "INSERT INTO ai_usage (date, cost_cents) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET cost_cents = cost_cents + excluded.cost_cents"
+  ).bind(today, AI_COST_PER_CALL_CENTS).run();
+  return { ok: true };
+}
+
+app.post("/api/admin/ai/extract-text", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+
+  if (!c.env.OPENAI_API_KEY) {
+    return c.json({ error: "OpenAI API key is not configured on this Worker." }, 500);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const text = (body?.text || "").trim();
+  if (!text) return c.json({ error: "no text provided" }, 400);
+  if (text.length > 30000) return c.json({ error: "text too long (max 30000 chars)" }, 413);
+
+  const cap = await aiCapCheckAndIncrement(c);
+  if (!cap.ok) return c.json({ error: cap.error }, 429);
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${c.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages: [
+        { role: "system", content: AI_EXTRACT_SYSTEM_PROMPT },
+        { role: "user", content: text },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "recipe", strict: true, schema: AI_RECIPE_SCHEMA },
+      },
+    }),
+  });
+
+  if (!openaiRes.ok) {
+    const detail = await openaiRes.text();
+    console.error("OpenAI error", openaiRes.status, detail);
+    return c.json({ error: `OpenAI returned ${openaiRes.status}. The text may have been hard to parse — try simplifying it or using the manual form.` }, 502);
+  }
+
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return c.json({ error: "OpenAI returned no content." }, 502);
+
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+
+  return c.json(parsed);
+});
+
 app.post("/api/admin/uploads", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);

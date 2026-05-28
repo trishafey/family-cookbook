@@ -362,46 +362,54 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     }
   }, []);
 
-  // ─── Fake AI extraction: take rough text, sketch a draft ───
+  // Real AI extraction. POSTs the pasted text to the Worker, which
+  // proxies to OpenAI with a strict JSON schema matching the recipe
+  // shape. The response is merged into a fresh draft (so all the
+  // optional fields the form expects are populated) and the user lands
+  // in the manual view to review and tweak before saving.
   const runAI = async () => {
     if (!aiText.trim()) return;
     setExtracting(true);
-    await new Promise(r => setTimeout(r, 900)); // simulate
-
-    // Heuristic-only extractor for demo. Real impl would call Claude.
-    const lines = aiText.split("\n").map(l => l.trim()).filter(Boolean);
-    const titleGuess = lines[0]?.slice(0, 80) || "Untitled Family Recipe";
-    const looksLikeIng = (l) => /^(\d|½|¼|¾|⅓|⅔|⅛|one|two|three|a |an )/i.test(l) || /\b(cup|tbsp|tsp|oz|lb|gram|kg|clove)/i.test(l);
-    const looksLikeStep = (l) => /(heat|bake|cook|simmer|add|stir|mix|combine|preheat|whisk|fold|roll|fry|sauté|toast|serve|garnish|slice)/i.test(l) && l.length > 18;
-
-    const ings = [];
-    const steps = [];
-    for (const l of lines.slice(1)) {
-      if (looksLikeIng(l)) {
-        // Parse "2 cups flour"
-        const m = l.match(/^([\d.\/¼½¾⅓⅔⅛]+)\s*([a-z]+)?\s+(.*)/i);
-        if (m) {
-          ings.push({ qty: parseFloat(m[1]) || 1, unit: m[2] || "", item: m[3], grp: "Ingredients" });
-        } else {
-          ings.push({ qty: 1, unit: "", item: l, grp: "Ingredients" });
-        }
-      } else if (looksLikeStep(l)) {
-        steps.push({ t: l.split(/[.:]/)[0].slice(0, 60), d: l, mins: 5, precision: "easy" });
+    try {
+      const res = await fetch("/api/admin/ai/extract-text", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ text: aiText }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `Extraction failed (${res.status})`);
       }
+      const parsed = await res.json();
+      const fresh = newDraft();
+      const ings = (parsed.ingredients?.length ? parsed.ingredients : fresh.ingredients)
+        .map(i => ({ ...i, grp: i.grp || "Ingredients" }));
+      const steps = parsed.steps?.length ? parsed.steps : fresh.steps;
+      setDraft({
+        ...fresh,
+        title:           parsed.title           || fresh.title,
+        subtitle:        parsed.subtitle        || "",
+        author:          parsed.author          || "",
+        cuisine:         parsed.cuisine         || "",
+        course:          parsed.course          || fresh.course,
+        occasion:        parsed.occasion        || fresh.occasion,
+        diet:            parsed.diet            || [],
+        prep:            parsed.prep            ?? 0,
+        cook:            parsed.cook            ?? 0,
+        servingsDefault: parsed.servingsDefault || fresh.servingsDefault,
+        difficulty:      parsed.difficulty      || fresh.difficulty,
+        ingredients:     ings,
+        steps,
+        tips:            parsed.tips            || [],
+        total:           (parsed.prep || 0) + (parsed.cook || 0),
+      });
+      setMode("manual");
+    } catch (err) {
+      alert(err.message || "Could not extract this recipe. Try the manual form instead.");
+    } finally {
+      setExtracting(false);
     }
-    setDraft({
-      ...newDraft(),
-      title: titleGuess,
-      subtitle: "Pasted from text — please review the details.",
-      author: "You",
-      ingredients: ings.length ? ings : newDraft().ingredients,
-      steps: steps.length ? steps : newDraft().steps,
-      total: steps.length * 8,
-      prep: 10,
-      cook: steps.length * 8,
-    });
-    setExtracting(false);
-    setMode("manual"); // move into review-and-edit
   };
 
   const uploadPhoto = async (file) => {
