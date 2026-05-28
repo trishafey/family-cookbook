@@ -132,7 +132,7 @@ function IngredientsEditor({ ingredients, onChange }) {
               type="text"
               value={sec.name}
               onChange={(e) => renameSection(sec.name, e.target.value || "Ingredients")}
-              style={{ fontWeight: 600, fontSize: 13, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", flex: 1, border: "none", background: "transparent", padding: "2px 0" }}
+              className="section-name-input"
               aria-label={t("sectionName")}
             />
             {sections.length > 1 && (
@@ -159,8 +159,8 @@ function IngredientsEditor({ ingredients, onChange }) {
           </button>
         </div>
       ))}
-      <button type="button" className="btn ghost sm" onClick={addSection}>
-        <Icon name="plus" size={12} /> {t("addSection")}
+      <button type="button" className="btn add-section-btn" onClick={addSection}>
+        <Icon name="plus" size={13} /> {t("addSection")}
       </button>
     </div>
   );
@@ -254,7 +254,7 @@ function StepsEditor({ steps, onChange }) {
                 type="text"
                 value={sec.name}
                 onChange={(e) => renameSection(sec.name, e.target.value)}
-                style={{ fontWeight: 600, fontSize: 13, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", flex: 1, border: "none", background: "transparent", padding: "2px 0" }}
+                className="section-name-input"
                 aria-label={t("sectionName")}
               />
               <button type="button" className="btn ghost icon-only" onClick={() => deleteSection(sec.name)} title={t("deleteSection")}>
@@ -296,8 +296,8 @@ function StepsEditor({ steps, onChange }) {
           </button>
         </div>
       ))}
-      <button type="button" className="btn ghost sm" onClick={addSection}>
-        <Icon name="plus" size={12} /> {t("addSection")}
+      <button type="button" className="btn add-section-btn" onClick={addSection}>
+        <Icon name="plus" size={13} /> {t("addSection")}
       </button>
     </div>
   );
@@ -501,6 +501,13 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
         </div>
       </div>
 
+      {/* When the visitor isn't signed in, the entire form below is wrapped
+          in a disabled fieldset. <fieldset disabled> natively cascades the
+          disabled state to every <input>, <select>, <textarea>, and
+          <button> inside, so we don't have to thread the prop through
+          dozens of child components. The CSS rule dims the whole block so
+          it reads as locked. */}
+      <fieldset className="add-recipe-fields" disabled={!authEmail}>
       {!editing && (
       <div className="add-tabs">
         {FLAGS.extractText && (
@@ -852,6 +859,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           </div>
         </div>
       )}
+      </fieldset>
     </div>
   );
 }
