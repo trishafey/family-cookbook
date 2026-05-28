@@ -14,5 +14,11 @@
       "database_name": "family-cookbook-db",
       "database_id": "3c268083-1167-4bfe-bc10-978ce87e4e49"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "IMAGES",
+      "bucket_name": "family-cookbook-images"
+    }
   ]
 }

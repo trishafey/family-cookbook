@@ -2,6 +2,7 @@
 //
 // Bindings (see wrangler.jsonc):
 //   env.DB     — D1 database (family-cookbook-db)
+//   env.IMAGES — R2 bucket (family-cookbook-images), holds uploaded photos
 //   env.ASSETS — static assets in /dist (the React app)
 //
 // Routes under /api/* are handled here; everything else falls through
@@ -168,6 +169,48 @@ app.post("/api/admin/recipes", async (c) => {
   }
 
   return c.json({ ok: true, id: draft.id });
+});
+
+// Upload a recipe photo. Same Access-protected path as the other writes.
+// Accepts multipart/form-data with a single 'file' part; stores the bytes
+// in R2 keyed by a random id, and returns the URL the React app should
+// save into draft.photo.
+app.post("/api/admin/uploads", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+
+  const form = await c.req.formData();
+  const file = form.get("file");
+  if (!(file instanceof File)) {
+    return c.json({ error: "missing 'file' part" }, 400);
+  }
+
+  // Cap at 10 MB so a stray full-res ProRAW doesn't blow up the bucket.
+  if (file.size > 10 * 1024 * 1024) {
+    return c.json({ error: "file too large (max 10 MB)" }, 413);
+  }
+
+  const ext = (file.name.match(/\.[a-z0-9]+$/i)?.[0] || ".jpg").toLowerCase();
+  const key = `${crypto.randomUUID()}${ext}`;
+  await c.env.IMAGES.put(key, file.stream(), {
+    httpMetadata: { contentType: file.type || "application/octet-stream" },
+  });
+
+  return c.json({ url: `/api/images/${key}`, key });
+});
+
+// Serve an uploaded photo from R2. Public — anyone visiting the site
+// (signed in or not) can load images.
+app.get("/api/images/:key", async (c) => {
+  const obj = await c.env.IMAGES.get(c.req.param("key"));
+  if (!obj) return c.notFound();
+
+  const headers = new Headers();
+  obj.writeHttpMetadata(headers);
+  headers.set("etag", obj.httpEtag);
+  // 1 year — keys include a UUID so the URL changes if a photo changes.
+  headers.set("cache-control", "public, max-age=31536000, immutable");
+  return new Response(obj.body, { headers });
 });
 
 // Everything else: hand to the static React app.
