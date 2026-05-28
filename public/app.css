@@ -1875,6 +1875,26 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   padding-bottom: 4px; border-bottom: 1px solid var(--rule);
 }
 .steps-list .steps-section:first-child { margin-top: 0; }
+
+.steps-list .steps-day {
+  font-family: var(--sans); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: #C42807;
+  margin: 28px 0 12px; padding: 8px 12px;
+  background: rgba(196, 40, 7, 0.06);
+  border-left: 3px solid #C42807;
+  border-radius: 2px;
+}
+.steps-list .steps-day:first-child { margin-top: 0; }
+
+.steps-list .step.overnight { opacity: 0.78; }
+.steps-list .step.overnight .d { font-style: italic; }
+.steps-list .overnight-tag {
+  font-family: var(--sans); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: #C42807; padding: 2px 6px;
+  background: rgba(196, 40, 7, 0.08); border-radius: 3px;
+}
 .comment {
   display: grid; grid-template-columns: 48px 1fr; gap: 16px;
   padding: 18px 0; border-bottom: 1px solid var(--rule);

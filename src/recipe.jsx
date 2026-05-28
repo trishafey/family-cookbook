@@ -367,7 +367,17 @@ function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
 // ─────────────────────────────────────────────────────────────
 // Shared: Timing bar (done-by)
 // ─────────────────────────────────────────────────────────────
+// Friendly day label like "Friday" / "Saturday" relative to the finish day.
+// dayOffset === 0 → "today" / day-of-finish; -1 → previous day; etc.
+function dayLabelFor(finish, dayOffset) {
+  const d = new Date(finish);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + dayOffset);
+  return d.toLocaleDateString("en-US", { weekday: "long" });
+}
+
 function TimingBar({ doneBy, setDoneBy, finishTime, setFinishTime, schedule }) {
+  const startOffset = schedule?.schedule?.[0]?.dayOffset ?? 0;
   return (
     <div className={`timing-bar ${doneBy ? "active" : ""}`}>
       <Icon name="clock" />
@@ -377,7 +387,10 @@ function TimingBar({ doneBy, setDoneBy, finishTime, setFinishTime, schedule }) {
       </label>
       <TimeOfDayInput value={finishTime} onChange={setFinishTime} />
       {doneBy && schedule && (
-        <span className="start-pill">Start at {fmtTime(schedule.startTime)}</span>
+        <span className="start-pill">
+          Start {startOffset < 0 ? `${dayLabelFor(finishTime, startOffset)} at ` : "at "}
+          {fmtTime(schedule.startTime)}
+        </span>
       )}
     </div>
   );
@@ -386,17 +399,27 @@ function TimingBar({ doneBy, setDoneBy, finishTime, setFinishTime, schedule }) {
 // ─────────────────────────────────────────────────────────────
 // Shared: Steps list
 // ─────────────────────────────────────────────────────────────
-function StepsList({ steps, doneBy, schedule }) {
+function StepsList({ steps, doneBy, schedule, finishTime }) {
   let lastSection = null;
+  let lastDayOffset = null;
   return (
     <div className="steps-list">
       {steps.map((s, i) => {
-        const showHeader = s.section && s.section !== lastSection;
+        const showSection = s.section && s.section !== lastSection;
         if (s.section) lastSection = s.section;
+        const stepSched = schedule?.schedule?.[i];
+        const off = stepSched?.dayOffset ?? 0;
+        const showDay = doneBy && schedule && off !== lastDayOffset;
+        if (doneBy && schedule) lastDayOffset = off;
         return (
           <React.Fragment key={i}>
-            {showHeader && <h4 className="steps-section">{s.section}</h4>}
-            <div className="step">
+            {showDay && (
+              <div className="steps-day">
+                {dayLabelFor(finishTime, off)}{off === 0 ? " — day of" : off === -1 ? " — the day before" : ""}
+              </div>
+            )}
+            {showSection && <h4 className="steps-section">{s.section}</h4>}
+            <div className={`step ${stepSched?.overnight ? "overnight" : ""}`}>
               <div className="n">{String(i + 1).padStart(2, "0")}</div>
               <div>
                 <div className="t">{s.t}</div>
@@ -406,8 +429,9 @@ function StepsList({ steps, doneBy, schedule }) {
                   <span className="time">{fmtDuration(s.mins)}</span>
                   {s.hands != null && <span>hands-on {fmtDuration(s.hands)}</span>}
                   {doneBy && schedule && (
-                    <span className="start">▶ {fmtTime(schedule.schedule[i].start)} – {fmtTime(schedule.schedule[i].end)}</span>
+                    <span className="start">▶ {fmtTime(stepSched.start)} – {fmtTime(stepSched.end)}</span>
                   )}
+                  {stepSched?.overnight && <span className="overnight-tag">park overnight</span>}
                 </div>
               </div>
             </div>
@@ -721,7 +745,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
 
         <div>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
-          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} />
+          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} />
           {FLAGS.needHelp && <NeedHelp recipe={recipe} />}
         </div>
       </div>
@@ -807,7 +831,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
 
         <div>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
-          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} />
+          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} />
           {FLAGS.needHelp && <NeedHelp recipe={recipe} />}
         </div>
       </div>
@@ -891,7 +915,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <div>
           <h3 style={{ marginBottom: 14, fontStyle: "italic" }}>How to make it</h3>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
-          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} />
+          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} />
           {FLAGS.needHelp && <NeedHelp recipe={recipe} />}
         </div>
       </div>

@@ -97,20 +97,92 @@ export function buildShoppingList(scaledLists) {
 }
 
 // ───── Time scheduling — "done by 6pm" ─────
-// Given a list of steps with mins and optional `hands` (overlap), and a finish
-// Date, return [{startTime, endTime}] for each step. Steps run sequentially —
-// a long simmer counts toward finish but the hands-on subset is what you do.
+// Schedule steps backwards from finishTime. Steps marked overnight (or any
+// step ≥ OVERNIGHT_THRESHOLD minutes) are treated as a fridge / freezer /
+// proof park: instead of literally backing the start up by the full
+// duration (which produces "wake at 4am" schedules), the overnight step
+// is placed so its END is when the next step needs it, and its START
+// is the previous evening at OVERNIGHT_EVENING_HOUR. Steps before an
+// overnight then schedule backwards from that previous evening.
+//
+// Result schedule items get an optional `dayOffset` (0 = day-of, -1 =
+// day before, etc.) and an `overnight: true` marker on the rest steps.
+const OVERNIGHT_THRESHOLD_MIN = 4 * 60;
+const OVERNIGHT_EVENING_HOUR = 19; // 7pm — when "make the dough" usually happens
+const NO_EARLIER_THAN_HOUR = 7;    // 7am — refuse to schedule active prep before this
+
+const startOfHour = (d, h) => {
+  const out = new Date(d);
+  out.setHours(h, 0, 0, 0);
+  return out;
+};
+
 export function scheduleForFinish(steps, finishTime) {
   const totalMin = steps.reduce((s, x) => s + (x.mins || 0), 0);
-  let cursor = new Date(finishTime);
+  const finish = new Date(finishTime);
+  const dayOf = new Date(finish); dayOf.setHours(0, 0, 0, 0);
+
+  // Sort identification: a step is overnight if explicitly flagged or if
+  // its duration would otherwise produce a pre-dawn schedule.
+  const isOvernight = (s) => s.overnight === true || (s.mins || 0) >= OVERNIGHT_THRESHOLD_MIN;
+
+  let cursor = new Date(finish);
   const out = new Array(steps.length);
+  let currentDayOffset = 0;
+
   for (let i = steps.length - 1; i >= 0; i--) {
+    const step = steps[i];
+    const mins = step.mins || 0;
     const end = new Date(cursor);
-    const start = new Date(cursor.getTime() - (steps[i].mins || 0) * 60000);
-    out[i] = { start, end };
-    cursor = start;
+
+    if (isOvernight(step)) {
+      // End of overnight = when the next step starts.
+      // Start of overnight = the previous evening at OVERNIGHT_EVENING_HOUR.
+      currentDayOffset -= 1;
+      const previousDay = new Date(dayOf);
+      previousDay.setDate(previousDay.getDate() + currentDayOffset);
+      const start = startOfHour(previousDay, OVERNIGHT_EVENING_HOUR);
+      out[i] = { start, end, overnight: true, dayOffset: currentDayOffset };
+      cursor = start;
+    } else {
+      const start = new Date(cursor.getTime() - mins * 60000);
+      out[i] = { start, end, dayOffset: currentDayOffset };
+      cursor = start;
+
+      // If active prep is being pushed before 7am of its day, that's a
+      // hint there's a long-but-not-overnight rest step earlier; flip
+      // that step to overnight on the next iteration by lowering the day.
+      const startHour = start.getHours();
+      if (startHour < NO_EARLIER_THAN_HOUR && i > 0 && (steps[i - 1].mins || 0) >= 90) {
+        // Force the previous step to span overnight by jumping cursor
+        // to evening of the previous day.
+        currentDayOffset -= 1;
+        const previousDay = new Date(dayOf);
+        previousDay.setDate(previousDay.getDate() + currentDayOffset);
+        cursor = startOfHour(previousDay, OVERNIGHT_EVENING_HOUR);
+      }
+    }
   }
+
   return { schedule: out, totalMin, startTime: cursor };
+}
+
+// Re-schedule from a particular step that's already been adjusted —
+// fix that step's end time and ripple downstream steps to keep the
+// chain consistent. Used when the cook says "step 3 took an extra 10
+// minutes" in cook mode.
+export function rescheduleFrom(schedule, steps, adjustedIndex, newEnd) {
+  const out = schedule.map(s => ({ ...s }));
+  out[adjustedIndex] = { ...out[adjustedIndex], end: new Date(newEnd) };
+  let cursor = new Date(newEnd);
+  for (let i = adjustedIndex + 1; i < steps.length; i++) {
+    const mins = steps[i].mins || 0;
+    const start = new Date(cursor);
+    const end = new Date(cursor.getTime() + mins * 60000);
+    out[i] = { ...out[i], start, end };
+    cursor = end;
+  }
+  return out;
 }
 
 export function fmtTime(d) {
