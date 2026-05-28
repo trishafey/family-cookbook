@@ -28,7 +28,7 @@ function App() {
   // visitors. `extraRecipes` is the legacy per-device list from before the
   // shared backend — merged in so old additions don't disappear.
   const { recipes: serverRecipes, refresh: refreshRecipes } = useRecipes();
-  const [extraRecipes] = useStorage("recipes:added", []);
+  const [extraRecipes, setExtraRecipes] = useStorage("recipes:added", []);
   const recipes = useMemo(
     () => [...extraRecipes.map(normalizeRecipe), ...serverRecipes],
     [extraRecipes, serverRecipes]
@@ -101,13 +101,30 @@ function App() {
     await refreshRecipes();
   };
 
+  const deleteComment = async (cid) => {
+    const res = await fetch(`/api/admin/comments/${encodeURIComponent(cid)}`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      throw new Error(error || `Could not delete (${res.status})`);
+    }
+    await refreshRecipes();
+  };
+
   // ─── Save a recipe (create or update) ───
   // POSTs new drafts to /api/admin/recipes, PATCHes existing ones at
   // /api/admin/recipes/:id. Refreshes the cached list so the change
   // shows up everywhere immediately. Throws on failure so the form
   // can render the error inline.
   const onSaveRecipe = async (draft) => {
-    const isUpdate = recipes.some(r => r.id === draft.id);
+    // A "legacy" entry exists only in extraRecipes localStorage. Saving
+    // such an entry POSTs it as new (effectively migrating to D1) then
+    // strips it from localStorage. Server-stored entries update via PATCH.
+    const isLegacy = extraRecipes.some(r => r.id === draft.id);
+    const isUpdate = !isLegacy && serverRecipes.some(r => r.id === draft.id);
     const url = isUpdate ? `/api/admin/recipes/${encodeURIComponent(draft.id)}` : "/api/admin/recipes";
     const method = isUpdate ? "PATCH" : "POST";
     const res = await fetch(url, {
@@ -120,6 +137,7 @@ function App() {
       const { error } = await res.json().catch(() => ({}));
       throw new Error(error || `Save failed (${res.status})`);
     }
+    if (isLegacy) setExtraRecipes(arr => arr.filter(x => x.id !== draft.id));
     await refreshRecipes();
     setView("recipe");
     setRecipeId(draft.id);
@@ -134,6 +152,14 @@ function App() {
 
   const onDeleteRecipe = async (r) => {
     if (!confirm(`Delete "${r.title}"? This can't be undone.`)) return;
+    // Legacy localStorage entries never made it to D1 — strip them
+    // locally instead of asking the API to delete a row that doesn't
+    // exist (the cause of the "not found" some users hit).
+    if (extraRecipes.some(x => x.id === r.id)) {
+      setExtraRecipes(arr => arr.filter(x => x.id !== r.id));
+      backToBrowse();
+      return;
+    }
     const res = await fetch(`/api/admin/recipes/${encodeURIComponent(r.id)}`, {
       method: "DELETE",
       credentials: "include",
@@ -222,7 +248,7 @@ function App() {
               <AvatarMenu email={authEmail} />
             ) : (
               <a className="btn sm sign-in" href={signInUrl()} title="Sign in to add or edit recipes">
-                <span className="btn-label">Sign in</span>
+                <Icon name="chef" size={13} /> <span className="btn-label">Sign in</span>
               </a>
             )}
           </div>
@@ -258,6 +284,7 @@ function App() {
           onCookMode={(r, steps, ings) => openCook(r, steps, ings)}
           onShop={openShop}
           addComment={addComment}
+          deleteComment={deleteComment}
           onSaveRecipe={onSaveRecipe}
           onOpenRecipe={openRecipe}
           onSaveToLab={onSaveToLab}
