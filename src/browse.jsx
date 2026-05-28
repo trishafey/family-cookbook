@@ -7,7 +7,9 @@ import { COURSES, OCCASIONS } from "./data.js";
 
 export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selectionMode, isFavorite, onToggleFavorite }) {
   const handleCardClick = (e) => {
-    // Don't open the recipe if the click landed on the heart (or anything inside it)
+    // Defensive — even if the heart's stopPropagation didn't fire on
+    // iOS (target can be an inner SVG/path), bail when the tap lands
+    // anywhere inside the heart.
     if (e.target.closest && e.target.closest(".fave")) return;
     if (selectionMode) onToggleSelect(recipe); else onOpen(recipe);
   };
@@ -29,6 +31,7 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
           type="button"
           className={`fave ${isFavorite ? "on" : "off"}`}
           onClick={handleFaveClick}
+          onPointerDown={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
           aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}

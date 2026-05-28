@@ -245,7 +245,10 @@ export function useFavorites(authEmail) {
   }, [authEmail]);
 
   const toggle = useCallback(async (id) => {
-    if (!authEmail) return;
+    if (!authEmail) {
+      alert("Sign in to save favorites.");
+      return;
+    }
     const adding = !favorites.includes(id);
     setFavorites(prev => adding ? [...prev, id] : prev.filter(x => x !== id));
     try {
