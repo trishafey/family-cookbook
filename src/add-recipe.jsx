@@ -521,7 +521,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           <div className="input-row">
             <label>Course / Cuisine</label>
             <div style={{ display: "flex", gap: 8 }}>
-              <select value={draft.course} onChange={(e) => setDraft({ ...draft, course: e.target.value })}>
+              <select value={draft.course} onChange={(e) => setDraft({ ...draft, course: e.target.value })} style={{ width: 140, flex: "0 0 auto" }}>
                 {COURSES.map(c => <option key={c}>{c}</option>)}
               </select>
               <CuisineSearch value={draft.cuisine} onChange={(v) => setDraft({ ...draft, cuisine: v })} usedCuisines={usedCuisines} />
@@ -552,11 +552,47 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           <div className="input-row">
             <label>Prep / Cook (min)</label>
             <div style={{ display: "flex", gap: 8 }}>
-              <input type="number" value={draft.prep} onChange={(e) => setDraft({ ...draft, prep: +e.target.value })} placeholder="Prep" />
-              <input type="number" value={draft.cook} onChange={(e) => setDraft({ ...draft, cook: +e.target.value })} placeholder="Cook" />
-              <select value={draft.difficulty} onChange={(e) => setDraft({ ...draft, difficulty: e.target.value })}>
-                {["Easy","Medium","Patient","Tricky"].map(d => <option key={d}>{d}</option>)}
-              </select>
+              <input type="number" value={draft.prep} onChange={(e) => setDraft({ ...draft, prep: +e.target.value })} placeholder="Prep" style={{ width: 120 }} />
+              <input type="number" value={draft.cook} onChange={(e) => setDraft({ ...draft, cook: +e.target.value })} placeholder="Cook" style={{ width: 120 }} />
+            </div>
+          </div>
+
+          <div className="input-row">
+            <label>Overnight step?</label>
+            <div>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={draft.steps.some(s => s.overnight)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      // Add a starter overnight step if one doesn't already exist.
+                      if (!draft.steps.some(s => s.overnight)) {
+                        setDraft({
+                          ...draft,
+                          steps: [...draft.steps, {
+                            t: "Overnight rest",
+                            d: "Park in the fridge / freezer / counter overnight.",
+                            mins: 480,
+                            precision: "patient",
+                            overnight: true,
+                            section: "Overnight",
+                          }],
+                        });
+                      }
+                    } else {
+                      // Remove any overnight steps.
+                      setDraft({ ...draft, steps: draft.steps.filter(s => !s.overnight) });
+                    }
+                  }}
+                />
+                <span style={{ fontFamily: "var(--serif)", color: "var(--ink-2)" }}>
+                  Recipe has an overnight rest (fridge, proof, freeze, marinate)
+                </span>
+              </label>
+              <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
+                Adds an "Overnight" section to the steps below. The scheduler will plan that step for the night before instead of pre-dawn the day of.
+              </div>
             </div>
           </div>
           <div className="input-row">

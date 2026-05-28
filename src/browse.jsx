@@ -56,7 +56,16 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
           <Pill kind="slate">{recipe.cuisine}</Pill>
         </div>
         <div className="footer">
-          <span><Icon name="starFill" size={10} /> {recipe.rating} · {recipe.cookCount} cooks</span>
+          <span>
+            {(() => {
+              // Average rating from family-posted notes (ignore notes
+              // without a rating). Shows nothing when there are none.
+              const rated = (recipe.liveComments || []).filter(c => c.rating > 0);
+              if (rated.length === 0) return null;
+              const avg = rated.reduce((s, c) => s + c.rating, 0) / rated.length;
+              return <><Icon name="starFill" size={10} /> {avg.toFixed(1)}</>;
+            })()}
+          </span>
           <span>{recipe.occasion}</span>
         </div>
       </div>
