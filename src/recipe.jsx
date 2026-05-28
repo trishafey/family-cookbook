@@ -1030,8 +1030,11 @@ export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, 
     return { ings, steps, cookMins, totalTime };
   }, [recipe, servings, weight]);
 
-  // Calorie adjustment factor on top
-  const calFactor = calTarget / recipe.nutrition.cal;
+  // Calorie adjustment factor on top. Falls back to 1 when the recipe
+  // doesn't have a baseline (e.g. AI-extracted with no nutrition, or an
+  // older entry) so the math doesn't divide by zero and the stats
+  // strip doesn't render NaN.
+  const calFactor = recipe.nutrition?.cal ? calTarget / recipe.nutrition.cal : 1;
   const finalIngs = useMemo(() => scaleIngredients(scaled.ings, calFactor), [scaled.ings, calFactor]);
   const finalNutrition = useMemo(() => {
     const n = recipe.nutrition;
