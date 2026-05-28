@@ -522,14 +522,17 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .lang-fab {
   position: fixed; bottom: 20px; right: 20px; z-index: 200;
   width: 52px; height: 52px; border-radius: 50%;
-  background: #f4d97a; border: 1px solid #d4b850;
+  background: var(--paper-2); border: 1px solid var(--rule);
   display: grid; place-items: center; cursor: pointer;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
   padding: 0;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
-.lang-fab:hover { transform: scale(1.06); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18); background: #ecca5a; }
-.lang-fab svg { border-radius: 2px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+.lang-fab:hover { transform: scale(1.06); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18); background: var(--paper); }
+.lang-fab svg {
+  border-radius: 2px; overflow: hidden;
+  border: 1px solid var(--rule);
+}
 
 /* Overnight toggle row (inside AddRecipe) */
 .input-row .overnight-toggle .check-line {
