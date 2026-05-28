@@ -55,12 +55,38 @@ CREATE TABLE IF NOT EXISTS favorites (
 const app = new Hono();
 
 app.get("/api/recipes", async (c) => {
+  // Fetch recipes and their D1 comments in one query. SQLite's
+  // json_group_array lets us build the per-recipe comment list inline
+  // so the React app doesn't need a second fetch when opening a
+  // detail page. The blob.comments curated notes stay separate (they
+  // live inside r.blob and are shown alongside liveComments).
   const rows = await c.env.DB.prepare(
-    "SELECT blob FROM recipes ORDER BY created_at DESC"
+    `SELECT r.blob, COALESCE(json_group_array(
+       CASE WHEN c.id IS NULL THEN NULL
+            ELSE json_object('id', c.id, 'name', c.author, 'text', c.body, 'created_at', c.created_at)
+       END
+     ) FILTER (WHERE c.id IS NOT NULL), '[]') AS live_comments
+     FROM recipes r
+     LEFT JOIN comments c ON c.recipe_id = r.id
+     GROUP BY r.id
+     ORDER BY r.created_at DESC`
   ).all();
-  const recipes = rows.results.map((r) => JSON.parse(r.blob));
+  const recipes = rows.results.map((r) => ({
+    ...JSON.parse(r.blob),
+    liveComments: JSON.parse(r.live_comments).map(formatComment),
+  }));
   return c.json(recipes);
 });
+
+function formatComment(c) {
+  const d = new Date(c.created_at);
+  return {
+    id: c.id,
+    name: c.name,
+    text: c.text,
+    date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+  };
+}
 
 app.get("/api/recipes/:id", async (c) => {
   const row = await c.env.DB.prepare(
@@ -207,6 +233,64 @@ app.patch("/api/admin/recipes/:id", async (c) => {
   ).run();
 
   return c.json({ ok: true, id });
+});
+
+// ─── Comments ───
+app.post("/api/admin/recipes/:id/comments", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+
+  const body = await c.req.json();
+  if (!body?.name?.trim() || !body?.text?.trim()) {
+    return c.json({ error: "name and text are required" }, 400);
+  }
+
+  const id = crypto.randomUUID();
+  const now = Date.now();
+  await c.env.DB.prepare(
+    "INSERT INTO comments (id, recipe_id, author, body, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).bind(id, c.req.param("id"), body.name.trim(), body.text.trim(), now).run();
+
+  return c.json(formatComment({ id, name: body.name.trim(), text: body.text.trim(), created_at: now }));
+});
+
+app.delete("/api/admin/comments/:id", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+
+  const res = await c.env.DB.prepare(
+    "DELETE FROM comments WHERE id = ?"
+  ).bind(c.req.param("id")).run();
+  if (!res.meta.changes) return c.json({ error: "not found" }, 404);
+  return c.json({ ok: true });
+});
+
+// ─── Favorites (per signed-in user) ───
+app.get("/api/admin/favorites", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const rows = await c.env.DB.prepare(
+    "SELECT recipe_id FROM favorites WHERE user_email = ?"
+  ).bind(email).all();
+  return c.json(rows.results.map(r => r.recipe_id));
+});
+
+app.post("/api/admin/favorites/:id", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  await c.env.DB.prepare(
+    "INSERT OR IGNORE INTO favorites (user_email, recipe_id, created_at) VALUES (?, ?, ?)"
+  ).bind(email, c.req.param("id"), Date.now()).run();
+  return c.json({ ok: true });
+});
+
+app.delete("/api/admin/favorites/:id", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  await c.env.DB.prepare(
+    "DELETE FROM favorites WHERE user_email = ? AND recipe_id = ?"
+  ).bind(email, c.req.param("id")).run();
+  return c.json({ ok: true });
 });
 
 app.delete("/api/admin/recipes/:id", async (c) => {

@@ -460,18 +460,23 @@ function CooksNotes({ recipe, defaultOpen }) {
 // ─────────────────────────────────────────────────────────────
 // Shared: Comments (disclosure)
 // ─────────────────────────────────────────────────────────────
-function CommentsPanel({ recipe, comments, addComment, defaultOpen }) {
-  const all = [...(recipe.comments || []), ...(comments || [])];
+function CommentsPanel({ recipe, addComment, authEmail, defaultOpen }) {
+  const all = [...(recipe.comments || []), ...(recipe.liveComments || [])];
   const [cName, setCName] = useState("");
   const [cText, setCText] = useState("");
-  const submit = (e) => {
+  const [posting, setPosting] = useState(false);
+  const submit = async (e) => {
     e.preventDefault();
     if (!cName.trim() || !cText.trim()) return;
-    addComment(recipe.id, {
-      name: cName.trim(), text: cText.trim(),
-      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    });
-    setCName(""); setCText("");
+    setPosting(true);
+    try {
+      await addComment(recipe.id, { name: cName.trim(), text: cText.trim() });
+      setCName(""); setCText("");
+    } catch (err) {
+      alert(err.message || "Could not post note");
+    } finally {
+      setPosting(false);
+    }
   };
   return (
     <details className="disclosure" open={defaultOpen}>
@@ -490,12 +495,20 @@ function CommentsPanel({ recipe, comments, addComment, defaultOpen }) {
             </div>
           </div>
         ))}
-        <form className="comment-form" onSubmit={submit} style={{ marginTop: 16 }}>
-          <h4 style={{ marginBottom: 8 }}>Leave a note</h4>
-          <input type="text" placeholder="Your name" value={cName} onChange={(e) => setCName(e.target.value)} required />
-          <textarea placeholder="What did you change? What did the kids say? What would your grandma do?" value={cText} onChange={(e) => setCText(e.target.value)} required />
-          <button className="btn primary" style={{ alignSelf: "flex-end" }}>Post note</button>
-        </form>
+        {authEmail ? (
+          <form className="comment-form" onSubmit={submit} style={{ marginTop: 16 }}>
+            <h4 style={{ marginBottom: 8 }}>Leave a note</h4>
+            <input type="text" placeholder="Your name" value={cName} onChange={(e) => setCName(e.target.value)} required disabled={posting} />
+            <textarea placeholder="What did you change? What did the kids say? What would your grandma do?" value={cText} onChange={(e) => setCText(e.target.value)} required disabled={posting} />
+            <button className="btn primary" style={{ alignSelf: "flex-end" }} disabled={posting}>
+              {posting ? "Posting…" : "Post note"}
+            </button>
+          </form>
+        ) : (
+          <div style={{ marginTop: 16, padding: 12, color: "var(--ink-3)", fontStyle: "italic", textAlign: "center" }}>
+            Sign in to leave a note.
+          </div>
+        )}
       </div>
     </details>
   );
@@ -578,7 +591,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
       </div>
       <div>
         <CooksNotes recipe={recipe} defaultOpen={true} />
-        <CommentsPanel recipe={recipe} comments={comments} addComment={addComment} defaultOpen={false} />
+        <CommentsPanel recipe={recipe} addComment={addComment} authEmail={authEmail} defaultOpen={false} />
       </div>
     </>
   );
@@ -663,7 +676,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <span className="label">From the family</span>
       </div>
       <CooksNotes recipe={recipe} defaultOpen={true} />
-      <CommentsPanel recipe={recipe} comments={comments} addComment={addComment} defaultOpen={false} />
+      <CommentsPanel recipe={recipe} addComment={addComment} authEmail={authEmail} defaultOpen={false} />
     </>
   );
 }
@@ -746,7 +759,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <span className="label">Margin notes</span>
       </div>
       <CooksNotes recipe={recipe} defaultOpen={true} />
-      <CommentsPanel recipe={recipe} comments={comments} addComment={addComment} defaultOpen={false} />
+      <CommentsPanel recipe={recipe} addComment={addComment} authEmail={authEmail} defaultOpen={false} />
     </div>
   );
 }
