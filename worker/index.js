@@ -104,6 +104,72 @@ app.get("/api/setup", async (c) => {
   return c.json({ ok: true, recipeCount });
 });
 
+// ─── Admin (Access-protected) ───
+// Routes under /api/admin/* are gated by Cloudflare Access. When Access
+// is configured for this path, the request reaches the worker only after
+// the user has authenticated, and the user's email is in the
+// 'cf-access-authenticated-user-email' header. The worker trusts this
+// header — Access alone controls who's allowed in.
+
+function authedEmail(c) {
+  return c.req.header("cf-access-authenticated-user-email") || null;
+}
+
+// JS uses this to check sign-in status. With Accept: application/json,
+// Access returns a 401 JSON body when unauthenticated (instead of a
+// 302 to login), so fetch sees a clean failure.
+app.get("/api/admin/me", (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  return c.json({ email });
+});
+
+// Sign-in landing page. The browser navigates here, Access intercepts
+// for auth, then this handler 302s back to wherever the user came from.
+app.get("/api/admin/login", (c) => {
+  const returnTo = c.req.query("return") || "/";
+  return c.redirect(returnTo);
+});
+
+// Create a new recipe. The draft from the AddRecipe form has the full
+// nested shape (ingredients, steps, tips, etc.); we keep that in the
+// blob column and lift the indexable fields into their own columns.
+app.post("/api/admin/recipes", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+
+  const draft = await c.req.json();
+  if (!draft?.id || !draft?.title) {
+    return c.json({ error: "id and title are required" }, 400);
+  }
+
+  const now = Date.now();
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO recipes
+         (id, title, subtitle, author, cuisine, course, photo, blob, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      draft.id,
+      draft.title,
+      draft.subtitle ?? null,
+      draft.author ?? null,
+      draft.cuisine ?? null,
+      draft.course ?? null,
+      draft.photo ?? null,
+      JSON.stringify(draft),
+      email,
+      now,
+      now
+    ).run();
+  } catch (err) {
+    // Most common cause: PRIMARY KEY conflict (someone reused an id).
+    return c.json({ error: String(err.message || err) }, 409);
+  }
+
+  return c.json({ ok: true, id: draft.id });
+});
+
 // Everything else: hand to the static React app.
 app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 

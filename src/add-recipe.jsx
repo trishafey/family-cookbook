@@ -2,11 +2,13 @@
 // AI extraction is mocked: paste text, hit "extract", a stub parses into fields.
 
 import { useState, useEffect, useMemo } from "react";
-import { Icon } from "./helpers.jsx";
+import { Icon, signInUrl } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
 import { COURSES, OCCASIONS, DIETS } from "./data.js";
 
-export function AddRecipe({ onClose, onSave }) {
+export function AddRecipe({ onClose, onSave, authEmail }) {
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
   // Default to "manual" when no AI extraction is enabled, so users land
   // on the plain form. Once an AI flag is flipped on, "ai" becomes the
   // initial mode again.
@@ -85,12 +87,20 @@ export function AddRecipe({ onClose, onSave }) {
     setMode("manual"); // move into review-and-edit
   };
 
-  const save = () => {
+  const save = async () => {
     if (!draft.title.trim()) { alert("Give it a title first."); return; }
     const out = { ...draft, total: draft.total || (draft.prep + draft.cook) };
     if (!out.link?.url) delete out.link;
-    onSave(out);
-    onClose();
+    setSaveError(null);
+    setSaving(true);
+    try {
+      await onSave(out);
+      onClose();
+    } catch (err) {
+      setSaveError(err.message || "Save failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -99,14 +109,29 @@ export function AddRecipe({ onClose, onSave }) {
         <Icon name="chevL" /> Back
       </button>
 
+      {!authEmail && (
+        <div style={{ padding: 12, marginBottom: 16, border: "1px solid var(--rule)", borderRadius: 6, background: "var(--paper-2)", fontFamily: "var(--serif)" }}>
+          <strong>Sign in to save recipes to the cookbook.</strong>{" "}
+          <a href={signInUrl()} style={{ color: "var(--accent)", textDecoration: "underline" }}>Sign in →</a>{" "}
+          <span style={{ color: "var(--ink-3)" }}>You can fill in the form first; sign-in returns you here.</span>
+        </div>
+      )}
+      {saveError && (
+        <div style={{ padding: 10, marginBottom: 16, border: "1px solid #c44", borderRadius: 6, background: "rgba(196,68,68,0.08)", color: "#933" }}>
+          {saveError}
+        </div>
+      )}
+
       <div className="section-head">
         <div className="lhs">
           <div className="eyebrow">New entry</div>
           <h2>Add a recipe to the cookbook</h2>
         </div>
         <div className="rhs">
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={save}>Save recipe</button>
+          <button className="btn" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="btn primary" onClick={save} disabled={saving || !authEmail}>
+            {saving ? "Saving…" : "Save recipe"}
+          </button>
         </div>
       </div>
 
@@ -339,8 +364,10 @@ export function AddRecipe({ onClose, onSave }) {
           </div>
 
           <div style={{ marginTop: 32, display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button className="btn" onClick={onClose}>Cancel</button>
-            <button className="btn primary" onClick={save}>Save to cookbook</button>
+            <button className="btn" onClick={onClose} disabled={saving}>Cancel</button>
+            <button className="btn primary" onClick={save} disabled={saving || !authEmail}>
+              {saving ? "Saving…" : "Save to cookbook"}
+            </button>
           </div>
         </div>
       )}
