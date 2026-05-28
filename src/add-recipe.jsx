@@ -676,11 +676,11 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           <div className="input-row" style={{ alignItems: "stretch" }}>
             <label>{t("cooksNotesTipsLbl")}</label>
             <div>
-              {(draft.tips || []).map((t, idx) => (
+              {(draft.tips || []).map((tip, idx) => (
                 <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 24px", gap: 6, marginBottom: 6 }}>
                   <input
                     type="text"
-                    value={t}
+                    value={tip}
                     placeholder={t("exampleTip")}
                     onChange={(e) => {
                       const tips = [...(draft.tips || [])];

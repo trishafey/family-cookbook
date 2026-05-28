@@ -534,8 +534,8 @@ function CooksNotes({ recipe, defaultOpen }) {
           </div>
         )}
         <ul style={{ paddingLeft: 18, margin: 0 }}>
-          {recipe.tips.map((t, i) => (
-            <li key={i} style={{ fontFamily: "var(--serif)", fontSize: 16, lineHeight: 1.5, padding: "6px 0", color: "var(--ink-2)" }}>{t}</li>
+          {recipe.tips.map((tip, i) => (
+            <li key={i} style={{ fontFamily: "var(--serif)", fontSize: 16, lineHeight: 1.5, padding: "6px 0", color: "var(--ink-2)" }}>{tip}</li>
           ))}
         </ul>
       </div>
