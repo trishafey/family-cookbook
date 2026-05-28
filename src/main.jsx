@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRecipes, useAuth, signInUrl, SIGN_OUT_URL, applyFilters, normalizeRecipe } from "./helpers.jsx";
+import { Icon, useStorage, useRecipes, useAuth, signInUrl, SIGN_OUT_URL, applyFilters, normalizeRecipe, ErrorBoundary } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
 import { FiltersDrawer } from "./filters.jsx";
@@ -245,6 +245,7 @@ function App() {
         />
       )}
       {view === "recipe" && recipe && (
+        <ErrorBoundary>
         <RecipeDetail
           recipe={recipe}
           variant={tweaks.recipeStyle}
@@ -261,6 +262,7 @@ function App() {
           onEditRecipe={onEditRecipe}
           onDeleteRecipe={onDeleteRecipe}
         />
+        </ErrorBoundary>
       )}
       {view === "add" && (
         <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} authEmail={authEmail} />
