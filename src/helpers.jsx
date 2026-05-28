@@ -1,6 +1,6 @@
 // Shared utilities & primitives for the cookbook.
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
 // ───── Math / formatting ─────
 
@@ -237,6 +237,28 @@ export function signInUrl(returnTo) {
 
 // Cloudflare Access's built-in logout URL — clears the session cookie.
 export const SIGN_OUT_URL = "/cdn-cgi/access/logout";
+
+// Catches render errors below it and displays them inline. Useful so
+// production crashes don't leave a blank page with no signal.
+export class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) { console.error("ErrorBoundary caught:", error, info); }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div style={{ padding: 24, maxWidth: 760, margin: "40px auto", fontFamily: "var(--sans)" }}>
+        <h2 style={{ color: "#C42807", marginTop: 0 }}>Something broke rendering this page.</h2>
+        <pre style={{ background: "var(--paper-2)", padding: 16, borderRadius: 6, overflow: "auto", fontSize: 13, color: "var(--ink)" }}>
+{String(this.state.error?.message || this.state.error)}
+{"\n\n"}
+{this.state.error?.stack}
+        </pre>
+        <button className="btn" onClick={() => this.setState({ error: null })}>Try again</button>
+      </div>
+    );
+  }
+}
 
 
 
