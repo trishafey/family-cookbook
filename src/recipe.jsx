@@ -468,6 +468,27 @@ function CooksNotes({ recipe, defaultOpen }) {
 // ─────────────────────────────────────────────────────────────
 // Shared: Comments (disclosure)
 // ─────────────────────────────────────────────────────────────
+function Lightbox({ src, alt, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+  return (
+    <div className="lightbox" onClick={onClose} role="dialog" aria-modal="true">
+      <button className="lightbox-close" onClick={onClose} aria-label="Close">
+        <Icon name="x" size={20} />
+      </button>
+      <img src={src} alt={alt} onClick={(e) => e.stopPropagation()} />
+    </div>
+  );
+}
+
 function StarRow({ value, onChange, readOnly, size = 18 }) {
   return (
     <span className="stars" style={{ display: "inline-flex", gap: 2 }}>
@@ -503,6 +524,7 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
   const [cPhoto, setCPhoto] = useState(null);
   const [posting, setPosting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState(null);
 
   const uploadCommentPhoto = async (file) => {
     if (!file) return;
@@ -551,9 +573,15 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
         {photos.length > 0 && (
           <div className="comment-gallery">
             {photos.map(p => (
-              <a key={p.id} href={p.url} target="_blank" rel="noreferrer" title={`From ${p.name}`}>
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setLightboxSrc(p.url)}
+                title={`From ${p.name}`}
+                style={{ background: "none", border: "none", padding: 0, cursor: "zoom-in" }}
+              >
                 <img src={p.url} alt={`Photo from ${p.name}`} />
-              </a>
+              </button>
             ))}
           </div>
         )}
@@ -582,9 +610,14 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
                 </div>
                 <div className="text">{c.text}</div>
                 {c.photo && (
-                  <a href={c.photo} target="_blank" rel="noreferrer" className="comment-photo">
+                  <button
+                    type="button"
+                    onClick={() => setLightboxSrc(c.photo)}
+                    className="comment-photo"
+                    style={{ background: "none", border: "none", padding: 0, cursor: "zoom-in" }}
+                  >
                     <img src={c.photo} alt="Note photo" />
-                  </a>
+                  </button>
                 )}
               </div>
             </div>
@@ -617,6 +650,7 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
           </div>
         )}
       </div>
+      {lightboxSrc && <Lightbox src={lightboxSrc} alt="Comment photo" onClose={() => setLightboxSrc(null)} />}
     </details>
   );
 }

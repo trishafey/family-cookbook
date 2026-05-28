@@ -1829,6 +1829,26 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   display: block;
 }
 
+.lightbox {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0, 0, 0, 0.86);
+  display: grid; place-items: center;
+  padding: 24px; cursor: zoom-out;
+}
+.lightbox img {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain; cursor: default;
+  border-radius: 4px;
+}
+.lightbox-close {
+  position: absolute; top: 16px; right: 16px;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12); color: #fff;
+  border: none; cursor: pointer;
+  display: grid; place-items: center;
+}
+.lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
+
 .cuisine-pop {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0;
   background: var(--paper); border: 1px solid var(--rule);
