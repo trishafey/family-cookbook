@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { Icon, useStorage, useRecipes, useAuth, useFavorites, signInUrl, SIGN_OUT_URL, applyFilters, normalizeRecipe, ErrorBoundary } from "./helpers.jsx";
+import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
 import { FiltersDrawer } from "./filters.jsx";
@@ -41,6 +42,9 @@ function App() {
     return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([c]) => c);
   }, [recipes]);
   const recipe = recipes.find(r => r.id === recipeId);
+
+  // ─── Language (English / Polish) ───
+  const [, , t] = useLang();
 
   // ─── Sign-in state ───
   const { email: authEmail } = useAuth();
@@ -224,7 +228,7 @@ function App() {
           <div className="search">
             <Icon name="search" />
             <input
-              placeholder="Search by recipe, cook, cuisine, or ingredient…"
+              placeholder={t("searchPlaceholder")}
               value={query}
               onChange={(e) => { setQuery(e.target.value); if (view !== "browse") setView("browse"); }}
             />
@@ -244,18 +248,18 @@ function App() {
               <Icon name="sparkle" size={13} /> <span className="btn-label">The Lab</span>
             </button>
             )}
-            <button className="btn ghost sm" onClick={() => setView("meal")} title="Build a meal">
-              <Icon name="bowl" size={13} /> <span className="btn-label">Build a meal</span>
+            <button className="btn ghost sm" onClick={() => setView("meal")} title={t("buildMeal")}>
+              <Icon name="bowl" size={13} /> <span className="btn-label">{t("buildMeal")}</span>
               {selection.length > 0 && <span style={{ marginLeft: 4, padding: "1px 6px", background: "var(--accent)", color: "var(--paper)", borderRadius: 999, fontSize: 10, fontWeight: 600 }}>{selection.length}</span>}
             </button>
-            <button className="btn primary sm" onClick={() => setView("add")} title="Add recipe">
-              <Icon name="plus" size={13} /> <span className="btn-label">Add recipe</span>
+            <button className="btn primary sm" onClick={() => setView("add")} title={t("addRecipe")}>
+              <Icon name="plus" size={13} /> <span className="btn-label">{t("addRecipe")}</span>
             </button>
             {authEmail ? (
               <AvatarMenu email={authEmail} />
             ) : (
-              <a className="btn sm sign-in" href={signInUrl()} title="Sign in to add or edit recipes">
-                <Icon name="chef" size={13} /> <span className="btn-label">Sign in</span>
+              <a className="btn sm sign-in" href={signInUrl()} title={t("signIn")}>
+                <Icon name="chef" size={13} /> <span className="btn-label">{t("signIn")}</span>
               </a>
             )}
           </div>
@@ -432,6 +436,8 @@ function App() {
           />
         </TweakSection>
       </TweaksPanel>
+
+      <LanguageFab />
     </>
   );
 }
@@ -460,6 +466,38 @@ function AvatarMenu({ email }) {
         </div>
       )}
     </div>
+  );
+}
+
+function LanguageFab() {
+  const [lang, setLang] = useLang();
+  const isPolish = lang === "pl";
+  const next = isPolish ? "en" : "pl";
+  // Polish flag (white over red) shows when site is English (tap to switch
+  // to Polish); Canadian (white red maple) shows when site is Polish.
+  const PolishFlag = (
+    <svg viewBox="0 0 60 38" width="22" height="14" aria-hidden="true">
+      <rect width="60" height="19" fill="#fff" />
+      <rect y="19" width="60" height="19" fill="#dc143c" />
+    </svg>
+  );
+  const CanadianFlag = (
+    <svg viewBox="0 0 60 30" width="22" height="14" aria-hidden="true">
+      <rect width="20" height="30" fill="#d52b1e" />
+      <rect x="20" width="20" height="30" fill="#fff" />
+      <rect x="40" width="20" height="30" fill="#d52b1e" />
+      <path d="M30 8 L31.5 11.5 L34.5 11 L33 14 L36 15 L33.5 17 L34 19 L31 18.5 L30.5 21 L30 21 L29.5 21 L29 18.5 L26 19 L26.5 17 L24 15 L27 14 L25.5 11 L28.5 11.5 Z" fill="#d52b1e" />
+    </svg>
+  );
+  return (
+    <button
+      className="lang-fab"
+      onClick={() => setLang(next)}
+      aria-label={isPolish ? "Switch to English" : "Switch to Polish"}
+      title={isPolish ? "Switch to English" : "Switch to Polish"}
+    >
+      {isPolish ? CanadianFlag : PolishFlag}
+    </button>
   );
 }
 

@@ -2,7 +2,8 @@
 // Variants: editorial (default), magazine, binder.
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Icon, fmtDuration, fmtTime, formatQty, scaleByWeight, scaleIngredients, scheduleForFinish } from "./helpers.jsx";
+import { Icon, fmtDuration, fmtTime, formatQty, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage } from "./helpers.jsx";
+import { convertIngredient } from "./units.js";
 import { TimeOfDayInput } from "./ui.jsx";
 import { NeedHelp } from "./need-help.jsx";
 import { PairingsSection } from "./pairings.jsx";
@@ -315,30 +316,33 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
 // Shared: Ingredients card (with grouping)
 // ─────────────────────────────────────────────────────────────
 function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
+  const [units, setUnits] = useStorage("units:system", "imperial");
+  const displayed = useMemo(
+    () => finalIngs.map(i => convertIngredient(i, units)),
+    [finalIngs, units]
+  );
+
   const grouped = useMemo(() => {
     const g = {};
-    for (const i of finalIngs) {
+    for (const i of displayed) {
       const k = i.grp || "Ingredients";
       // Hide the "Serve" group — those become Pairing suggestions instead
       if (k === "Serve") continue;
       (g[k] = g[k] || []).push(i);
     }
     return g;
-  }, [finalIngs]);
-
-  const yieldLabel = recipe.scaleBy === "weight"
-    ? `${scaler.weight} ${recipe.weightUnit || "lb"} · ~${Math.round(scaler.weight / (recipe.lbPerServing || 0.7))} servings`
-    : `${scaler.servings} servings`;
+  }, [displayed]);
 
   return (
     <div className="ingredients-card">
       <h3>
         Ingredients
-        <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-3)", letterSpacing: ".06em", textTransform: "uppercase" }}>
-          {yieldLabel}
+        <span className="unit-toggle" role="group" aria-label="Units">
+          <button type="button" className={units === "imperial" ? "on" : ""} onClick={() => setUnits("imperial")}>US</button>
+          <button type="button" className={units === "metric" ? "on" : ""} onClick={() => setUnits("metric")}>Metric</button>
         </span>
       </h3>
-      <div className="helper">{finalIngs.length} items, grouped by section</div>
+      <div className="helper">{displayed.length} items, grouped by section</div>
 
       {Object.entries(grouped).map(([g, items]) => (
         <div key={g}>

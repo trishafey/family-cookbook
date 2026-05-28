@@ -171,6 +171,7 @@ function HoursMinutes({ value, onChange }) {
 
 function StepsEditor({ steps, onChange }) {
   const sections = groupBySection(steps, (s) => s.section, "");
+  const [dragIdx, setDragIdx] = useState(null);
 
   const update = (idx, patch) => {
     const next = [...steps];
@@ -190,6 +191,18 @@ function StepsEditor({ steps, onChange }) {
   const addSection = () => {
     const name = "New section";
     onChange([...steps, { t: "", d: "", mins: 0, precision: "easy", section: name }]);
+  };
+  const reorderTo = (toIdx) => {
+    if (dragIdx == null || dragIdx === toIdx) return;
+    const next = [...steps];
+    const [moved] = next.splice(dragIdx, 1);
+    // Pull the dropped step into the same section as the row it's
+    // dropped onto so reordering across section headers makes sense.
+    moved.section = steps[toIdx]?.section ?? moved.section ?? null;
+    const insertAt = toIdx > dragIdx ? toIdx : toIdx; // index unchanged after splice if dropping below
+    next.splice(insertAt, 0, moved);
+    onChange(next);
+    setDragIdx(null);
   };
 
   return (
@@ -211,7 +224,17 @@ function StepsEditor({ steps, onChange }) {
             </div>
           )}
           {sec.items.map((s) => (
-            <div key={s._idx} style={{ display: "grid", gridTemplateColumns: "1fr 150px 120px 24px", gap: 6, marginBottom: 6, alignItems: "start" }}>
+            <div
+              key={s._idx}
+              className={`step-row ${dragIdx === s._idx ? "dragging" : ""}`}
+              draggable
+              onDragStart={(e) => { setDragIdx(s._idx); e.dataTransfer.effectAllowed = "move"; }}
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+              onDrop={(e) => { e.preventDefault(); reorderTo(s._idx); }}
+              onDragEnd={() => setDragIdx(null)}
+              style={{ display: "grid", gridTemplateColumns: "24px 1fr 150px 120px 24px", gap: 6, marginBottom: 6, alignItems: "start" }}
+            >
+              <span className="drag-handle" title="Drag to reorder" aria-label="Drag handle">⋮⋮</span>
               <textarea
                 value={s.d}
                 placeholder="What happens in this step"
@@ -559,39 +582,40 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
 
           <div className="input-row">
             <label>Overnight step?</label>
-            <div>
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <div className="overnight-toggle">
+              <label className="check-line">
                 <input
                   type="checkbox"
                   checked={draft.steps.some(s => s.overnight)}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      // Add a starter overnight step if one doesn't already exist.
                       if (!draft.steps.some(s => s.overnight)) {
+                        // Drop the overnight rest at the front of the list so
+                        // it reads as "Day before" then everything else.
                         setDraft({
                           ...draft,
-                          steps: [...draft.steps, {
-                            t: "Overnight rest",
-                            d: "Park in the fridge / freezer / counter overnight.",
-                            mins: 480,
-                            precision: "patient",
-                            overnight: true,
-                            section: "Overnight",
-                          }],
+                          steps: [
+                            {
+                              t: "The day before (overnight step)",
+                              d: "Park in the fridge / freezer / counter overnight.",
+                              mins: 480,
+                              precision: "patient",
+                              overnight: true,
+                              section: "The day before",
+                            },
+                            ...draft.steps,
+                          ],
                         });
                       }
                     } else {
-                      // Remove any overnight steps.
                       setDraft({ ...draft, steps: draft.steps.filter(s => !s.overnight) });
                     }
                   }}
                 />
-                <span style={{ fontFamily: "var(--serif)", color: "var(--ink-2)" }}>
-                  Recipe has an overnight rest (fridge, proof, freeze, marinate)
-                </span>
+                <span>Recipe has an overnight rest (fridge, proof, freeze, marinate)</span>
               </label>
-              <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
-                Adds an "Overnight" section to the steps below. The scheduler will plan that step for the night before instead of pre-dawn the day of.
+              <div className="hint">
+                Adds a "The day before" step to the very top of the steps below. The scheduler will plan that step for the night before instead of pre-dawn the day of.
               </div>
             </div>
           </div>

@@ -271,17 +271,24 @@ h4 { font-size: 17px; line-height: 1.3; }
   display: flex; justify-content: space-between;
   text-shadow: 0 1px 4px rgba(0,0,0,.4);
 }
-.card .body { padding: var(--pad-card); display: flex; flex-direction: column; gap: 8px; }
+.card { display: flex; flex-direction: column; }
+.card .body {
+  padding: var(--pad-card);
+  display: flex; flex-direction: column; gap: 8px;
+  flex: 1;
+}
 .card .author { font-size: 11px; color: var(--ink-3); letter-spacing: 0.06em; text-transform: uppercase; }
 .card .title { font-family: var(--serif); font-size: 22px; font-weight: 500; line-height: 1.15; }
 .card .sub { font-size: 13px; color: var(--ink-3); line-height: 1.4; min-height: 2.6em; }
+.card .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 .card .footer {
   display: flex; align-items: center; justify-content: space-between;
-  margin-top: 4px; padding-top: 12px;
+  margin-top: auto; padding-top: 12px;
+  min-height: 18px;
   border-top: 1px dashed var(--rule);
   font-family: var(--mono); font-size: 11px; color: var(--ink-3);
 }
-.card .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.card .footer > span { display: inline-flex; align-items: center; gap: 4px; min-height: 14px; }
 
 /* Card layout variants */
 body[data-card="index-card"] .card { border: 1px solid var(--ink-3); border-radius: 2px; background: var(--paper); }
@@ -499,6 +506,57 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   color: var(--ink-3); padding: 0;
 }
 .steps-list .start-bump button:hover { color: var(--accent); border-color: var(--accent); }
+
+.ingredients-card .unit-toggle {
+  display: inline-flex; gap: 0; border: 1px solid var(--rule);
+  border-radius: 999px; overflow: hidden; padding: 0;
+}
+.ingredients-card .unit-toggle button {
+  font-family: var(--sans); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  background: none; border: none; padding: 4px 12px;
+  cursor: pointer; color: var(--ink-3);
+}
+.ingredients-card .unit-toggle button.on { background: var(--ink); color: var(--paper); }
+
+.lang-fab {
+  position: fixed; bottom: 20px; right: 20px; z-index: 200;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--paper); border: 1px solid var(--rule);
+  display: grid; place-items: center; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  padding: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.lang-fab:hover { transform: scale(1.06); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18); }
+.lang-fab svg { border-radius: 2px; overflow: hidden; }
+
+/* Overnight toggle row (inside AddRecipe) */
+.input-row .overnight-toggle .check-line {
+  display: flex; align-items: center; gap: 10px;
+  text-transform: none; letter-spacing: normal;
+  font-family: var(--serif); font-size: 14px; font-weight: 400;
+  color: var(--ink-2); padding: 0;
+  cursor: pointer;
+}
+.input-row .overnight-toggle .check-line input[type="checkbox"] { width: 18px; height: 18px; }
+.input-row .overnight-toggle .hint {
+  margin-top: 6px; font-size: 12px; color: var(--ink-3);
+  font-family: var(--sans);
+}
+
+/* Drag-handle on steps in AddRecipe */
+.step-row { transition: background 0.1s ease; }
+.step-row.dragging { opacity: 0.4; }
+.drag-handle {
+  cursor: grab; user-select: none;
+  color: var(--ink-4); font-size: 16px;
+  display: grid; place-items: center;
+  border-radius: 4px;
+  padding-top: 6px;
+}
+.drag-handle:active { cursor: grabbing; }
+.drag-handle:hover { color: var(--ink-2); background: var(--paper-2); }
 
 /* AI Adjust — lives INSIDE the ingredients card as a sub-section */
 .ai-adjust {
