@@ -33,6 +33,13 @@ function App() {
     () => [...extraRecipes.map(normalizeRecipe), ...serverRecipes],
     [extraRecipes, serverRecipes]
   );
+  // Cuisines actually used in the cookbook, most-frequent first — pinned
+  // as pills at the top of the cuisine dropdown in AddRecipe.
+  const usedCuisines = useMemo(() => {
+    const counts = {};
+    for (const r of recipes) if (r.cuisine) counts[r.cuisine] = (counts[r.cuisine] || 0) + 1;
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([c]) => c);
+  }, [recipes]);
   const recipe = recipes.find(r => r.id === recipeId);
 
   // ─── Sign-in state ───
@@ -295,7 +302,7 @@ function App() {
         </ErrorBoundary>
       )}
       {view === "add" && (
-        <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} authEmail={authEmail} />
+        <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} authEmail={authEmail} usedCuisines={usedCuisines} />
       )}
       {view === "edit" && (
         <AddRecipe
@@ -304,6 +311,7 @@ function App() {
           onDelete={onDeleteRecipe}
           authEmail={authEmail}
           initialRecipe={recipes.find(r => r.id === editingId)}
+          usedCuisines={usedCuisines}
         />
       )}
       {FLAGS.lab && view === "lab" && (
