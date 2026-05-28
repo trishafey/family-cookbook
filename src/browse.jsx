@@ -113,14 +113,9 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
       <header style={{ textAlign: "center", padding: "32px 0 48px", borderBottom: "1px solid var(--rule)", borderWidth: "0px" }}>
         <img
           src="/api/images/hero-image.png"
-          alt=""
+          alt={lang === "pl" ? "Rodzinna Książka Kucharska" : "The Family Cookbook"}
           className="home-hero-image"
         />
-        <h1 style={{ fontSize: 84, fontWeight: 400, margin: "12px 0 8px", letterSpacing: "-0.02em" }}>
-          {lang === "pl"
-            ? <><em style={{ color: "var(--accent)" }}>Rodzinna</em> Książka Kucharska</>
-            : <>The <em style={{ color: "var(--accent)" }}>Family</em> Cookbook</>}
-        </h1>
         <div style={{ marginTop: 24, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
           <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> {t("addRecipe")}</button>
           <button className="btn" onClick={openMealBuilder}><Icon name="bowl" /> {t("buildMeal")}</button>
