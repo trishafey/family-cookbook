@@ -78,6 +78,7 @@ const S = {
   goesGreatWith:  { en: "Goes great with",    pl: "Świetnie pasuje z" },
   showNutrition:  { en: "Show nutrition per serving", pl: "Pokaż wartości odżywcze na porcję" },
   hideNutrition:  { en: "Hide nutrition",     pl: "Ukryj wartości odżywcze" },
+  nutritionRough: { en: "Rough estimates — for precise tracking, edit the values yourself.", pl: "Wartości przybliżone — dla dokładnych pomiarów edytuj je samodzielnie." },
   iWantThisDoneBy:{ en: "I want this done by",pl: "Chcę żeby było gotowe na" },
   startAt:        { en: "Start at",           pl: "Zacznij o" },
   doneAt:         { en: "Done at",            pl: "Gotowe o" },

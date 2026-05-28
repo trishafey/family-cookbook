@@ -296,6 +296,7 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
         </div>
       </div>
       {showNutrition && (
+        <>
         <div className="row nutrition">
           <div className="cell"><div className="val">{finalNutrition.cal}</div><div className="label">Calories</div></div>
           <div className="cell"><div className="val">{finalNutrition.protein}g</div><div className="label">Protein</div></div>
@@ -304,6 +305,10 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
           <div className="cell"><div className="val">{finalNutrition.fiber}g</div><div className="label">Fiber</div></div>
           <div className="cell"><div className="val">{finalNutrition.sodium}mg</div><div className="label">Sodium</div></div>
         </div>
+        <div className="nutrition-disclaimer">
+          {t("nutritionRough")}
+        </div>
+        </>
       )}
       <div style={{ padding: "8px 14px", borderTop: "1px solid var(--rule)", textAlign: "center", background: "var(--paper-2)" }}>
         <button className="btn ghost sm" onClick={() => setShowNutrition(!showNutrition)} style={{ fontSize: 11 }}>

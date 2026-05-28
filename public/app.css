@@ -381,6 +381,13 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .stats-strip .row + .row {
   border-top: 1px solid var(--rule);
 }
+.stats-strip .nutrition-disclaimer {
+  font-family: var(--serif); font-style: italic;
+  font-size: 12px; color: var(--ink-3);
+  text-align: center; padding: 8px 14px;
+  background: var(--paper-2);
+  border-top: 1px dashed var(--rule);
+}
 .stats-strip .row.nutrition {
   grid-template-columns: repeat(6, 1fr);
   background: var(--paper-2);
