@@ -171,7 +171,6 @@ function HoursMinutes({ value, onChange }) {
 
 function StepsEditor({ steps, onChange }) {
   const sections = groupBySection(steps, (s) => s.section, "");
-  const [dragIdx, setDragIdx] = useState(null);
 
   const update = (idx, patch) => {
     const next = [...steps];
@@ -192,17 +191,18 @@ function StepsEditor({ steps, onChange }) {
     const name = "New section";
     onChange([...steps, { t: "", d: "", mins: 0, precision: "easy", section: name }]);
   };
-  const reorderTo = (toIdx) => {
-    if (dragIdx == null || dragIdx === toIdx) return;
+  // Swap two adjacent rows. Native HTML5 drag-and-drop doesn't work on
+  // iPad Safari (touch events don't fire dragstart), so explicit up/down
+  // arrows are the reliable interaction.
+  const moveStep = (idx, delta) => {
+    const target = idx + delta;
+    if (target < 0 || target >= steps.length) return;
     const next = [...steps];
-    const [moved] = next.splice(dragIdx, 1);
-    // Pull the dropped step into the same section as the row it's
-    // dropped onto so reordering across section headers makes sense.
-    moved.section = steps[toIdx]?.section ?? moved.section ?? null;
-    const insertAt = toIdx > dragIdx ? toIdx : toIdx; // index unchanged after splice if dropping below
-    next.splice(insertAt, 0, moved);
+    [next[idx], next[target]] = [next[target], next[idx]];
+    // Stepping across a section boundary moves the row INTO the new
+    // section so the visual sequence stays coherent.
+    next[target] = { ...next[target], section: next[idx + delta]?.section ?? next[target].section };
     onChange(next);
-    setDragIdx(null);
   };
 
   return (
@@ -226,15 +226,17 @@ function StepsEditor({ steps, onChange }) {
           {sec.items.map((s) => (
             <div
               key={s._idx}
-              className={`step-row ${dragIdx === s._idx ? "dragging" : ""}`}
-              draggable
-              onDragStart={(e) => { setDragIdx(s._idx); e.dataTransfer.effectAllowed = "move"; }}
-              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
-              onDrop={(e) => { e.preventDefault(); reorderTo(s._idx); }}
-              onDragEnd={() => setDragIdx(null)}
+              className="step-row"
               style={{ display: "grid", gridTemplateColumns: "24px 1fr 150px 120px 24px", gap: 6, marginBottom: 6, alignItems: "start" }}
             >
-              <span className="drag-handle" title="Drag to reorder" aria-label="Drag handle">⋮⋮</span>
+              <div className="reorder-stack">
+                <button type="button" onClick={() => moveStep(s._idx, -1)} disabled={s._idx === 0} aria-label="Move step up" title="Move up">
+                  <Icon name="chevU" size={12} />
+                </button>
+                <button type="button" onClick={() => moveStep(s._idx, +1)} disabled={s._idx === steps.length - 1} aria-label="Move step down" title="Move down">
+                  <Icon name="chevD" size={12} />
+                </button>
+              </div>
               <textarea
                 value={s.d}
                 placeholder="What happens in this step"
@@ -590,8 +592,10 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   onChange={(e) => {
                     if (e.target.checked) {
                       if (!draft.steps.some(s => s.overnight)) {
-                        // Drop the overnight rest at the front of the list so
-                        // it reads as "Day before" then everything else.
+                        // Two sections: "The day before" for the overnight
+                        // rest at the top, and "Cooking day" for everything
+                        // already in the list (so they read as the day-of
+                        // active prep).
                         setDraft({
                           ...draft,
                           steps: [
@@ -603,12 +607,21 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                               overnight: true,
                               section: "The day before",
                             },
-                            ...draft.steps,
+                            ...draft.steps.map(s => ({ ...s, section: s.section || "Cooking day" })),
                           ],
                         });
                       }
                     } else {
-                      setDraft({ ...draft, steps: draft.steps.filter(s => !s.overnight) });
+                      // Strip the overnight step and clear the auto-added
+                      // "Cooking day" section so the form returns to its
+                      // pre-toggle state. Custom sections the user named
+                      // themselves are left alone.
+                      setDraft({
+                        ...draft,
+                        steps: draft.steps
+                          .filter(s => !s.overnight)
+                          .map(s => s.section === "Cooking day" ? { ...s, section: null } : s),
+                      });
                     }
                   }}
                 />

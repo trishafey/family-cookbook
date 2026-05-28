@@ -545,18 +545,20 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-family: var(--sans);
 }
 
-/* Drag-handle on steps in AddRecipe */
+/* Step reorder controls on AddRecipe */
 .step-row { transition: background 0.1s ease; }
-.step-row.dragging { opacity: 0.4; }
-.drag-handle {
-  cursor: grab; user-select: none;
-  color: var(--ink-4); font-size: 16px;
-  display: grid; place-items: center;
-  border-radius: 4px;
-  padding-top: 6px;
+.reorder-stack {
+  display: flex; flex-direction: column; gap: 2px;
+  padding-top: 4px;
 }
-.drag-handle:active { cursor: grabbing; }
-.drag-handle:hover { color: var(--ink-2); background: var(--paper-2); }
+.reorder-stack button {
+  width: 22px; height: 18px; padding: 0;
+  background: var(--paper-2); border: 1px solid var(--rule);
+  border-radius: 4px; cursor: pointer; color: var(--ink-3);
+  display: grid; place-items: center;
+}
+.reorder-stack button:hover:not([disabled]) { color: var(--accent); border-color: var(--accent); }
+.reorder-stack button[disabled] { opacity: 0.3; cursor: not-allowed; }
 
 /* AI Adjust — lives INSIDE the ingredients card as a sub-section */
 .ai-adjust {

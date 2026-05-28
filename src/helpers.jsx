@@ -410,6 +410,7 @@ export const Icon = ({ name, size = 16 }) => {
     chevR:     <path d="m9 6 6 6-6 6" />,
     chevL:     <path d="m15 6-6 6 6 6" />,
     chevD:     <path d="m6 9 6 6 6-6" />,
+    chevU:     <path d="m6 15 6-6 6 6" />,
     sparkle:   <path d="M12 3v6m0 6v6m-9-9h6m6 0h6M5.6 5.6l4.2 4.2m4.4 4.4 4.2 4.2M5.6 18.4l4.2-4.2m4.4-4.4 4.2-4.2" />,
     check:     <path d="m5 12 5 5L20 7" />,
     camera:    <path d="M4 7h3l2-2h6l2 2h3v12H4V7Z M12 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />,
