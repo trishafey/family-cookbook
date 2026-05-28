@@ -212,27 +212,28 @@ function SourceLink({ recipe }) {
 // Shared: Tag row (filter-style tags inline on the recipe page)
 // ─────────────────────────────────────────────────────────────
 function TagRow({ recipe, scaled }) {
+  const { t, tCourse, tOccasion, tDiet, tDifficulty } = useLang();
   return (
     <div className="tag-row">
       <span className="recipe-tag diff">
-        <span className="dot" /> {recipe.difficulty}
+        <span className="dot" /> {tDifficulty(recipe.difficulty)}
       </span>
       <span className="recipe-tag time">
         <Icon name="clock" size={11} /> {fmtDuration(scaled.totalTime)}
       </span>
       <span className="recipe-tag">
-        <span className="dot" style={{ background: "var(--accent-cool)" }} /> {recipe.course}
+        <span className="dot" style={{ background: "var(--accent-cool)" }} /> {tCourse(recipe.course)}
       </span>
       <span className="recipe-tag">
         <span className="dot" style={{ background: "var(--ink-3)" }} /> {recipe.cuisine}
       </span>
       <span className="recipe-tag">
-        <span className="dot" style={{ background: "var(--accent-warm)" }} /> {recipe.occasion}
+        <span className="dot" style={{ background: "var(--accent-warm)" }} /> {tOccasion(recipe.occasion)}
       </span>
       {recipe.diet.slice(0, 3).map(d => (
-        <span key={d} className="recipe-tag diet"><span className="dot" /> {d}</span>
+        <span key={d} className="recipe-tag diet"><span className="dot" /> {tDiet(d)}</span>
       ))}
-      <span className="recipe-tag author">by {recipe.author}</span>
+      <span className="recipe-tag author">{t("by")} {recipe.author}</span>
     </div>
   );
 }
@@ -741,7 +742,8 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
                           doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                           onCookMode, onShop, comments, addComment, deleteComment,
                           allRecipes, onSaveRecipe, openRecipe,
-                          authEmail, onEditRecipe, onDeleteRecipe, t }) {
+                          authEmail, onEditRecipe, onDeleteRecipe }) {
+  const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <>
       {/* HERO */}
@@ -749,7 +751,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <div className="photo" style={{ backgroundImage: `url(${recipe.photo})` }} />
         <div className="meta">
           <div className="eyebrow" style={{ color: "var(--accent)" }}>
-            {recipe.course} · {recipe.cuisine}
+            {tCourse(recipe.course)} · {recipe.cuisine}
           </div>
           <h1>{recipe.title}</h1>
           <div className="sub">{recipe.subtitle}</div>
@@ -824,25 +826,26 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
                          doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                          onCookMode, onShop, comments, addComment, deleteComment,
                          allRecipes, onSaveRecipe, openRecipe,
-                         authEmail, onEditRecipe, onDeleteRecipe, t }) {
+                         authEmail, onEditRecipe, onDeleteRecipe }) {
+  const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <>
       {/* Full-bleed hero */}
       <div className="recipe-magazine-hero" style={{ backgroundImage: `url(${recipe.photo})` }}>
         <div className="meta">
           <div>
-            <div className="eyebrow">{recipe.course.toUpperCase()} · {recipe.cuisine.toUpperCase()}</div>
+            <div className="eyebrow">{tCourse(recipe.course).toUpperCase()} · {recipe.cuisine.toUpperCase()}</div>
             <h1>{recipe.title}</h1>
             <div className="sub">{recipe.subtitle}</div>
             <SourceLink recipe={recipe} />
             <div className="author-block">
               <div className="av">{recipe.author[0]}</div>
-              <div>A recipe from <strong style={{ fontWeight: 500 }}>{recipe.author}</strong></div>
+              <div>{t("aRecipeFrom")} <strong style={{ fontWeight: 500 }}>{recipe.author}</strong></div>
             </div>
           </div>
           <div className="rhs">
             <div style={{ fontSize: 28, fontFamily: "var(--serif)", fontStyle: "italic", marginBottom: 6 }}>{fmtDuration(scaled.totalTime)}</div>
-            <div>{recipe.difficulty.toUpperCase()} · {scaler.servings || `${scaler.weight} LB`}</div>
+            <div>{tDifficulty(recipe.difficulty).toUpperCase()} · {scaler.servings || `${scaler.weight} LB`}</div>
           </div>
         </div>
       </div>
@@ -908,7 +911,8 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
                        doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                        onCookMode, onShop, comments, addComment, deleteComment,
                        allRecipes, onSaveRecipe, openRecipe,
-                       authEmail, onEditRecipe, onDeleteRecipe, t }) {
+                       authEmail, onEditRecipe, onDeleteRecipe }) {
+  const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <div className="recipe-binder">
       <div className="photo-binder" style={{ backgroundImage: `url(${recipe.photo})` }} />
@@ -922,17 +926,17 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <SourceLink recipe={recipe} />
 
       <div className="recipe-meta-line">
-        <span><strong>{recipe.course}</strong></span>
+        <span><strong>{tCourse(recipe.course)}</strong></span>
         <span>·</span>
         <span><strong>{recipe.cuisine}</strong></span>
         <span>·</span>
-        <span>Prep <strong>{recipe.prep}min</strong></span>
-        <span>Cook <strong>{scaled.cookMins}min</strong></span>
-        <span>Total <strong>{fmtDuration(scaled.totalTime)}</strong></span>
+        <span>{t("prep")} <strong>{recipe.prep}min</strong></span>
+        <span>{t("cook")} <strong>{scaled.cookMins}min</strong></span>
+        <span>{t("total")} <strong>{fmtDuration(scaled.totalTime)}</strong></span>
         <span>·</span>
-        <span><strong>{recipe.difficulty}</strong></span>
+        <span><strong>{tDifficulty(recipe.difficulty)}</strong></span>
         <span>·</span>
-        <span><strong>{scaler.servings || `${scaler.weight} lb`}</strong> serving{(scaler.servings || 1) > 1 ? "s" : ""}</span>
+        <span><strong>{scaler.servings || `${scaler.weight} lb`}</strong> {t("servingsLong")}</span>
       </div>
 
       <TagRow recipe={recipe} scaled={scaled} />
@@ -1082,7 +1086,7 @@ export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, 
     onCookMode, onShop, comments, addComment, deleteComment,
     allRecipes, onSaveRecipe, onSaveToLab,
     openRecipe: onOpenRecipe || ((r) => {}),
-    authEmail, onEditRecipe, onDeleteRecipe, t,
+    authEmail, onEditRecipe, onDeleteRecipe,
   };
 
   return (

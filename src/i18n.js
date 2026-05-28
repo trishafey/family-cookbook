@@ -191,6 +191,7 @@ const S = {
 
   // ─── "by X" on recipe cards / header ───
   by:             { en: "by",                 pl: "od" },
+  aRecipeFrom:    { en: "A recipe from",      pl: "Przepis od" },
 
   // ─── Add / edit recipe form ───
   editing:        { en: "Editing",            pl: "Edytuję" },

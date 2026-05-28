@@ -19,9 +19,14 @@ import { CookMode } from "./cook-mode.jsx";
 function App() {
   // ─── View routing ───
   // view: "browse" | "recipe" | "add" | "edit" | "meal"
-  const [view, setView] = useState("browse");
-  const [recipeId, setRecipeId] = useState(null);
-  const [editingId, setEditingId] = useState(null);
+  // View routing persists in sessionStorage so a refresh keeps you on
+  // the recipe / meal-plan / edit page you were on. localStorage would
+  // outlive the browser session, which is undesirable here — we don't
+  // want to drop returning visitors straight into the last recipe
+  // they opened days ago.
+  const [view, setView] = useStorage("nav:view", "browse");
+  const [recipeId, setRecipeId] = useStorage("nav:recipeId", null);
+  const [editingId, setEditingId] = useStorage("nav:editingId", null);
 
   // ─── Recipe collection ───
   // Server-of-record is the D1 cookbook via /api/recipes; useRecipes caches
@@ -308,16 +313,28 @@ function App() {
       {view === "add" && (
         <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} authEmail={authEmail} usedCuisines={usedCuisines} />
       )}
-      {view === "edit" && (
-        <AddRecipe
-          onClose={() => { setEditingId(null); setView("recipe"); }}
-          onSave={onSaveRecipe}
-          onDelete={onDeleteRecipe}
-          authEmail={authEmail}
-          initialRecipe={recipes.find(r => r.id === editingId)}
-          usedCuisines={usedCuisines}
-        />
-      )}
+      {view === "edit" && (() => {
+        const editingRecipe = recipes.find(r => r.id === editingId);
+        if (!editingRecipe) {
+          // Defensive: the recipe id may be stale (recipe was deleted in
+          // another tab, or extraRecipes got cleared). Send the user back
+          // home instead of crashing.
+          setTimeout(() => { setEditingId(null); setView("browse"); }, 0);
+          return null;
+        }
+        return (
+          <ErrorBoundary>
+            <AddRecipe
+              onClose={() => { setEditingId(null); setView("recipe"); }}
+              onSave={onSaveRecipe}
+              onDelete={onDeleteRecipe}
+              authEmail={authEmail}
+              initialRecipe={editingRecipe}
+              usedCuisines={usedCuisines}
+            />
+          </ErrorBoundary>
+        );
+      })()}
       {FLAGS.lab && view === "lab" && (
         <ExperimentationLab
           onClose={backToBrowse}
@@ -474,6 +491,17 @@ function LanguageFab() {
   const { lang, setLang, t } = useLang();
   const isPolish = lang === "pl";
   const next = isPolish ? "en" : "pl";
+  // useLang() is backed by useStorage, which means each component that
+  // calls it gets an independent React state copy. Persisting to
+  // localStorage works but live updates don't propagate across the
+  // tree on toggle, so a full reload is the simplest way to flip every
+  // surface in one beat. View routing now persists too, so the user
+  // lands back on the same page.
+  const flipLanguage = () => {
+    setLang(next);
+    // Defer reload one tick so localStorage is committed first.
+    setTimeout(() => window.location.reload(), 50);
+  };
   // Polish flag (white over red) shows when site is English (tap to switch
   // to Polish); Canadian (white red maple) shows when site is Polish.
   const PolishFlag = (
@@ -493,7 +521,7 @@ function LanguageFab() {
   return (
     <button
       className="lang-fab"
-      onClick={() => setLang(next)}
+      onClick={flipLanguage}
       aria-label={isPolish ? t("switchToEN") : t("switchToPL")}
       title={isPolish ? t("switchToEN") : t("switchToPL")}
     >
