@@ -111,6 +111,11 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
     <div className="app" data-screen-label="01 Browse">
       {/* Editorial masthead */}
       <header style={{ textAlign: "center", padding: "32px 0 48px", borderBottom: "1px solid var(--rule)", borderWidth: "0px" }}>
+        <img
+          src="/api/images/hero-image.png"
+          alt=""
+          className="home-hero-image"
+        />
         <h1 style={{ fontSize: 84, fontWeight: 400, margin: "12px 0 8px", letterSpacing: "-0.02em" }}>
           {lang === "pl"
             ? <><em style={{ color: "var(--accent)" }}>Rodzinna</em> Książka Kucharska</>
