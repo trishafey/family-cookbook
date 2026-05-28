@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRecipes, useAuth, signInUrl, SIGN_OUT_URL, applyFilters, normalizeRecipe, ErrorBoundary } from "./helpers.jsx";
+import { Icon, useStorage, useRecipes, useAuth, useFavorites, signInUrl, SIGN_OUT_URL, applyFilters, normalizeRecipe, ErrorBoundary } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
 import { FiltersDrawer } from "./filters.jsx";
@@ -56,15 +56,8 @@ function App() {
     setSelection(s => s.includes(r.id) ? s.filter(x => x !== r.id) : [...s, r.id]);
   };
 
-  // ─── Favorites ("the ones we keep coming back to") ───
-  const [favorites, setFavorites] = useStorage("recipes:favorites", [
-    "prime-rib",
-    "ryszards-tomato-soup",
-    "krystyna-apple-meringue-pie",
-  ]);
-  const toggleFavorite = (id) => {
-    setFavorites(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
-  };
+  // ─── Favorites (per signed-in user, stored in D1) ───
+  const { favorites, toggleFavorite } = useFavorites(authEmail);
 
   // ─── Shopping list modal ───
   const [shopOpen, setShopOpen] = useState(false);
@@ -91,10 +84,21 @@ function App() {
     window.scrollTo(0, 0);
   };
 
-  // ─── User-added comments (per-recipe) ───
-  const [allComments, setAllComments] = useStorage("recipes:comments", {});
-  const addComment = (rid, c) => {
-    setAllComments(a => ({ ...a, [rid]: [...(a[rid] || []), c] }));
+  // ─── User-added comments — POSTs to the API, then refreshes the
+  // recipes list so the new comment appears (it's returned inline in
+  // each recipe's liveComments). Throws so the form can show errors.
+  const addComment = async (rid, body) => {
+    const res = await fetch(`/api/admin/recipes/${encodeURIComponent(rid)}/comments`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      throw new Error(error || `Could not post note (${res.status})`);
+    }
+    await refreshRecipes();
   };
 
   // ─── Save a recipe (create or update) ───
@@ -253,7 +257,6 @@ function App() {
           onBack={backToBrowse}
           onCookMode={(r, steps, ings) => openCook(r, steps, ings)}
           onShop={openShop}
-          comments={allComments[recipe.id] || []}
           addComment={addComment}
           onSaveRecipe={onSaveRecipe}
           onOpenRecipe={openRecipe}

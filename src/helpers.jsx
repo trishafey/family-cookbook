@@ -153,6 +153,7 @@ export function normalizeRecipe(r) {
     diet: r.diet || [],
     tips: r.tips || [],
     comments: r.comments || [],
+    liveComments: r.liveComments || [],
     ingredients: r.ingredients || [],
     steps: r.steps || [],
     nutrition: { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodium: 0, ...(r.nutrition || {}) },
@@ -226,6 +227,40 @@ export function useAuth() {
   useEffect(() => { refresh(); }, [refresh]);
 
   return { email, loading, refresh };
+}
+
+// Per-user favorites, stored server-side in D1. Fetches the signed-in
+// user's faves on mount; falls back to an empty list when signed out.
+// toggle() updates locally first for instant UI then POSTs/DELETEs in
+// the background.
+export function useFavorites(authEmail) {
+  const [favorites, setFavorites] = useState([]);
+
+  useEffect(() => {
+    if (!authEmail) { setFavorites([]); return; }
+    fetch("/api/admin/favorites", { credentials: "include", headers: { Accept: "application/json" } })
+      .then(res => res.ok ? res.json() : [])
+      .then(setFavorites)
+      .catch(() => setFavorites([]));
+  }, [authEmail]);
+
+  const toggle = useCallback(async (id) => {
+    if (!authEmail) return;
+    const adding = !favorites.includes(id);
+    setFavorites(prev => adding ? [...prev, id] : prev.filter(x => x !== id));
+    try {
+      await fetch(`/api/admin/favorites/${encodeURIComponent(id)}`, {
+        method: adding ? "POST" : "DELETE",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      });
+    } catch {
+      // revert on failure
+      setFavorites(prev => adding ? prev.filter(x => x !== id) : [...prev, id]);
+    }
+  }, [authEmail, favorites]);
+
+  return { favorites, toggleFavorite: toggle };
 }
 
 // Build a URL that, when navigated to, will route the user through
