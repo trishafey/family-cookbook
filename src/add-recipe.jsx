@@ -1,12 +1,245 @@
 // Add Recipe — AI paste / manual / photo / URL flows
 // AI extraction is mocked: paste text, hit "extract", a stub parses into fields.
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Icon, signInUrl } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
 import { COURSES, OCCASIONS, DIETS } from "./data.js";
+import { COUNTRIES } from "./countries.js";
 
-export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe = null }) {
+function CuisineSearch({ value, onChange, usedCuisines = [] }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return COUNTRIES;
+    return COUNTRIES.filter(c => c.toLowerCase().includes(q));
+  }, [query]);
+
+  const pick = (c) => { onChange(c); setOpen(false); setQuery(""); };
+
+  return (
+    <div ref={ref} style={{ position: "relative", flex: 1 }}>
+      <input
+        style={{ width: "100%" }}
+        value={open ? query : (value || "")}
+        placeholder="Cuisine (e.g. Italian)"
+        onFocus={() => { setOpen(true); setQuery(""); }}
+        onChange={(e) => { setQuery(e.target.value); onChange(e.target.value); }}
+      />
+      {open && (
+        <div className="cuisine-pop">
+          {usedCuisines.length > 0 && (
+            <div className="cuisine-pills">
+              {usedCuisines.map(c => (
+                <button key={c} type="button" className="filter-pill" onClick={() => pick(c)}>{c}</button>
+              ))}
+            </div>
+          )}
+          <div className="cuisine-list">
+            {matches.slice(0, 60).map(c => (
+              <button key={c} type="button" className="cuisine-item" onClick={() => pick(c)}>{c}</button>
+            ))}
+            {matches.length === 0 && (
+              <div style={{ padding: 10, color: "var(--ink-3)", fontSize: 13 }}>
+                No matches — your typed text will be used as-is.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Group an ordered array of items by their section key, preserving the
+// order each section first appears. Returns an array of { name, items }
+// where items keep their original index for in-place edits.
+function groupBySection(arr, keyOf, defaultName) {
+  const seen = [];
+  const byName = {};
+  arr.forEach((it, idx) => {
+    const name = keyOf(it) || defaultName;
+    if (!byName[name]) {
+      byName[name] = { name, items: [] };
+      seen.push(byName[name]);
+    }
+    byName[name].items.push({ ...it, _idx: idx });
+  });
+  return seen;
+}
+
+function IngredientsEditor({ ingredients, onChange }) {
+  const sections = groupBySection(ingredients, (i) => i.grp, "Ingredients");
+
+  const update = (idx, patch) => {
+    const next = [...ingredients];
+    next[idx] = { ...next[idx], ...patch };
+    onChange(next);
+  };
+  const remove = (idx) => onChange(ingredients.filter((_, j) => j !== idx));
+  const renameSection = (oldName, newName) => {
+    onChange(ingredients.map(i => (i.grp || "Ingredients") === oldName ? { ...i, grp: newName } : i));
+  };
+  const deleteSection = (name) => {
+    if (!confirm(`Delete the "${name}" section and its ingredients?`)) return;
+    onChange(ingredients.filter(i => (i.grp || "Ingredients") !== name));
+  };
+  const addIngredientTo = (sectionName) =>
+    onChange([...ingredients, { qty: 1, unit: "", item: "", grp: sectionName }]);
+  const addSection = () => {
+    const name = "New section";
+    onChange([...ingredients, { qty: 1, unit: "", item: "", grp: name }]);
+  };
+
+  return (
+    <div>
+      {sections.map((sec) => (
+        <div key={sec.name} className="form-section" style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <input
+              type="text"
+              value={sec.name}
+              onChange={(e) => renameSection(sec.name, e.target.value || "Ingredients")}
+              style={{ fontWeight: 600, fontSize: 13, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", flex: 1, border: "none", background: "transparent", padding: "2px 0" }}
+              aria-label="Section name"
+            />
+            {sections.length > 1 && (
+              <button type="button" className="btn ghost icon-only" onClick={() => deleteSection(sec.name)} title="Delete section">
+                <Icon name="x" size={12} />
+              </button>
+            )}
+          </div>
+          {sec.items.map((i) => (
+            <div key={i._idx} style={{ display: "grid", gridTemplateColumns: "70px 80px 1fr 24px", gap: 6, marginBottom: 6 }}>
+              <input type="number" step="0.25" value={i.qty} placeholder="Qty"
+                onChange={(e) => update(i._idx, { qty: +e.target.value })} />
+              <input value={i.unit} placeholder="Unit"
+                onChange={(e) => update(i._idx, { unit: e.target.value })} />
+              <input value={i.item} placeholder="e.g. ground beef"
+                onChange={(e) => update(i._idx, { item: e.target.value })} />
+              <button type="button" className="btn ghost icon-only" onClick={() => remove(i._idx)}>
+                <Icon name="x" size={12} />
+              </button>
+            </div>
+          ))}
+          <button type="button" className="btn ghost sm" onClick={() => addIngredientTo(sec.name)}>
+            <Icon name="plus" size={12} /> Add ingredient
+          </button>
+        </div>
+      ))}
+      <button type="button" className="btn ghost sm" onClick={addSection}>
+        <Icon name="plus" size={12} /> Add section
+      </button>
+    </div>
+  );
+}
+
+// hh:mm input pair backed by a single total-minutes number.
+function HoursMinutes({ value, onChange }) {
+  const total = +value || 0;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  const set = (hrs, mins) => onChange(Math.max(0, (+hrs || 0) * 60 + (+mins || 0)));
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      <input
+        type="number" min="0" placeholder="hrs"
+        value={h || ""}
+        onChange={(e) => set(e.target.value, m)}
+        style={{ width: 56 }}
+      />
+      <span style={{ color: "var(--ink-4)" }}>:</span>
+      <input
+        type="number" min="0" max="59" placeholder="mins"
+        value={m || ""}
+        onChange={(e) => set(h, e.target.value)}
+        style={{ width: 64 }}
+      />
+    </div>
+  );
+}
+
+function StepsEditor({ steps, onChange }) {
+  const sections = groupBySection(steps, (s) => s.section, "");
+
+  const update = (idx, patch) => {
+    const next = [...steps];
+    next[idx] = { ...next[idx], ...patch };
+    onChange(next);
+  };
+  const remove = (idx) => onChange(steps.filter((_, j) => j !== idx));
+  const renameSection = (oldName, newName) => {
+    onChange(steps.map(s => (s.section || "") === oldName ? { ...s, section: newName || null } : s));
+  };
+  const deleteSection = (name) => {
+    if (!confirm(`Delete the "${name}" section and its steps?`)) return;
+    onChange(steps.filter(s => (s.section || "") !== name));
+  };
+  const addStepTo = (sectionName) =>
+    onChange([...steps, { t: "", d: "", mins: 0, precision: "easy", section: sectionName || null }]);
+  const addSection = () => {
+    const name = "New section";
+    onChange([...steps, { t: "", d: "", mins: 0, precision: "easy", section: name }]);
+  };
+
+  return (
+    <div>
+      {sections.map((sec) => (
+        <div key={sec.name || "__no_section"} className="form-section" style={{ marginBottom: 14 }}>
+          {sec.name && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <input
+                type="text"
+                value={sec.name}
+                onChange={(e) => renameSection(sec.name, e.target.value)}
+                style={{ fontWeight: 600, fontSize: 13, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", flex: 1, border: "none", background: "transparent", padding: "2px 0" }}
+                aria-label="Section name"
+              />
+              <button type="button" className="btn ghost icon-only" onClick={() => deleteSection(sec.name)} title="Delete section">
+                <Icon name="x" size={12} />
+              </button>
+            </div>
+          )}
+          {sec.items.map((s) => (
+            <div key={s._idx} style={{ display: "grid", gridTemplateColumns: "1fr 150px 120px 24px", gap: 6, marginBottom: 6, alignItems: "start" }}>
+              <textarea
+                value={s.d}
+                placeholder="What happens in this step"
+                style={{ minHeight: 60 }}
+                onChange={(e) => update(s._idx, { d: e.target.value, t: e.target.value.split(/[.:]/)[0].slice(0, 60) })}
+              />
+              <HoursMinutes value={s.mins} onChange={(v) => update(s._idx, { mins: v })} />
+              <select value={s.precision || "easy"} onChange={(e) => update(s._idx, { precision: e.target.value })}>
+                {["easy","medium","careful","watch","patient"].map(p => <option key={p}>{p}</option>)}
+              </select>
+              <button type="button" className="btn ghost icon-only" onClick={() => remove(s._idx)}>
+                <Icon name="x" size={12} />
+              </button>
+            </div>
+          ))}
+          <button type="button" className="btn ghost sm" onClick={() => addStepTo(sec.name)}>
+            <Icon name="plus" size={12} /> Add step
+          </button>
+        </div>
+      ))}
+      <button type="button" className="btn ghost sm" onClick={addSection}>
+        <Icon name="plus" size={12} /> Add section
+      </button>
+    </div>
+  );
+}
+
+export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe = null, usedCuisines = [] }) {
   const editing = Boolean(initialRecipe);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -41,7 +274,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     difficulty: "Easy",
     nutrition: { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodium: 0 },
     ingredients: [{ qty: 1, unit: "", item: "", grp: "Ingredients" }],
-    steps: [{ t: "", d: "", mins: 5, precision: "easy" }],
+    steps: [{ t: "", d: "", mins: 0, precision: "easy" }],
     tips: [],
     comments: [],
   });
@@ -291,7 +524,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               <select value={draft.course} onChange={(e) => setDraft({ ...draft, course: e.target.value })}>
                 {COURSES.map(c => <option key={c}>{c}</option>)}
               </select>
-              <input style={{ flex: 1 }} value={draft.cuisine} onChange={(e) => setDraft({ ...draft, cuisine: e.target.value })} placeholder="Cuisine (e.g. Italian)" />
+              <CuisineSearch value={draft.cuisine} onChange={(v) => setDraft({ ...draft, cuisine: v })} usedCuisines={usedCuisines} />
             </div>
           </div>
           <div className="input-row">
@@ -405,33 +638,12 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           <div className="input-row" style={{ alignItems: "stretch" }}>
             <label>Ingredients</label>
             <div>
-              {draft.ingredients.map((i, idx) => (
-                <div key={idx} style={{ display: "grid", gridTemplateColumns: "70px 80px 1fr 24px", gap: 6, marginBottom: 6 }}>
-                  <input type="number" step="0.25" value={i.qty} onChange={(e) => {
-                    const ings = [...draft.ingredients];
-                    ings[idx] = { ...ings[idx], qty: +e.target.value };
-                    setDraft({ ...draft, ingredients: ings });
-                  }} placeholder="Qty" />
-                  <input value={i.unit} onChange={(e) => {
-                    const ings = [...draft.ingredients];
-                    ings[idx] = { ...ings[idx], unit: e.target.value };
-                    setDraft({ ...draft, ingredients: ings });
-                  }} placeholder="Unit" />
-                  <input value={i.item} onChange={(e) => {
-                    const ings = [...draft.ingredients];
-                    ings[idx] = { ...ings[idx], item: e.target.value };
-                    setDraft({ ...draft, ingredients: ings });
-                  }} placeholder="e.g. ground beef" />
-                  <button className="btn ghost icon-only" onClick={() => {
-                    setDraft({ ...draft, ingredients: draft.ingredients.filter((_, j) => j !== idx) });
-                  }}><Icon name="x" size={12} /></button>
-                </div>
-              ))}
-              <button className="btn ghost sm" onClick={() => setDraft({ ...draft, ingredients: [...draft.ingredients, { qty: 1, unit: "", item: "", grp: "Ingredients" }] })}>
-                <Icon name="plus" size={12} /> Add ingredient
-              </button>
+              <IngredientsEditor
+                ingredients={draft.ingredients}
+                onChange={(ings) => setDraft({ ...draft, ingredients: ings })}
+              />
               {FLAGS.extractText && (
-              <button className="btn ghost sm" style={{ marginLeft: 8 }} onClick={() => alert("AI would fill in missing quantities, units, and pantry-staple defaults.")}>
+              <button type="button" className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => alert("AI would fill in missing quantities, units, and pantry-staple defaults.")}>
                 <Icon name="sparkle" size={12} /> AI fill missing details
               </button>
               )}
@@ -441,33 +653,10 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           <div className="input-row" style={{ alignItems: "stretch" }}>
             <label>Steps</label>
             <div>
-              {draft.steps.map((s, idx) => (
-                <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 80px 120px 24px", gap: 6, marginBottom: 6, alignItems: "start" }}>
-                  <textarea value={s.d} onChange={(e) => {
-                    const steps = [...draft.steps];
-                    steps[idx] = { ...steps[idx], d: e.target.value, t: e.target.value.split(/[.:]/)[0].slice(0, 60) };
-                    setDraft({ ...draft, steps });
-                  }} placeholder="What happens in this step" style={{ minHeight: 60 }} />
-                  <input type="number" value={s.mins} onChange={(e) => {
-                    const steps = [...draft.steps];
-                    steps[idx] = { ...steps[idx], mins: +e.target.value };
-                    setDraft({ ...draft, steps });
-                  }} placeholder="Minutes" />
-                  <select value={s.precision} onChange={(e) => {
-                    const steps = [...draft.steps];
-                    steps[idx] = { ...steps[idx], precision: e.target.value };
-                    setDraft({ ...draft, steps });
-                  }}>
-                    {["easy","medium","careful","watch","patient"].map(p => <option key={p}>{p}</option>)}
-                  </select>
-                  <button className="btn ghost icon-only" onClick={() => {
-                    setDraft({ ...draft, steps: draft.steps.filter((_, j) => j !== idx) });
-                  }}><Icon name="x" size={12} /></button>
-                </div>
-              ))}
-              <button className="btn ghost sm" onClick={() => setDraft({ ...draft, steps: [...draft.steps, { t: "", d: "", mins: 5, precision: "easy" }] })}>
-                <Icon name="plus" size={12} /> Add step
-              </button>
+              <StepsEditor
+                steps={draft.steps}
+                onChange={(steps) => setDraft({ ...draft, steps })}
+              />
             </div>
           </div>
 

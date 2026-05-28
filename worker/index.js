@@ -63,7 +63,7 @@ app.get("/api/recipes", async (c) => {
   const rows = await c.env.DB.prepare(
     `SELECT r.blob, COALESCE(json_group_array(
        CASE WHEN c.id IS NULL THEN NULL
-            ELSE json_object('id', c.id, 'name', c.author, 'text', c.body, 'created_at', c.created_at, 'created_by', c.created_by)
+            ELSE json_object('id', c.id, 'name', c.author, 'text', c.body, 'created_at', c.created_at, 'created_by', c.created_by, 'rating', c.rating, 'photo', c.photo)
        END
      ) FILTER (WHERE c.id IS NOT NULL), '[]') AS live_comments
      FROM recipes r
@@ -86,6 +86,8 @@ function formatComment(c) {
     text: c.text,
     date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     created_by: c.created_by || null,
+    rating: c.rating ?? null,
+    photo: c.photo || null,
   };
 }
 
@@ -248,11 +250,14 @@ app.post("/api/admin/recipes/:id/comments", async (c) => {
 
   const id = crypto.randomUUID();
   const now = Date.now();
-  await c.env.DB.prepare(
-    "INSERT INTO comments (id, recipe_id, author, body, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)"
-  ).bind(id, c.req.param("id"), body.name.trim(), body.text.trim(), now, email).run();
+  const rating = Number.isInteger(body.rating) && body.rating >= 1 && body.rating <= 5 ? body.rating : null;
+  const photo = typeof body.photo === "string" && body.photo.startsWith("/api/images/") ? body.photo : null;
 
-  return c.json(formatComment({ id, name: body.name.trim(), text: body.text.trim(), created_at: now, created_by: email }));
+  await c.env.DB.prepare(
+    "INSERT INTO comments (id, recipe_id, author, body, created_at, created_by, rating, photo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  ).bind(id, c.req.param("id"), body.name.trim(), body.text.trim(), now, email, rating, photo).run();
+
+  return c.json(formatComment({ id, name: body.name.trim(), text: body.text.trim(), created_at: now, created_by: email, rating, photo }));
 });
 
 // Only the author can remove their own note.

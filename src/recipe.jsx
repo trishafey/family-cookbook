@@ -1,7 +1,7 @@
 // Recipe detail — 3 variants share the same state & sub-components.
 // Variants: editorial (default), magazine, binder.
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Icon, fmtDuration, fmtTime, formatQty, scaleByWeight, scaleIngredients, scheduleForFinish } from "./helpers.jsx";
 import { TimeOfDayInput } from "./ui.jsx";
 import { NeedHelp } from "./need-help.jsx";
@@ -387,25 +387,33 @@ function TimingBar({ doneBy, setDoneBy, finishTime, setFinishTime, schedule }) {
 // Shared: Steps list
 // ─────────────────────────────────────────────────────────────
 function StepsList({ steps, doneBy, schedule }) {
+  let lastSection = null;
   return (
     <div className="steps-list">
-      {steps.map((s, i) => (
-        <div className="step" key={i}>
-          <div className="n">{String(i + 1).padStart(2, "0")}</div>
-          <div>
-            <div className="t">{s.t}</div>
-            <div className="d">{s.d}</div>
-            <div className="meta">
-              <span className={`precision-${s.precision}`}>● {s.precision}</span>
-              <span className="time">{fmtDuration(s.mins)}</span>
-              {s.hands != null && <span>hands-on {fmtDuration(s.hands)}</span>}
-              {doneBy && schedule && (
-                <span className="start">▶ {fmtTime(schedule.schedule[i].start)} – {fmtTime(schedule.schedule[i].end)}</span>
-              )}
+      {steps.map((s, i) => {
+        const showHeader = s.section && s.section !== lastSection;
+        if (s.section) lastSection = s.section;
+        return (
+          <React.Fragment key={i}>
+            {showHeader && <h4 className="steps-section">{s.section}</h4>}
+            <div className="step">
+              <div className="n">{String(i + 1).padStart(2, "0")}</div>
+              <div>
+                <div className="t">{s.t}</div>
+                <div className="d">{s.d}</div>
+                <div className="meta">
+                  <span className={`precision-${s.precision}`}>● {s.precision}</span>
+                  <span className="time">{fmtDuration(s.mins)}</span>
+                  {s.hands != null && <span>hands-on {fmtDuration(s.hands)}</span>}
+                  {doneBy && schedule && (
+                    <span className="start">▶ {fmtTime(schedule.schedule[i].start)} – {fmtTime(schedule.schedule[i].end)}</span>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      ))}
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 }
@@ -460,24 +468,78 @@ function CooksNotes({ recipe, defaultOpen }) {
 // ─────────────────────────────────────────────────────────────
 // Shared: Comments (disclosure)
 // ─────────────────────────────────────────────────────────────
+function StarRow({ value, onChange, readOnly, size = 18 }) {
+  return (
+    <span className="stars" style={{ display: "inline-flex", gap: 2 }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => !readOnly && onChange(value === n ? 0 : n)}
+          aria-label={`${n} star${n > 1 ? "s" : ""}`}
+          disabled={readOnly}
+          style={{
+            background: "none", border: "none", padding: 0,
+            cursor: readOnly ? "default" : "pointer",
+            fontSize: size, lineHeight: 1,
+            color: n <= value ? "#C42807" : "var(--ink-4)",
+          }}
+        >{n <= value ? "★" : "☆"}</button>
+      ))}
+    </span>
+  );
+}
+
 function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOpen }) {
-  const all = [...(recipe.comments || []), ...(recipe.liveComments || [])];
+  // recipe.comments holds the original cookbook's curated placeholder
+  // notes (left over from the seed data). The shared family notes live
+  // in recipe.liveComments, which is the only thing we want to show now.
+  const all = recipe.liveComments || [];
+  const photos = all.filter(c => c.photo).map(c => ({ id: c.id, url: c.photo, name: c.name }));
+
   const [cName, setCName] = useState("");
   const [cText, setCText] = useState("");
+  const [cRating, setCRating] = useState(0);
+  const [cPhoto, setCPhoto] = useState(null);
   const [posting, setPosting] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const uploadCommentPhoto = async (file) => {
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/admin/uploads", { method: "POST", credentials: "include", body });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      setCPhoto(url);
+    } catch (err) {
+      alert(err.message || "Photo upload failed");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     if (!cName.trim() || !cText.trim()) return;
     setPosting(true);
     try {
-      await addComment(recipe.id, { name: cName.trim(), text: cText.trim() });
-      setCName(""); setCText("");
+      await addComment(recipe.id, {
+        name: cName.trim(),
+        text: cText.trim(),
+        rating: cRating > 0 ? cRating : null,
+        photo: cPhoto,
+      });
+      setCName(""); setCText(""); setCRating(0); setCPhoto(null);
     } catch (err) {
       alert(err.message || "Could not post note");
     } finally {
       setPosting(false);
     }
   };
+
   return (
     <details className="disclosure" open={defaultOpen}>
       <summary>
@@ -486,6 +548,15 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
         <span className="count">{all.length} {all.length === 1 ? "note" : "notes"}</span>
       </summary>
       <div className="disclosure-body">
+        {photos.length > 0 && (
+          <div className="comment-gallery">
+            {photos.map(p => (
+              <a key={p.id} href={p.url} target="_blank" rel="noreferrer" title={`From ${p.name}`}>
+                <img src={p.url} alt={`Photo from ${p.name}`} />
+              </a>
+            ))}
+          </div>
+        )}
         {all.map((c, i) => {
           const mine = c.created_by && authEmail && c.created_by === authEmail;
           return (
@@ -495,6 +566,7 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
                 <div className="head">
                   <span className="name">{c.name}</span>
                   <span className="date">{c.date}</span>
+                  {c.rating > 0 && <StarRow value={c.rating} readOnly size={13} />}
                   {mine && deleteComment && (
                     <button
                       type="button"
@@ -509,6 +581,11 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
                   )}
                 </div>
                 <div className="text">{c.text}</div>
+                {c.photo && (
+                  <a href={c.photo} target="_blank" rel="noreferrer" className="comment-photo">
+                    <img src={c.photo} alt="Note photo" />
+                  </a>
+                )}
               </div>
             </div>
           );
@@ -518,7 +595,19 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
             <h4 style={{ marginBottom: 8 }}>Leave a note</h4>
             <input type="text" placeholder="Your name" value={cName} onChange={(e) => setCName(e.target.value)} required disabled={posting} />
             <textarea placeholder="What did you change? What did the kids say? What would your grandma do?" value={cText} onChange={(e) => setCText(e.target.value)} required disabled={posting} />
-            <button className="btn primary" style={{ alignSelf: "flex-end" }} disabled={posting}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <label style={{ fontSize: 12, color: "var(--ink-3)" }}>Rating (optional):</label>
+              <StarRow value={cRating} onChange={setCRating} />
+              <label className="btn ghost sm" style={{ cursor: uploadingPhoto ? "wait" : "pointer", marginLeft: "auto" }}>
+                <Icon name="camera" size={12} /> {uploadingPhoto ? "Uploading…" : cPhoto ? "Photo attached" : "Add photo"}
+                <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingPhoto || posting} onChange={(e) => uploadCommentPhoto(e.target.files?.[0])} />
+              </label>
+              {cPhoto && (
+                <button type="button" className="btn ghost icon-only" onClick={() => setCPhoto(null)} title="Remove photo"><Icon name="x" size={12} /></button>
+              )}
+            </div>
+            {cPhoto && <img src={cPhoto} alt="" style={{ maxWidth: 180, borderRadius: 4, border: "1px solid var(--rule)" }} />}
+            <button className="btn primary" style={{ alignSelf: "flex-end" }} disabled={posting || uploadingPhoto}>
               {posting ? "Posting…" : "Post note"}
             </button>
           </form>
