@@ -83,9 +83,9 @@ function App() {
   const [planRecipes, setPlanRecipes] = useState([]);
   const [mealPlan, setMealPlan] = useState(null); // { recipes, finishTime } when active
   const openPlanMeal = (recipes) => { setPlanRecipes(recipes); setPlanModalOpen(true); };
-  const confirmPlan = (when) => {
+  const confirmPlan = (when, opts = {}) => {
     setFinishTime(when);
-    setMealPlan({ recipes: planRecipes, finishTime: when });
+    setMealPlan({ recipes: planRecipes, finishTime: when, eveningHour: opts.eveningHour ?? 19 });
     setPlanModalOpen(false);
     setView("meal-plan");
     window.scrollTo(0, 0);
@@ -337,6 +337,7 @@ function App() {
         <MealPlanPage
           recipes={mealPlan.recipes}
           finishTime={mealPlan.finishTime}
+          eveningHour={mealPlan.eveningHour}
           onClose={() => setView("meal")}
           onCookMode={(r, steps, ings) => openCook(r, steps, ings)}
           onShop={openShop}

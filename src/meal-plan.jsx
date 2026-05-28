@@ -14,6 +14,9 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
   const [finishTime, setFinishTime] = useState(() => {
     const d = new Date(); d.setHours(18, 0, 0, 0); return d;
   });
+  // Adjustable: when to start the "make the night before" prep for any
+  // recipes that have an overnight rest. Defaults to 7pm.
+  const [eveningHour, setEveningHour] = useState(19);
 
   const dateStr = `${finishTime.getFullYear()}-${String(finishTime.getMonth() + 1).padStart(2, "0")}-${String(finishTime.getDate()).padStart(2, "0")}`;
   const timeStr = `${String(finishTime.getHours()).padStart(2, "0")}:${String(finishTime.getMinutes()).padStart(2, "0")}`;
@@ -34,9 +37,22 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
     setFinishTime(d);
   };
 
-  // Longest individual recipe = the earliest "must start by"
-  const longest = recipes.reduce((s, r) => Math.max(s, r.total), 0);
-  const startByDate = new Date(finishTime.getTime() - longest * 60000);
+  // Per-recipe back-scheduled start times — the same logic the meal plan
+  // page will use, so the "you'll start at" pill matches reality, including
+  // multi-day overnight handling.
+  const perRecipe = useMemo(() => recipes.map(r => ({
+    recipe: r,
+    ...scheduleForFinish(r.steps, finishTime, { eveningHour }),
+  })), [recipes, finishTime, eveningHour]);
+
+  // Earliest start across all recipes, with day offset.
+  const earliest = perRecipe.reduce((best, p) => {
+    return !best || p.startTime < best.startTime ? p : best;
+  }, null);
+  const earliestStartByDate = earliest ? earliest.startTime : finishTime;
+  const earliestOffset = earliest?.schedule?.[0]?.dayOffset ?? 0;
+  const overnightRecipes = perRecipe.filter(p => p.schedule.some(s => s.overnight));
+  const hasOvernight = overnightRecipes.length > 0;
 
   return (
     <Modal
@@ -52,7 +68,7 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
           </span>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn" onClick={onClose}>Cancel</button>
-            <button className="btn primary" onClick={() => onConfirm(finishTime)}>
+            <button className="btn primary" onClick={() => onConfirm(finishTime, { eveningHour })}>
               <Icon name="play" /> Build the schedule
             </button>
           </div>
@@ -96,10 +112,39 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
           ))}
         </div>
 
+        {hasOvernight && (
+          <div className="overnight-suggestion">
+            <div className="head">
+              <Icon name="clock" size={14} />
+              <strong>Needs a head start the night before</strong>
+            </div>
+            <p>
+              {overnightRecipes.map(p => p.recipe.title).join(" and ")}{" "}
+              {overnightRecipes.length === 1 ? "has" : "have"} an overnight step (chilling, proofing, freezing).
+              Instead of waking up at {fmtTime(earliestStartByDate)} the day of, we'll start the night-before prep at:
+            </p>
+            <div className="evening-picker">
+              <input
+                type="time"
+                value={`${String(eveningHour).padStart(2, "0")}:00`}
+                onChange={(e) => {
+                  const [h] = e.target.value.split(":").map(Number);
+                  if (!Number.isNaN(h)) setEveningHour(h);
+                }}
+              />
+              <span>the day before</span>
+            </div>
+          </div>
+        )}
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: "14px 16px", background: "var(--paper-2)", border: "1px solid var(--rule)", borderRadius: "var(--radius)" }}>
           <div>
             <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>You'll start at</div>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 24, color: "var(--accent)", marginTop: 4 }}>{fmtTime(startByDate)}</div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 24, color: "var(--accent)", marginTop: 4 }}>
+              {earliestOffset < 0
+                ? `${earliestStartByDate.toLocaleDateString("en-US", { weekday: "long" })} at ${fmtTime(earliestStartByDate)}`
+                : fmtTime(earliestStartByDate)}
+            </div>
           </div>
           <div>
             <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>And eat at</div>
@@ -116,19 +161,19 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
 // ─────────────────────────────────────────────────────────────
 const RECIPE_COLORS = ["#b04a2a", "#6e7a3a", "#3a5a6a", "#d68a2a", "#8a3a5a"];
 
-export function MealPlanPage({ recipes, finishTime, onClose, onCookMode, onShop }) {
+export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, onCookMode, onShop }) {
   const [tab, setTab] = useState("combined");
 
   // Each recipe gets its own back-scheduled timeline
   const perRecipe = useMemo(() => {
     return recipes.map((r, ri) => {
-      const { schedule, startTime } = scheduleForFinish(r.steps, finishTime);
+      const { schedule, startTime } = scheduleForFinish(r.steps, finishTime, { eveningHour });
       return {
         recipe: r, idx: ri, color: RECIPE_COLORS[ri % RECIPE_COLORS.length],
         schedule, startTime,
       };
     });
-  }, [recipes, finishTime]);
+  }, [recipes, finishTime, eveningHour]);
 
   // Combined timeline = all steps from all recipes, interleaved chronologically
   const combined = useMemo(() => {
@@ -228,7 +273,7 @@ export function MealPlanPage({ recipes, finishTime, onClose, onCookMode, onShop 
       </div>
 
       {tab === "combined" && (
-        <CombinedTimeline grouped={grouped} />
+        <CombinedTimeline grouped={grouped} finishTime={finishTime} />
       )}
       {tab !== "combined" && (
         <PerRecipeView
@@ -240,35 +285,83 @@ export function MealPlanPage({ recipes, finishTime, onClose, onCookMode, onShop 
   );
 }
 
-function CombinedTimeline({ grouped }) {
+function CombinedTimeline({ grouped, finishTime }) {
+  // Compute earliest item across groups so we can label day transitions
+  // and gaps with a meaningful "previous day"/"day of" label.
+  const finishDay = new Date(finishTime); finishDay.setHours(0, 0, 0, 0);
+  const dayOffsetOf = (d) => {
+    const day = new Date(d); day.setHours(0, 0, 0, 0);
+    return Math.round((day - finishDay) / 86400000);
+  };
+  const labelForOffset = (off) => {
+    const d = new Date(finishDay);
+    d.setDate(d.getDate() + off);
+    const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
+    return off === 0 ? `${weekday} — day of` : off === -1 ? `${weekday} — the day before` : weekday;
+  };
+
+  let lastEndTime = null;
+  let lastDayOffset = null;
+
   return (
     <div className="combined-timeline">
-      {grouped.map((g, gi) => (
-        <Fragment key={gi}>
-          <div className="timeline-marker">
-            <Icon name="clock" size={13} /> {g.key}
-          </div>
-          {g.items.map((it, ii) => (
-            <div className="timeline-row" data-rc={it.ri} key={`${gi}-${ii}`}>
-              <div className="when-col">
-                {fmtTime(it.start)}
-                <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 4 }}>→ {fmtTime(it.end)}</div>
-              </div>
-              <div className="step-card">
+      {grouped.map((g, gi) => {
+        const groupOffset = dayOffsetOf(g.time);
+        const dayChanged = lastDayOffset !== null && groupOffset !== lastDayOffset;
+        const showDay = lastDayOffset === null || dayChanged;
+        const gapMin = lastEndTime ? Math.round((g.time - lastEndTime) / 60000) : 0;
+        const showBreak = !dayChanged && gapMin >= 30;
+        const breakHuman = gapMin >= 60
+          ? `${Math.floor(gapMin / 60)}h ${gapMin % 60 ? (gapMin % 60) + "m" : ""}`.trim()
+          : `${gapMin} min`;
+
+        // Update tracking. The "lastEndTime" advances to whichever item in
+        // this group ends last.
+        const groupLastEnd = g.items.reduce((m, it) => it.end > m ? it.end : m, g.time);
+
+        const node = (
+          <Fragment key={gi}>
+            {showDay && (
+              <div className="timeline-day">{labelForOffset(groupOffset)}</div>
+            )}
+            {showBreak && (
+              <div className="timeline-break">
+                <Icon name="clock" size={14} />
                 <div>
-                  <div className="recipe-label">{it.recipe.title} · step {it.stepIdx}</div>
-                  <div className="step-title">{it.step.t}</div>
-                  <div className="step-desc">{it.step.d}</div>
-                </div>
-                <div className="duration">
-                  {fmtDuration(it.step.mins)}
-                  <div className={`precision precision-${it.step.precision}`} style={{ marginTop: 4 }}>● {it.step.precision}</div>
+                  <strong>{breakHuman} until your next step.</strong>
+                  <span style={{ marginLeft: 6, color: "var(--ink-3)" }}>Take a break.</span>
                 </div>
               </div>
+            )}
+            <div className="timeline-marker">
+              <Icon name="clock" size={13} /> {g.key}
             </div>
-          ))}
-        </Fragment>
-      ))}
+            {g.items.map((it, ii) => (
+              <div className="timeline-row" data-rc={it.ri} key={`${gi}-${ii}`}>
+                <div className="when-col">
+                  {fmtTime(it.start)}
+                  <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 4 }}>→ {fmtTime(it.end)}</div>
+                </div>
+                <div className="step-card">
+                  <div>
+                    <div className="recipe-label">{it.recipe.title} · step {it.stepIdx}</div>
+                    <div className="step-title">{it.step.t}</div>
+                    <div className="step-desc">{it.step.d}</div>
+                  </div>
+                  <div className="duration">
+                    {fmtDuration(it.step.mins)}
+                    <div className={`precision precision-${it.step.precision}`} style={{ marginTop: 4 }}>● {it.step.precision}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </Fragment>
+        );
+
+        lastDayOffset = groupOffset;
+        lastEndTime = groupLastEnd;
+        return node;
+      })}
     </div>
   );
 }

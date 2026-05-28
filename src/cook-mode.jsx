@@ -8,40 +8,52 @@ import { FLAGS } from "./config/flags.js";
 
 export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClose }) {
   const [idx, setIdx] = useStorage(`cookmode:${recipe.id}:idx`, 0);
-  // Per-step duration override: { [stepIdx]: deltaMinutes }. Lets the
-  // cook say 'this took 10 extra minutes' and have the rest of the
-  // schedule shift to match. Persists so a refresh doesn't lose the
+  // Per-step start-time overrides, stored as ISO strings. Editing a
+  // step's start time anchors that step at the new time; subsequent
+  // steps then flow forward from it, so the rest of the timeline
+  // shifts automatically. Persists so a refresh keeps the cook's
   // running adjustments.
-  const [overrides, setOverrides] = useStorage(`cookmode:${recipe.id}:overrides`, {});
-  const [finishShift, setFinishShift] = useStorage(`cookmode:${recipe.id}:shift`, 0);
+  const [startOverridesRaw, setStartOverrides] = useStorage(`cookmode:${recipe.id}:startOverrides`, {});
 
-  const adjustedSteps = useMemo(
-    () => steps.map((s, i) => ({ ...s, mins: Math.max(0, (s.mins || 0) + (overrides[i] || 0)) })),
-    [steps, overrides]
-  );
-  const adjustedFinish = useMemo(
-    () => new Date(new Date(finishTime).getTime() + (finishShift || 0) * 60000),
-    [finishTime, finishShift]
+  // The original backward-from-finish schedule, recomputed when
+  // the recipe or finish time changes.
+  const baseSchedule = useMemo(
+    () => scheduleForFinish(steps, finishTime),
+    [steps, finishTime]
   );
 
-  const bumpStep = (delta) => setOverrides(o => ({ ...o, [idx]: (o[idx] || 0) + delta }));
-  const bumpFinish = (delta) => setFinishShift(s => (s || 0) + delta);
+  // Effective schedule = walk forward, honouring any overrides. Step 0
+  // defaults to the original start; later steps default to the previous
+  // step's end (so durations stay correct).
+  const { schedule, startTime } = useMemo(() => {
+    const out = new Array(steps.length);
+    let prevEnd = null;
+    for (let i = 0; i < steps.length; i++) {
+      const overrideRaw = startOverridesRaw[i];
+      const overrideDate = overrideRaw ? new Date(overrideRaw) : null;
+      const start = overrideDate
+        ? overrideDate
+        : prevEnd != null ? new Date(prevEnd) : new Date(baseSchedule.schedule[i].start);
+      const mins = steps[i].mins || 0;
+      const end = new Date(start.getTime() + mins * 60000);
+      out[i] = { ...baseSchedule.schedule[i], start, end };
+      prevEnd = end.getTime();
+    }
+    return { schedule: out, startTime: out.length ? out[0].start : finishTime };
+  }, [steps, baseSchedule, startOverridesRaw, finishTime]);
+
+  const setStepStart = (i, newDate) => {
+    setStartOverrides(o => ({ ...o, [i]: newDate.toISOString() }));
+  };
+  const hasOverrides = Object.keys(startOverridesRaw).length > 0;
   const resetAdjustments = () => {
     if (!confirm("Reset all timing adjustments?")) return;
-    setOverrides({});
-    setFinishShift(0);
+    setStartOverrides({});
   };
   const [done, setDone] = useStorage(`cookmode:${recipe.id}:done`, []);
   const [helpOpen, setHelpOpen] = useState(false);
 
-  // Reverse-schedule starts so each step has a start clock time. Uses
-  // the adjusted step durations and shifted finish so all the
-  // start/end pills reflect the cook's live tweaks.
-  const { schedule, startTime } = useMemo(() =>
-    scheduleForFinish(adjustedSteps, adjustedFinish), [adjustedSteps, adjustedFinish]);
-
-  const cur = adjustedSteps[idx];
-  const stepDelta = overrides[idx] || 0;
+  const cur = steps[idx];
   const curSched = schedule[idx];
 
   const onKey = (e) => {
@@ -70,15 +82,10 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ fontSize: 12, color: "var(--ink-3)" }}>Done by</span>
           <TimeOfDayInput value={finishTime} onChange={setFinishTime} />
-          <div style={{ display: "flex", gap: 4 }}>
-            <button type="button" className="btn ghost sm" onClick={() => bumpFinish(-15)} title="Push 15 min earlier">−15m</button>
-            <button type="button" className="btn ghost sm" onClick={() => bumpFinish(+15)} title="Push 15 min later">+15m</button>
-            <button type="button" className="btn ghost sm" onClick={() => bumpFinish(+60)} title="Push 1 hour later">+1h</button>
-          </div>
           <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--accent)", padding: "4px 10px", background: "var(--paper-2)", borderRadius: 4 }}>
             Start at {fmtTime(startTime)}
           </span>
-          {(finishShift !== 0 || Object.keys(overrides).length > 0) && (
+          {hasOverrides && (
             <button type="button" className="btn ghost sm" onClick={resetAdjustments} title="Reset all timing adjustments">Reset</button>
           )}
           <button className="btn" onClick={onClose}><Icon name="x" size={14} /> Exit</button>
@@ -94,10 +101,21 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
               <div
                 key={i}
                 className={`row ${i === idx ? "active" : ""} ${done.includes(i) ? "done" : ""}`}
-                onClick={() => setIdx(i)}
               >
-                <span className="when">{fmtTime(schedule[i].start)}</span>
-                <span className="title">{s.t}</span>
+                <input
+                  type="time"
+                  className="when"
+                  value={`${String(schedule[i].start.getHours()).padStart(2, "0")}:${String(schedule[i].start.getMinutes()).padStart(2, "0")}`}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    const [hh, mm] = e.target.value.split(":").map(Number);
+                    const d = new Date(schedule[i].start);
+                    d.setHours(hh, mm, 0, 0);
+                    setStepStart(i, d);
+                  }}
+                  title="Edit to shift the rest of the timeline"
+                />
+                <span className="title" onClick={() => setIdx(i)}>{s.t}</span>
               </div>
             ))}
           </div>
@@ -123,25 +141,16 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
 
           <div className="cookmode-step-time">
             <div>
-              <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Start at</div>
-              <div className="start">{fmtTime(curSched.start)}</div>
+              <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4 }}>Start at</div>
+              <TimeOfDayInput value={curSched.start} onChange={(d) => setStepStart(idx, d)} />
+              <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 4, fontStyle: "italic" }}>
+                Edit to shift the rest of the timeline
+              </div>
             </div>
             <div style={{ height: 32, width: 1, background: "var(--rule)" }} />
             <div>
               <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Takes</div>
-              <div style={{ fontSize: 16, display: "flex", alignItems: "center", gap: 6 }}>
-                {fmtDuration(cur.mins)}
-                {stepDelta !== 0 && (
-                  <span style={{ fontSize: 11, color: stepDelta > 0 ? "#C42807" : "var(--ink-3)" }}>
-                    ({stepDelta > 0 ? "+" : ""}{stepDelta}m)
-                  </span>
-                )}
-              </div>
-              <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-                <button type="button" className="btn ghost sm" onClick={() => bumpStep(-5)} title="Took 5 min less">−5m</button>
-                <button type="button" className="btn ghost sm" onClick={() => bumpStep(+5)} title="Took 5 min more">+5m</button>
-                <button type="button" className="btn ghost sm" onClick={() => bumpStep(+15)} title="Took 15 min more">+15m</button>
-              </div>
+              <div style={{ fontSize: 16 }}>{fmtDuration(cur.mins)}</div>
             </div>
             {cur.hands != null && (
               <>
