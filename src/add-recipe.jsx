@@ -6,19 +6,20 @@ import { Icon, signInUrl } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
 import { COURSES, OCCASIONS, DIETS } from "./data.js";
 
-export function AddRecipe({ onClose, onSave, authEmail }) {
+export function AddRecipe({ onClose, onSave, authEmail, initialRecipe = null }) {
+  const editing = Boolean(initialRecipe);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState(null);
-  // Default to "manual" when no AI extraction is enabled, so users land
-  // on the plain form. Once an AI flag is flipped on, "ai" becomes the
-  // initial mode again.
-  const initialMode = FLAGS.extractText ? "ai" : "manual";
+  // Editing skips the AI/photo/URL flows — they only make sense for
+  // bringing in a brand-new recipe. New entries default to manual
+  // unless an AI flag opens up paste-text mode.
+  const initialMode = editing ? "manual" : (FLAGS.extractText ? "ai" : "manual");
   const [mode, setMode] = useState(initialMode); // ai | manual | photo | url
   const [aiText, setAiText] = useState("");
   const [extracting, setExtracting] = useState(false);
-  const [draft, setDraft] = useState(null);
+  const [draft, setDraft] = useState(initialRecipe);
 
   // Manual form initial
   const newDraft = () => ({
@@ -45,7 +46,20 @@ export function AddRecipe({ onClose, onSave, authEmail }) {
     comments: [],
   });
 
-  useEffect(() => { if (!draft) setDraft(newDraft()); }, []);
+  useEffect(() => {
+    if (!draft) setDraft(newDraft());
+    else if (editing) {
+      // Backfill any optional fields the form expects but old recipes
+      // might be missing, so we never bind <input>s to undefined.
+      const empty = newDraft();
+      setDraft(d => ({
+        ...empty,
+        ...d,
+        nutrition: { ...empty.nutrition, ...(d.nutrition || {}) },
+        tips: d.tips || [],
+      }));
+    }
+  }, []);
 
   // ─── Fake AI extraction: take rough text, sketch a draft ───
   const runAI = async () => {
@@ -151,17 +165,18 @@ export function AddRecipe({ onClose, onSave, authEmail }) {
 
       <div className="section-head">
         <div className="lhs">
-          <div className="eyebrow">New entry</div>
-          <h2>Add a recipe to the cookbook</h2>
+          <div className="eyebrow">{editing ? "Editing" : "New entry"}</div>
+          <h2>{editing ? draft?.title || "Edit recipe" : "Add a recipe to the cookbook"}</h2>
         </div>
         <div className="rhs">
           <button className="btn" onClick={onClose} disabled={saving}>Cancel</button>
           <button className="btn primary" onClick={save} disabled={saving || !authEmail}>
-            {saving ? "Saving…" : "Save recipe"}
+            {saving ? "Saving…" : (editing ? "Save changes" : "Save recipe")}
           </button>
         </div>
       </div>
 
+      {!editing && (
       <div className="add-tabs">
         {FLAGS.extractText && (
         <button className={mode === "ai" ? "on" : ""} onClick={() => setMode("ai")}>
@@ -182,6 +197,7 @@ export function AddRecipe({ onClose, onSave, authEmail }) {
         </button>
         )}
       </div>
+      )}
 
       {mode === "ai" && (
         <div style={{ maxWidth: 760 }}>
@@ -303,6 +319,75 @@ export function AddRecipe({ onClose, onSave, authEmail }) {
             <label>Servings (default)</label>
             <div>
               <input type="number" value={draft.servingsDefault} onChange={(e) => setDraft({ ...draft, servingsDefault: +e.target.value })} style={{ width: 100 }} />
+            </div>
+          </div>
+
+          <div className="input-row">
+            <label>Difficulty</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {["Easy", "Medium", "Hard"].map(d => (
+                <button
+                  key={d}
+                  type="button"
+                  className={`btn sm ${draft.difficulty === d ? "primary" : ""}`}
+                  onClick={() => setDraft({ ...draft, difficulty: d })}
+                >{d}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="input-row">
+            <label>Nutrition (per serving)</label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 6, maxWidth: 480 }}>
+              {[
+                ["cal", "Calories"],
+                ["protein", "Protein (g)"],
+                ["carbs", "Carbs (g)"],
+                ["fat", "Fat (g)"],
+                ["fiber", "Fiber (g)"],
+                ["sodium", "Sodium (mg)"],
+              ].map(([key, label]) => (
+                <label key={key} style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                  {label}
+                  <input
+                    type="number"
+                    value={draft.nutrition?.[key] ?? 0}
+                    onChange={(e) => setDraft({
+                      ...draft,
+                      nutrition: { ...(draft.nutrition || {}), [key]: +e.target.value }
+                    })}
+                    style={{ width: "100%", marginTop: 2 }}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="input-row" style={{ alignItems: "stretch" }}>
+            <label>Cook's notes / tips</label>
+            <div>
+              {(draft.tips || []).map((t, idx) => (
+                <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 24px", gap: 6, marginBottom: 6 }}>
+                  <input
+                    type="text"
+                    value={t}
+                    placeholder="e.g. Pull from the fridge 2 hours before cooking."
+                    onChange={(e) => {
+                      const tips = [...(draft.tips || [])];
+                      tips[idx] = e.target.value;
+                      setDraft({ ...draft, tips });
+                    }}
+                  />
+                  <button type="button" className="btn ghost icon-only" onClick={() => {
+                    setDraft({ ...draft, tips: (draft.tips || []).filter((_, i) => i !== idx) });
+                  }}><Icon name="x" size={12} /></button>
+                </div>
+              ))}
+              <button type="button" className="btn ghost sm" onClick={() => {
+                setDraft({ ...draft, tips: [...(draft.tips || []), ""] });
+              }}>
+                <Icon name="plus" size={12} /> Add tip
+              </button>
             </div>
           </div>
 

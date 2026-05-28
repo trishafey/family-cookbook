@@ -543,6 +543,16 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
             <button className="btn ghost" onClick={() => alert("PDF export — coming soon.")}>
               <Icon name="download" /> PDF
             </button>
+            {authEmail && (
+              <>
+                <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
+                  <Icon name="edit" /> Edit
+                </button>
+                <button className="btn ghost" onClick={() => onDeleteRecipe(recipe)} style={{ color: "#C42807" }}>
+                  <Icon name="x" /> Delete
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -626,6 +636,16 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <button className="btn ghost" onClick={() => window.print()}>
           <Icon name="print" /> Print
         </button>
+        {authEmail && (
+          <>
+            <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
+              <Icon name="edit" /> Edit
+            </button>
+            <button className="btn ghost" onClick={() => onDeleteRecipe(recipe)} style={{ color: "#C42807" }}>
+              <Icon name="x" /> Delete
+            </button>
+          </>
+        )}
       </div>
 
       <div className="section-break">
@@ -708,6 +728,16 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <button className="btn ghost" onClick={() => window.print()}>
           <Icon name="print" /> Print
         </button>
+        {authEmail && (
+          <>
+            <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
+              <Icon name="edit" /> Edit
+            </button>
+            <button className="btn ghost" onClick={() => onDeleteRecipe(recipe)} style={{ color: "#C42807" }}>
+              <Icon name="x" /> Delete
+            </button>
+          </>
+        )}
       </div>
 
       <div className="binder-body">
@@ -736,7 +766,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
 // ─────────────────────────────────────────────────────────────
 // Top-level Recipe detail — holds all state, picks the variant
 // ─────────────────────────────────────────────────────────────
-export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, onSaveRecipe, onOpenRecipe, onSaveToLab }) {
+export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, onEditRecipe, onDeleteRecipe }) {
   // Scaling state
   const [servings, setServings] = useState(recipe.servingsDefault);
   const [weight, setWeight] = useState(recipe.weightDefault || 1);
