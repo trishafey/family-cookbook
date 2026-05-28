@@ -357,10 +357,18 @@ INGREDIENT NOTES
 GROUPING
 - Group similar items under the same "grp" (e.g., "Sauce", "Dough", "Filling", "Garnish", "Meat", "Vegetables", "Spices"). Use "Ingredients" only when there is truly one logical group.
 
-STEPS
-- Each step gets a short title (max 60 chars) and a fuller description.
-- Step precision: "easy" (set and forget), "medium" (some attention), "careful" (precise), "watch" (don't walk away — heat, browning), "patient" (long wait — rest, rise, marinate).
-- For mins per step, give your best estimate. For passive steps (rest / marinate / freeze / proof), include the wait time.
+TITLE & TAGLINE (the family-cookbook voice)
+- title: Polish the title into something inviting that fits an heirloom cookbook. Capitalize each word. Include a regional or stylistic hint if obvious from the recipe ("Hungarian Pork Goulash" rather than "goulash"; "Babcia's Apple Meringue Pie" rather than "apple pie"). Keep it concise (3–6 words).
+- subtitle: Write a warm one-line tagline (8–18 words) — what makes this dish memorable, when you'd make it, or how it cooks. Editorial tone, no marketing language. Examples: "Hearty, slow-simmered comfort — the kind of stew everyone reaches for seconds of." or "A Sunday classic, the meat falls apart at the touch of a fork."
+
+STEPS (preserve EVERY detail; just polish the prose)
+- The family does not want to lose details. Do NOT drop information, ingredients mentioned in passing, optional steps, temperatures, timings, or any cook's notes from the original.
+- DO rewrite the prose so it reads cleanly and warmly. Fix grammar. Replace fragments with full sentences. Reorder when an instruction is buried mid-sentence.
+- Keep all the original substance: every quantity, every cue ("until golden", "until water evaporates"), every conditional ("if you prefer"), every optional addition, every warning ("not too much or it will be bitter").
+- If the original mentions an ingredient or trick in the step text that wasn't in the ingredient list, keep that mention in the step.
+- Each step gets a short title `t` (max 60 chars) summarising the action plus a fuller `d` description (the polished prose).
+- precision: "easy" (set and forget), "medium" (some attention), "careful" (precise), "watch" (don't walk away — heat, browning), "patient" (long wait — rest, rise, marinate).
+- mins: your best estimate; for passive steps (rest / marinate / freeze / proof) include the wait time.
 
 DIET (be liberal — apply by exclusion)
 - If the recipe does NOT contain wheat / barley / rye / flour / soy sauce → include "Gluten-free".

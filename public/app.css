@@ -548,6 +548,55 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-family: var(--sans);
 }
 
+/* AddRecipe: the form is wrapped in a fieldset disabled when
+   the visitor isn't signed in. Strip the fieldset's native chrome
+   (border, padding, margin) so it doesn't draw a frame around the
+   form. When disabled, dim the whole block so it reads as locked. */
+.add-recipe-fields {
+  border: none; padding: 0; margin: 0; min-width: 0;
+}
+.add-recipe-fields:disabled {
+  opacity: 0.55;
+}
+
+/* Section name (group) inside the ingredients / steps editors.
+   Looks like a heading but is actually editable — the dotted underline
+   on hover/focus makes that clear. */
+.section-name-input {
+  font-weight: 600; font-size: 13px;
+  color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  flex: 1; min-width: 0;
+  border: none; background: transparent;
+  padding: 4px 6px; border-radius: 4px;
+  border-bottom: 1px dashed var(--rule);
+  cursor: text;
+}
+.section-name-input:hover { background: var(--paper-2); border-bottom-color: var(--ink-3); }
+.section-name-input:focus { background: var(--paper); border-bottom-color: var(--accent); border-bottom-style: solid; outline: none; }
+
+/* The "+ Add section" button at the bottom of an ingredients / steps
+   editor is now full-width with a dashed border, so it reads as a
+   primary action rather than a quiet tertiary one. */
+.add-section-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--paper-2);
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius);
+  font-family: var(--sans); font-size: 13px; font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.add-section-btn:hover {
+  background: var(--paper);
+  border-color: var(--accent);
+  border-style: solid;
+  color: var(--accent);
+}
+
 /* Step reorder controls on AddRecipe */
 .step-row { transition: background 0.1s ease; }
 .reorder-stack {
