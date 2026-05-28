@@ -353,10 +353,10 @@ function App() {
         <div className="meal-tray">
           <span className="count">{selection.length}</span>
           <span style={{ fontSize: 13 }}>
-            {selection.length === 1 ? "recipe" : "recipes"} on the menu
+            {selection.length === 1 ? t("recipeOnMenu") : t("recipesOnMenu")}
           </span>
           <button className="btn sm" style={{ background: "rgba(255,255,255,.12)", color: "var(--paper)", borderColor: "rgba(255,255,255,.2)" }} onClick={() => setView("meal")}>
-            Review meal
+            {t("reviewMeal")}
           </button>
         </div>
       )}
@@ -390,7 +390,7 @@ function App() {
       )}
 
       {/* ───── Tweaks panel ───── */}
-      <TweaksPanel title="Tweaks">
+      <TweaksPanel title={t("tweaks")}>
         <TweakSection label="Recipe page style">
           <TweakSelect
             label="Layout"

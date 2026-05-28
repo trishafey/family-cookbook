@@ -50,7 +50,7 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
         </div>
       </div>
       <div className="body">
-        <div className="author">by {recipe.author}</div>
+        <div className="author">{t("by")} {recipe.author}</div>
         <div className="title">{recipe.title}</div>
         <div className="sub">{recipe.subtitle}</div>
         <div className="tags">

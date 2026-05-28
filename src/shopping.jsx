@@ -3,8 +3,10 @@
 import { useState, useMemo } from "react";
 import { useStorage, buildShoppingList, formatQty, Icon } from "./helpers.jsx";
 import { Modal } from "./ui.jsx";
+import { useLang } from "./i18n.js";
 
 export function ShoppingList({ open, onClose, payload }) {
+  const { t } = useLang();
   // payload: [{ recipe, ings }]
   const [have, setHave] = useStorage("shop:have", {});
 
@@ -40,7 +42,7 @@ export function ShoppingList({ open, onClose, payload }) {
 
   const copyList = () => {
     navigator.clipboard.writeText(buildTextList(true));
-    alert("Copied the still-needed items to your clipboard.");
+    alert(t("copiedToClipboard"));
   };
   const downloadList = () => {
     const txt = buildTextList(true);
@@ -55,23 +57,23 @@ export function ShoppingList({ open, onClose, payload }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Shopping list"
+      title={t("shoppingList")}
       subtitle={
         payload?.length
-          ? `${payload.map(p => p.recipe.title).join(" + ")} · ${needCount} to buy, ${haveCount} on hand`
+          ? `${payload.map(p => p.recipe.title).join(" + ")} · ${needCount} ${t("toBuyShort")}, ${haveCount} ${t("onHand")}`
           : ""
       }
       size="lg"
       footer={
         <>
           <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-            Tap to mark what's already in your pantry.
+            {t("tapToMark")}
           </span>
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn ghost sm" onClick={copyList}><Icon name="copy" size={13} /> Copy needed</button>
-            <button className="btn ghost sm" onClick={downloadList}><Icon name="download" size={13} /> Download</button>
-            <button className="btn sm" onClick={() => window.print()}><Icon name="print" size={13} /> Print</button>
-            <button className="btn primary sm" onClick={onClose}>Done</button>
+            <button className="btn ghost sm" onClick={copyList}><Icon name="copy" size={13} /> {t("copyNeeded")}</button>
+            <button className="btn ghost sm" onClick={downloadList}><Icon name="download" size={13} /> {t("download")}</button>
+            <button className="btn sm" onClick={() => window.print()}><Icon name="print" size={13} /> {t("print")}</button>
+            <button className="btn primary sm" onClick={onClose}>{t("done")}</button>
           </div>
         </>
       }
@@ -99,7 +101,7 @@ export function ShoppingList({ open, onClose, payload }) {
         ))}
         {Object.keys(buckets).length === 0 && (
           <div style={{ padding: 40, textAlign: "center", color: "var(--ink-3)" }}>
-            Nothing to shop for yet. Open a recipe and tap "Shopping list."
+            {t("nothingToShopFor")}
           </div>
         )}
       </div>

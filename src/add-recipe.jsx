@@ -6,8 +6,10 @@ import { Icon, signInUrl } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
 import { COURSES, OCCASIONS, DIETS } from "./data.js";
 import { COUNTRIES } from "./countries.js";
+import { useLang } from "./i18n.js";
 
 function CuisineSearch({ value, onChange, usedCuisines = [] }) {
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const ref = useRef(null);
@@ -32,7 +34,7 @@ function CuisineSearch({ value, onChange, usedCuisines = [] }) {
       <input
         style={{ width: "100%" }}
         value={open ? query : (value || "")}
-        placeholder="Cuisine (e.g. Italian)"
+        placeholder={t("cuisinePh")}
         onFocus={() => { setOpen(true); setQuery(""); }}
         onChange={(e) => { setQuery(e.target.value); onChange(e.target.value); }}
       />
@@ -98,6 +100,7 @@ function groupBySection(arr, keyOf, defaultName) {
 }
 
 function IngredientsEditor({ ingredients, onChange }) {
+  const { t } = useLang();
   const sections = groupBySection(ingredients, (i) => i.grp, "Ingredients");
 
   const update = (idx, patch) => {
@@ -130,21 +133,21 @@ function IngredientsEditor({ ingredients, onChange }) {
               value={sec.name}
               onChange={(e) => renameSection(sec.name, e.target.value || "Ingredients")}
               style={{ fontWeight: 600, fontSize: 13, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", flex: 1, border: "none", background: "transparent", padding: "2px 0" }}
-              aria-label="Section name"
+              aria-label={t("sectionName")}
             />
             {sections.length > 1 && (
-              <button type="button" className="btn ghost icon-only" onClick={() => deleteSection(sec.name)} title="Delete section">
+              <button type="button" className="btn ghost icon-only" onClick={() => deleteSection(sec.name)} title={t("deleteSection")}>
                 <Icon name="x" size={12} />
               </button>
             )}
           </div>
           {sec.items.map((i) => (
             <div key={i._idx} style={{ display: "grid", gridTemplateColumns: "70px 80px 1fr 24px", gap: 6, marginBottom: 6 }}>
-              <input type="number" step="0.25" value={i.qty} placeholder="Qty"
+              <input type="number" step="0.25" value={i.qty} placeholder={t("qtyPh")}
                 onChange={(e) => update(i._idx, { qty: +e.target.value })} />
-              <input value={i.unit} placeholder="Unit"
+              <input value={i.unit} placeholder={t("unitPh")}
                 onChange={(e) => update(i._idx, { unit: e.target.value })} />
-              <input value={i.item} placeholder="e.g. ground beef"
+              <input value={i.item} placeholder={t("ingredientPh")}
                 onChange={(e) => update(i._idx, { item: e.target.value })} />
               <button type="button" className="btn ghost icon-only" onClick={() => remove(i._idx)}>
                 <Icon name="x" size={12} />
@@ -152,12 +155,12 @@ function IngredientsEditor({ ingredients, onChange }) {
             </div>
           ))}
           <button type="button" className="btn ghost sm" onClick={() => addIngredientTo(sec.name)}>
-            <Icon name="plus" size={12} /> Add ingredient
+            <Icon name="plus" size={12} /> {t("addIngredient")}
           </button>
         </div>
       ))}
       <button type="button" className="btn ghost sm" onClick={addSection}>
-        <Icon name="plus" size={12} /> Add section
+        <Icon name="plus" size={12} /> {t("addSection")}
       </button>
     </div>
   );
@@ -165,6 +168,7 @@ function IngredientsEditor({ ingredients, onChange }) {
 
 // hh:mm input pair backed by a single total-minutes number.
 function HoursMinutes({ value, onChange }) {
+  const { t } = useLang();
   const total = +value || 0;
   const h = Math.floor(total / 60);
   const m = total % 60;
@@ -172,14 +176,14 @@ function HoursMinutes({ value, onChange }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
       <input
-        type="number" min="0" placeholder="hrs"
+        type="number" min="0" placeholder={t("hrs")}
         value={h || ""}
         onChange={(e) => set(e.target.value, m)}
         style={{ width: 56 }}
       />
       <span style={{ color: "var(--ink-4)" }}>:</span>
       <input
-        type="number" min="0" max="59" placeholder="mins"
+        type="number" min="0" max="59" placeholder={t("mins")}
         value={m || ""}
         onChange={(e) => set(h, e.target.value)}
         style={{ width: 64 }}
@@ -189,6 +193,7 @@ function HoursMinutes({ value, onChange }) {
 }
 
 function StepsEditor({ steps, onChange }) {
+  const { t } = useLang();
   const sections = groupBySection(steps, (s) => s.section, "");
 
   const update = (idx, patch) => {
@@ -250,9 +255,9 @@ function StepsEditor({ steps, onChange }) {
                 value={sec.name}
                 onChange={(e) => renameSection(sec.name, e.target.value)}
                 style={{ fontWeight: 600, fontSize: 13, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", flex: 1, border: "none", background: "transparent", padding: "2px 0" }}
-                aria-label="Section name"
+                aria-label={t("sectionName")}
               />
-              <button type="button" className="btn ghost icon-only" onClick={() => deleteSection(sec.name)} title="Delete section">
+              <button type="button" className="btn ghost icon-only" onClick={() => deleteSection(sec.name)} title={t("deleteSection")}>
                 <Icon name="x" size={12} />
               </button>
             </div>
@@ -264,16 +269,16 @@ function StepsEditor({ steps, onChange }) {
               style={{ display: "grid", gridTemplateColumns: "24px 1fr 150px 120px 24px", gap: 6, marginBottom: 6, alignItems: "start" }}
             >
               <div className="reorder-stack">
-                <button type="button" onClick={() => moveStep(s._idx, -1)} disabled={s._idx === 0} aria-label="Move step up" title="Move up">
+                <button type="button" onClick={() => moveStep(s._idx, -1)} disabled={s._idx === 0} aria-label={t("moveUp")} title={t("moveUp")}>
                   <Icon name="chevU" size={12} />
                 </button>
-                <button type="button" onClick={() => moveStep(s._idx, +1)} disabled={s._idx === steps.length - 1} aria-label="Move step down" title="Move down">
+                <button type="button" onClick={() => moveStep(s._idx, +1)} disabled={s._idx === steps.length - 1} aria-label={t("moveDown")} title={t("moveDown")}>
                   <Icon name="chevD" size={12} />
                 </button>
               </div>
               <textarea
                 value={s.d}
-                placeholder="What happens in this step"
+                placeholder={t("stepPlaceholder")}
                 style={{ minHeight: 60 }}
                 onChange={(e) => update(s._idx, { d: e.target.value, t: e.target.value.split(/[.:]/)[0].slice(0, 60) })}
               />
@@ -287,18 +292,19 @@ function StepsEditor({ steps, onChange }) {
             </div>
           ))}
           <button type="button" className="btn ghost sm" onClick={() => addStepTo(sec.name)}>
-            <Icon name="plus" size={12} /> Add step
+            <Icon name="plus" size={12} /> {t("addStep")}
           </button>
         </div>
       ))}
       <button type="button" className="btn ghost sm" onClick={addSection}>
-        <Icon name="plus" size={12} /> Add section
+        <Icon name="plus" size={12} /> {t("addSection")}
       </button>
     </div>
   );
 }
 
 export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe = null, usedCuisines = [] }) {
+  const { t, tCourse, tOccasion, tDiet, tDifficulty } = useLang();
   const editing = Boolean(initialRecipe);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -448,9 +454,9 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
 
       {!authEmail && (
         <div style={{ padding: 12, marginBottom: 16, border: "1px solid var(--rule)", borderRadius: 6, background: "var(--paper-2)", fontFamily: "var(--serif)" }}>
-          <strong>Sign in to save recipes to the cookbook.</strong>{" "}
-          <a href={signInUrl()} style={{ color: "var(--accent)", textDecoration: "underline" }}>Sign in →</a>{" "}
-          <span style={{ color: "var(--ink-3)" }}>You can fill in the form first; sign-in returns you here.</span>
+          <strong>{t("signInToSaveRecipes")}</strong>{" "}
+          <a href={signInUrl()} style={{ color: "var(--accent)", textDecoration: "underline" }}>{t("signInArrow")}</a>{" "}
+          <span style={{ color: "var(--ink-3)" }}>{t("fillFormFirst")}</span>
         </div>
       )}
       {saveError && (
@@ -461,8 +467,8 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
 
       <div className="section-head">
         <div className="lhs">
-          <div className="eyebrow">{editing ? "Editing" : "New entry"}</div>
-          <h2>{editing ? draft?.title || "Edit recipe" : "Add a recipe to the cookbook"}</h2>
+          <div className="eyebrow">{editing ? t("editing") : t("newEntry")}</div>
+          <h2>{editing ? draft?.title || t("editRecipeTitle") : t("addRecipeToCookbook")}</h2>
         </div>
         <div className="rhs">
           {editing && onDelete && (
@@ -471,14 +477,14 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               onClick={() => onDelete(initialRecipe)}
               disabled={saving}
               style={{ color: "#C42807", marginRight: 4 }}
-              title="Delete this recipe"
+              title={t("deleteThisRecipe")}
             >
-              <Icon name="x" /> Delete
+              <Icon name="x" /> {t("delete")}
             </button>
           )}
-          <button className="btn" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={saving}>{t("cancel")}</button>
           <button className="btn primary" onClick={save} disabled={saving || !authEmail}>
-            {saving ? "Saving…" : (editing ? "Save changes" : "Save recipe")}
+            {saving ? t("saving") : (editing ? t("saveChanges") : t("saveRecipe"))}
           </button>
         </div>
       </div>
@@ -487,20 +493,20 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
       <div className="add-tabs">
         {FLAGS.extractText && (
         <button className={mode === "ai" ? "on" : ""} onClick={() => setMode("ai")}>
-          <Icon name="sparkle" size={12} /> Paste & let AI fill it in
+          <Icon name="sparkle" size={12} /> {t("pasteAndAi")}
         </button>
         )}
         <button className={mode === "manual" ? "on" : ""} onClick={() => setMode("manual")}>
-          <Icon name="edit" size={12} /> Manual entry
+          <Icon name="edit" size={12} /> {t("manualEntry")}
         </button>
         {FLAGS.extractImage && (
         <button className={mode === "photo" ? "on" : ""} onClick={() => setMode("photo")}>
-          <Icon name="camera" size={12} /> Photo of a cookbook
+          <Icon name="camera" size={12} /> {t("photoOfCookbook")}
         </button>
         )}
         {FLAGS.extractUrl && (
         <button className={mode === "url" ? "on" : ""} onClick={() => setMode("url")}>
-          <Icon name="link" size={12} /> Link to a URL
+          <Icon name="link" size={12} /> {t("linkToUrl")}
         </button>
         )}
       </div>
@@ -510,19 +516,19 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
         <div style={{ maxWidth: 760 }}>
           <div className="ai-drop">
             <div className="ai-sparkle" style={{ marginBottom: 12 }}>
-              <Icon name="sparkle" size={12} /> AI extraction
+              <Icon name="sparkle" size={12} /> {t("aiExtraction")}
             </div>
             <textarea
-              placeholder="Paste anything — a recipe email from your mom, a copy/paste from a blog, a screenshot of a cookbook page. We'll pull out the title, ingredients, steps, and timing, then let you review and tidy up before saving."
+              placeholder={t("aiPastePlaceholder")}
               value={aiText}
               onChange={(e) => setAiText(e.target.value)}
             />
             <div style={{ display: "flex", gap: 8, marginTop: 16, alignItems: "center" }}>
               <button className="btn accent" disabled={!aiText.trim() || extracting} onClick={runAI}>
-                {extracting ? "Extracting…" : <><Icon name="sparkle" size={13} /> Extract recipe</>}
+                {extracting ? t("extracting") : <><Icon name="sparkle" size={13} /> {t("extractRecipe")}</>}
               </button>
               <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                You'll review every field before saving. AI fills in missing details — never replaces yours.
+                {t("aiPasteHelper")}
               </span>
             </div>
           </div>
@@ -547,59 +553,59 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
       {mode === "manual" && draft && (
         <div style={{ maxWidth: 800 }}>
           <div className="input-row">
-            <label>Title *</label>
+            <label>{t("titleRequired")}</label>
             <div>
-              <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="e.g. Grandma's Sunday Lasagna" />
+              <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder={t("titleEx")} />
             </div>
           </div>
           <div className="input-row">
-            <label>One-line subtitle</label>
+            <label>{t("oneLineSubLbl")}</label>
             <div>
-              <input value={draft.subtitle} onChange={(e) => setDraft({ ...draft, subtitle: e.target.value })} placeholder="A tagline, the family lore" />
+              <input value={draft.subtitle} onChange={(e) => setDraft({ ...draft, subtitle: e.target.value })} placeholder={t("subtitleEx")} />
             </div>
           </div>
           <div className="input-row">
-            <label>Added by</label>
+            <label>{t("addedByLbl")}</label>
             <div>
-              <input value={draft.author} onChange={(e) => setDraft({ ...draft, author: e.target.value })} placeholder="Your name" />
+              <input value={draft.author} onChange={(e) => setDraft({ ...draft, author: e.target.value })} placeholder={t("yourName")} />
             </div>
           </div>
           <div className="input-row">
-            <label>Source link</label>
+            <label>{t("sourceLinkLbl")}</label>
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 style={{ flex: 2 }}
                 value={draft.link?.url || ""}
                 onChange={(e) => setDraft({ ...draft, link: { ...(draft.link || {}), url: e.target.value } })}
-                placeholder="https://example.com/recipe (optional)"
+                placeholder={t("sourceLinkPh")}
               />
               <input
                 style={{ flex: 1 }}
                 value={draft.link?.label || ""}
                 onChange={(e) => setDraft({ ...draft, link: { ...(draft.link || {}), label: e.target.value } })}
-                placeholder="Link label"
+                placeholder={t("linkLabelPh")}
               />
             </div>
           </div>
           <div className="input-row">
-            <label>Course / Cuisine</label>
+            <label>{t("courseSlashCuisine")}</label>
             <div style={{ display: "flex", gap: 8 }}>
               <select value={draft.course} onChange={(e) => setDraft({ ...draft, course: e.target.value })} style={{ width: 140, flex: "0 0 auto" }}>
-                {COURSES.map(c => <option key={c}>{c}</option>)}
+                {COURSES.map(c => <option key={c} value={c}>{tCourse(c)}</option>)}
               </select>
               <CuisineSearch value={draft.cuisine} onChange={(v) => setDraft({ ...draft, cuisine: v })} usedCuisines={usedCuisines} />
             </div>
           </div>
           <div className="input-row">
-            <label>Occasion</label>
+            <label>{t("occasion")}</label>
             <div>
               <select value={draft.occasion} onChange={(e) => setDraft({ ...draft, occasion: e.target.value })}>
-                {OCCASIONS.map(o => <option key={o}>{o}</option>)}
+                {OCCASIONS.map(o => <option key={o} value={o}>{tOccasion(o)}</option>)}
               </select>
             </div>
           </div>
           <div className="input-row">
-            <label>Diet / preferences</label>
+            <label>{t("dietPrefsLbl")}</label>
             <div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {DIETS.map(d => (
@@ -607,27 +613,27 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                     key={d}
                     className={`filter-pill ${draft.diet.includes(d) ? "on" : ""}`}
                     onClick={() => setDraft(p => ({ ...p, diet: p.diet.includes(d) ? p.diet.filter(x => x !== d) : [...p.diet, d] }))}
-                  >{d}</button>
+                  >{tDiet(d)}</button>
                 ))}
               </div>
             </div>
           </div>
           <div className="input-row">
-            <label>Prep / Cook (min)</label>
+            <label>{t("prepCookMin")}</label>
             <div style={{ display: "flex", gap: 8 }}>
-              <input type="number" value={draft.prep} onChange={(e) => setDraft({ ...draft, prep: +e.target.value })} placeholder="Prep" style={{ width: 120 }} />
-              <input type="number" value={draft.cook} onChange={(e) => setDraft({ ...draft, cook: +e.target.value })} placeholder="Cook" style={{ width: 120 }} />
+              <input type="number" value={draft.prep} onChange={(e) => setDraft({ ...draft, prep: +e.target.value })} placeholder={t("prepPh")} style={{ width: 120 }} />
+              <input type="number" value={draft.cook} onChange={(e) => setDraft({ ...draft, cook: +e.target.value })} placeholder={t("cookPh")} style={{ width: 120 }} />
             </div>
           </div>
           <div className="input-row">
-            <label>Servings (default)</label>
+            <label>{t("servingsDefaultLbl")}</label>
             <div>
               <input type="number" value={draft.servingsDefault} onChange={(e) => setDraft({ ...draft, servingsDefault: +e.target.value })} style={{ width: 100 }} />
             </div>
           </div>
 
           <div className="input-row">
-            <label>Difficulty</label>
+            <label>{t("difficultyLbl")}</label>
             <div style={{ display: "flex", gap: 8 }}>
               {["Easy", "Medium", "Hard"].map(d => (
                 <button
@@ -635,21 +641,21 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   type="button"
                   className={`btn sm ${draft.difficulty === d ? "primary" : ""}`}
                   onClick={() => setDraft({ ...draft, difficulty: d })}
-                >{d}</button>
+                >{tDifficulty(d)}</button>
               ))}
             </div>
           </div>
 
           <div className="input-row">
-            <label>Nutrition (per serving)</label>
+            <label>{t("nutritionPerServing")}</label>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 6, maxWidth: 480 }}>
               {[
-                ["cal", "Calories"],
-                ["protein", "Protein (g)"],
-                ["carbs", "Carbs (g)"],
-                ["fat", "Fat (g)"],
-                ["fiber", "Fiber (g)"],
-                ["sodium", "Sodium (mg)"],
+                ["cal", t("calories")],
+                ["protein", t("proteinG")],
+                ["carbs", t("carbsG")],
+                ["fat", t("fatG")],
+                ["fiber", t("fiberG")],
+                ["sodium", t("sodiumMg")],
               ].map(([key, label]) => (
                 <label key={key} style={{ fontSize: 12, color: "var(--ink-3)" }}>
                   {label}
@@ -668,14 +674,14 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           </div>
 
           <div className="input-row" style={{ alignItems: "stretch" }}>
-            <label>Cook's notes / tips</label>
+            <label>{t("cooksNotesTipsLbl")}</label>
             <div>
               {(draft.tips || []).map((t, idx) => (
                 <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 24px", gap: 6, marginBottom: 6 }}>
                   <input
                     type="text"
                     value={t}
-                    placeholder="e.g. Pull from the fridge 2 hours before cooking."
+                    placeholder={t("exampleTip")}
                     onChange={(e) => {
                       const tips = [...(draft.tips || [])];
                       tips[idx] = e.target.value;
@@ -690,13 +696,13 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               <button type="button" className="btn ghost sm" onClick={() => {
                 setDraft({ ...draft, tips: [...(draft.tips || []), ""] });
               }}>
-                <Icon name="plus" size={12} /> Add tip
+                <Icon name="plus" size={12} /> {t("addTip")}
               </button>
             </div>
           </div>
 
           <div className="input-row" style={{ alignItems: "stretch" }}>
-            <label>Ingredients</label>
+            <label>{t("ingredients")}</label>
             <div>
               <IngredientsEditor
                 ingredients={draft.ingredients}
@@ -704,14 +710,14 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               />
               {FLAGS.extractText && (
               <button type="button" className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => alert("AI would fill in missing quantities, units, and pantry-staple defaults.")}>
-                <Icon name="sparkle" size={12} /> AI fill missing details
+                <Icon name="sparkle" size={12} /> {t("aiFillMissing")}
               </button>
               )}
             </div>
           </div>
 
           <div className="input-row">
-            <label>Overnight step?</label>
+            <label>{t("overnightStep")}</label>
             <div className="overnight-toggle">
               <label className="check-line">
                 <input
@@ -745,16 +751,16 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                     }
                   }}
                 />
-                <span>Recipe has an overnight rest (fridge, proof, freeze, marinate)</span>
+                <span>{t("recipeHasOvernight")}</span>
               </label>
               <div className="hint">
-                Adds a "The day before" step at the top and groups the rest under "Cooking day". The scheduler will then plan the overnight step for the night before instead of pre-dawn the day of.
+                {t("overnightHint")}
               </div>
             </div>
           </div>
 
           <div className="input-row" style={{ alignItems: "stretch" }}>
-            <label>Steps</label>
+            <label>{t("steps")}</label>
             <div>
               <StepsEditor
                 steps={draft.steps}
@@ -764,13 +770,13 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           </div>
 
           <div className="input-row">
-            <label>Hero photo</label>
+            <label>{t("heroPhotoLbl")}</label>
             <div>
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                 <div style={{ width: 100, height: 80, backgroundImage: `url(${draft.photo})`, backgroundSize: "cover", backgroundPosition: "center", border: "1px solid var(--rule)", borderRadius: 4 }} />
                 <div style={{ flex: 1 }}>
                   <label className="btn sm" style={{ cursor: authEmail && !uploadingPhoto ? "pointer" : "not-allowed", opacity: authEmail && !uploadingPhoto ? 1 : 0.5 }}>
-                    <Icon name="camera" size={12} /> {uploadingPhoto ? "Uploading…" : "Upload photo"}
+                    <Icon name="camera" size={12} /> {uploadingPhoto ? t("uploading") : t("uploadPhoto")}
                     <input
                       type="file"
                       accept="image/*"
@@ -780,7 +786,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                     />
                   </label>
                   {FLAGS.extractImage && (
-                  <button className="btn ghost sm" style={{ marginLeft: 6 }}><Icon name="sparkle" size={12} /> AI-generate from title</button>
+                  <button className="btn ghost sm" style={{ marginLeft: 6 }}><Icon name="sparkle" size={12} /> {t("aiGenerateFromTitle")}</button>
                   )}
                   {photoError && (
                     <div style={{ marginTop: 6, fontSize: 12, color: "#933" }}>{photoError}</div>
@@ -791,9 +797,9 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           </div>
 
           <div style={{ marginTop: 32, display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button className="btn" onClick={onClose} disabled={saving}>Cancel</button>
+            <button className="btn" onClick={onClose} disabled={saving}>{t("cancel")}</button>
             <button className="btn primary" onClick={save} disabled={saving || !authEmail}>
-              {saving ? "Saving…" : "Save to cookbook"}
+              {saving ? t("saving") : t("saveToCookbook")}
             </button>
           </div>
         </div>
@@ -803,13 +809,13 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
         <div style={{ maxWidth: 720 }}>
           <div className="ai-drop" style={{ textAlign: "center", padding: 64 }}>
             <Icon name="camera" size={48} />
-            <h3 style={{ marginTop: 16 }}>Snap a photo of a cookbook page</h3>
+            <h3 style={{ marginTop: 16 }}>{t("snapPhotoOfCookbook")}</h3>
             <div style={{ color: "var(--ink-3)", marginTop: 8, fontFamily: "var(--serif)" }}>
-              We'll OCR the text, then parse the recipe like a normal paste. Mobile-friendly camera capture.
+              {t("takePhotoHelper")}
             </div>
             <div style={{ marginTop: 24, display: "flex", gap: 8, justifyContent: "center" }}>
-              <button className="btn primary"><Icon name="camera" size={13} /> Open camera</button>
-              <button className="btn">Upload an image</button>
+              <button className="btn primary"><Icon name="camera" size={13} /> {t("takePhoto")}</button>
+              <button className="btn">{t("uploadImage")}</button>
             </div>
             <div style={{ marginTop: 20, fontSize: 12, color: "var(--ink-3)" }}>
               <span className="ai-sparkle"><Icon name="sparkle" size={11} /> AI-parsed</span> · You'll review every field before saving.
@@ -822,11 +828,11 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
         <div style={{ maxWidth: 720 }}>
           <div className="ai-drop">
             <div className="ai-sparkle" style={{ marginBottom: 12 }}>
-              <Icon name="sparkle" size={12} /> AI-parse from URL
+              <Icon name="sparkle" size={12} /> {t("linkToUrl")}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input style={{ flex: 1, padding: 10, border: "1px solid var(--rule)", borderRadius: 4, background: "var(--paper)" }} placeholder="https://nytimes.com/cooking/recipes/..." />
-              <button className="btn accent">Fetch & parse</button>
+              <button className="btn accent">{t("fetchAndParse")}</button>
             </div>
             <div style={{ marginTop: 16, fontSize: 13, color: "var(--ink-3)" }}>
               We pull title, ingredients, steps, and a hero image. You annotate with family notes before saving.

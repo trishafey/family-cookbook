@@ -5,11 +5,13 @@
 import { useState, useMemo, Fragment } from "react";
 import { Icon, fmtDuration, fmtTime, scheduleForFinish } from "./helpers.jsx";
 import { Modal } from "./ui.jsx";
+import { useLang } from "./i18n.js";
 
 // ─────────────────────────────────────────────────────────────
 // PlanMealModal — entry point. Asks "when do you want this done by"
 // ─────────────────────────────────────────────────────────────
 export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
+  const { t, locale } = useLang();
   // Default = today @ 6pm
   const [finishTime, setFinishTime] = useState(() => {
     const d = new Date(); d.setHours(18, 0, 0, 0); return d;
@@ -58,18 +60,18 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Plan your meal"
-      subtitle={`${recipes.length} ${recipes.length === 1 ? "recipe" : "recipes"} \u2014 we'll back-time the schedule so everything lands at once.`}
+      title={t("planYourMeal")}
+      subtitle={`${recipes.length} ${recipes.length === 1 ? t("recipe") : t("recipes")} \u2014 ${t("staggerSubtitle")}`}
       size="lg"
       footer={
         <>
           <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-            <Icon name="sparkle" size={11} /> AI staggers prep so nothing gets cold.
+            <Icon name="sparkle" size={11} /> {t("aiStaggers")}
           </span>
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn" onClick={onClose}>Cancel</button>
+            <button className="btn" onClick={onClose}>{t("cancel")}</button>
             <button className="btn primary" onClick={() => onConfirm(finishTime, { eveningHour })}>
-              <Icon name="play" /> Build the schedule
+              <Icon name="play" /> {t("buildSchedule")}
             </button>
           </div>
         </>
@@ -78,34 +80,34 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
       <div className="meal-plan-modal-body">
         <div className="when">
           <div>
-            <label>Date</label>
+            <label>{t("date")}</label>
             <input type="date" value={dateStr} onChange={(e) => updateDate(e.target.value)} />
           </div>
           <div>
-            <label>Time</label>
+            <label>{t("time")}</label>
             <input type="time" value={timeStr} onChange={(e) => updateTime(e.target.value)} />
           </div>
         </div>
 
         <div>
-          <label>Or pick a preset</label>
+          <label>{t("orPickAPreset")}</label>
           <div className="preset-times">
-            <button className="chip" onClick={() => preset("Lunch today", 12, 30)}>Lunch today (12:30)</button>
-            <button className="chip" onClick={() => preset("Dinner today", 18, 0)}>Dinner today (6:00)</button>
-            <button className="chip" onClick={() => preset("Late dinner", 19, 30)}>Late dinner (7:30)</button>
-            <button className="chip" onClick={() => preset("Tomorrow 6pm", 18, 0, 1)}>Tomorrow (6:00)</button>
-            <button className="chip" onClick={() => preset("Sat dinner", 18, 0, ((6 - new Date().getDay() + 7) % 7) || 7)}>Saturday (6:00)</button>
+            <button className="chip" onClick={() => preset("Lunch today", 12, 30)}>{t("lunchToday")} (12:30)</button>
+            <button className="chip" onClick={() => preset("Dinner today", 18, 0)}>{t("dinnerToday")} (6:00)</button>
+            <button className="chip" onClick={() => preset("Late dinner", 19, 30)}>{t("lateDinner")} (7:30)</button>
+            <button className="chip" onClick={() => preset("Tomorrow 6pm", 18, 0, 1)}>{t("tomorrow")} (6:00)</button>
+            <button className="chip" onClick={() => preset("Sat dinner", 18, 0, ((6 - new Date().getDay() + 7) % 7) || 7)}>{t("saturday")} (6:00)</button>
           </div>
         </div>
 
         <div className="recipes-list">
-          <label>On the menu</label>
+          <label>{t("onTheMenu")}</label>
           {recipes.map(r => (
             <div className="recipe-pill" key={r.id}>
               <div className="photo" style={{ backgroundImage: `url(${r.photoCard || r.photo})` }} />
               <div>
                 <div className="name">{r.title}</div>
-                <div style={{ fontSize: 11, color: "var(--ink-3)" }}>by {r.author}</div>
+                <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{t("by")} {r.author}</div>
               </div>
               <div className="duration">{fmtDuration(r.total)}</div>
             </div>
@@ -116,12 +118,11 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
           <div className="overnight-suggestion">
             <div className="head">
               <Icon name="clock" size={14} />
-              <strong>Needs a head start the night before</strong>
+              <strong>{t("needsHeadStartTitle")}</strong>
             </div>
             <p>
-              {overnightRecipes.map(p => p.recipe.title).join(" and ")}{" "}
-              {overnightRecipes.length === 1 ? "has" : "have"} an overnight step (chilling, proofing, freezing).
-              Instead of waking up at {fmtTime(earliestStartByDate)} the day of, we'll start the night-before prep at:
+              {overnightRecipes.map(p => p.recipe.title).join(" / ")}{" "}
+              {overnightRecipes.length === 1 ? t("has") : t("have")} {t("overnightSentenceMid")} {fmtTime(earliestStartByDate)} {t("overnightSentenceEnd")}
             </p>
             <div className="evening-picker">
               <input
@@ -132,22 +133,22 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
                   if (!Number.isNaN(h)) setEveningHour(h);
                 }}
               />
-              <span>the day before</span>
+              <span>{t("theDayBefore")}</span>
             </div>
           </div>
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: "14px 16px", background: "var(--paper-2)", border: "1px solid var(--rule)", borderRadius: "var(--radius)" }}>
           <div>
-            <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>You'll start at</div>
+            <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>{t("youllStartAt")}</div>
             <div style={{ fontFamily: "var(--serif)", fontSize: 24, color: "var(--accent)", marginTop: 4 }}>
               {earliestOffset < 0
-                ? `${earliestStartByDate.toLocaleDateString("en-US", { weekday: "long" })} at ${fmtTime(earliestStartByDate)}`
+                ? `${earliestStartByDate.toLocaleDateString(locale, { weekday: "long" })} ${fmtTime(earliestStartByDate)}`
                 : fmtTime(earliestStartByDate)}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>And eat at</div>
+            <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>{t("andEatAt")}</div>
             <div style={{ fontFamily: "var(--serif)", fontSize: 24, color: "var(--ink)", marginTop: 4 }}>{fmtTime(finishTime)}</div>
           </div>
         </div>
@@ -162,6 +163,7 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
 const RECIPE_COLORS = ["#b04a2a", "#6e7a3a", "#3a5a6a", "#d68a2a", "#8a3a5a"];
 
 export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, onCookMode, onShop }) {
+  const { t, locale } = useLang();
   const [tab, setTab] = useState("combined");
 
   // Each recipe gets its own back-scheduled timeline
@@ -219,25 +221,25 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
   return (
     <div className="meal-plan-page" data-screen-label={`06 Meal Plan: ${recipes.map(r => r.title).join(" + ")}`}>
       <button className="btn ghost" onClick={onClose} style={{ marginBottom: 16 }}>
-        <Icon name="chevL" /> Back to cookbook
+        <Icon name="chevL" /> {t("backToCookbook")}
       </button>
 
       <div className="meal-plan-header">
         <div>
-          <div className="eyebrow">Tonight's plan</div>
+          <div className="eyebrow">{t("tonightsPlan")}</div>
           <h1>{recipes.map(r => r.title).join(" + ")}</h1>
           <div className="summary">
-            {recipes.length} {recipes.length === 1 ? "dish" : "dishes"} · about {fmtDuration(totalTime)} of cooking · staggered so everything lands at {fmtTime(finishTime)}.
+            {recipes.length} {recipes.length === 1 ? t("dish") : t("dishes")} · {fmtDuration(totalTime)} {t("aboutXOfCooking")} · {t("staggeredSo")} {fmtTime(finishTime)}.
           </div>
         </div>
         <div className="rhs">
           <div className="clock-big">{fmtTime(finishTime)}</div>
-          <div className="clock-small">All ready by</div>
+          <div className="clock-small">{t("allReadyBy")}</div>
           <div style={{ marginTop: 16, display: "flex", gap: 6, justifyContent: "flex-end" }}>
             <button className="btn sm" onClick={() => onShop(recipes.map(r => ({ recipe: r, ings: r.ingredients })))}>
-              <Icon name="bowl" size={12} /> Shopping list
+              <Icon name="bowl" size={12} /> {t("shoppingList")}
             </button>
-            <button className="btn ghost sm"><Icon name="print" size={12} /> Print</button>
+            <button className="btn ghost sm"><Icon name="print" size={12} /> {t("print")}</button>
           </div>
         </div>
       </div>
@@ -257,7 +259,7 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
 
       <div className="meal-plan-tabs">
         <button className={tab === "combined" ? "on" : ""} onClick={() => setTab("combined")}>
-          <Icon name="list" size={13} /> Combined timeline
+          <Icon name="list" size={13} /> {t("combinedTimeline")}
           <span className="num">{combined.length}</span>
         </button>
         {perRecipe.map(({ recipe, color }) => (
@@ -286,6 +288,7 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
 }
 
 function CombinedTimeline({ grouped, finishTime }) {
+  const { t, locale } = useLang();
   // Compute earliest item across groups so we can label day transitions
   // and gaps with a meaningful "previous day"/"day of" label.
   const finishDay = new Date(finishTime); finishDay.setHours(0, 0, 0, 0);
@@ -296,8 +299,8 @@ function CombinedTimeline({ grouped, finishTime }) {
   const labelForOffset = (off) => {
     const d = new Date(finishDay);
     d.setDate(d.getDate() + off);
-    const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
-    return off === 0 ? `${weekday} — day of` : off === -1 ? `${weekday} — the day before` : weekday;
+    const weekday = d.toLocaleDateString(locale, { weekday: "long" });
+    return off === 0 ? `${weekday} — ${t("dayOf")}` : off === -1 ? `${weekday} — ${t("dayBefore")}` : weekday;
   };
 
   let lastEndTime = null;
@@ -328,8 +331,8 @@ function CombinedTimeline({ grouped, finishTime }) {
               <div className="timeline-break">
                 <Icon name="clock" size={14} />
                 <div>
-                  <strong>{breakHuman} until your next step.</strong>
-                  <span style={{ marginLeft: 6, color: "var(--ink-3)" }}>Take a break.</span>
+                  <strong>{breakHuman} {t("untilYourNextStep")}</strong>
+                  <span style={{ marginLeft: 6, color: "var(--ink-3)" }}>{t("takeABreak")}</span>
                 </div>
               </div>
             )}

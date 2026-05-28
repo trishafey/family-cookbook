@@ -188,6 +188,140 @@ const S = {
   loading:        { en: "Loading…",           pl: "Ładowanie…" },
   saving:         { en: "Saving…",            pl: "Zapisywanie…" },
   notSignedIn:    { en: "not signed in",      pl: "niezalogowany" },
+
+  // ─── "by X" on recipe cards / header ───
+  by:             { en: "by",                 pl: "od" },
+
+  // ─── Add / edit recipe form ───
+  editing:        { en: "Editing",            pl: "Edytuję" },
+  newEntry:       { en: "New entry",          pl: "Nowy wpis" },
+  addRecipeToCookbook: { en: "Add a recipe to the cookbook", pl: "Dodaj przepis do książki kucharskiej" },
+  editRecipeTitle:{ en: "Edit recipe",        pl: "Edytuj przepis" },
+  titleRequired:  { en: "Title *",            pl: "Tytuł *" },
+  oneLineSubLbl:  { en: "One-line subtitle",  pl: "Jednoliniowy podtytuł" },
+  addedByLbl:     { en: "Added by",           pl: "Dodał(a)" },
+  sourceLinkLbl:  { en: "Source link",        pl: "Link źródłowy" },
+  sourceLinkPh:   { en: "https://example.com/recipe (optional)", pl: "https://przyklad.pl/przepis (opcjonalne)" },
+  linkLabelPh:    { en: "Link label",         pl: "Nazwa linku" },
+  courseSlashCuisine: { en: "Course / Cuisine", pl: "Danie / Kuchnia" },
+  dietPrefsLbl:   { en: "Diet / preferences", pl: "Dieta / preferencje" },
+  prepCookMin:    { en: "Prep / Cook (min)",  pl: "Przygotowanie / Gotowanie (min)" },
+  prepPh:         { en: "Prep",               pl: "Przygotowanie" },
+  cookPh:         { en: "Cook",               pl: "Gotowanie" },
+  servingsDefaultLbl: { en: "Servings (default)", pl: "Porcje (domyślne)" },
+  difficultyLbl:  { en: "Difficulty",         pl: "Trudność" },
+  nutritionPerServing: { en: "Nutrition (per serving)", pl: "Wartości odżywcze (na porcję)" },
+  calories:       { en: "Calories",           pl: "Kalorie" },
+  proteinG:       { en: "Protein (g)",        pl: "Białko (g)" },
+  carbsG:         { en: "Carbs (g)",          pl: "Węglowodany (g)" },
+  fatG:           { en: "Fat (g)",            pl: "Tłuszcz (g)" },
+  fiberG:         { en: "Fiber (g)",          pl: "Błonnik (g)" },
+  sodiumMg:       { en: "Sodium (mg)",        pl: "Sód (mg)" },
+  cooksNotesTipsLbl: { en: "Cook's notes / tips", pl: "Notatki kucharza / wskazówki" },
+  addTip:         { en: "Add tip",            pl: "Dodaj wskazówkę" },
+  exampleTip:     {
+    en: "e.g. Pull from the fridge 2 hours before cooking.",
+    pl: "np. Wyjmij z lodówki 2 godziny przed gotowaniem.",
+  },
+  heroPhotoLbl:   { en: "Hero photo",         pl: "Główne zdjęcie" },
+  uploadPhoto:    { en: "Upload photo",       pl: "Wgraj zdjęcie" },
+  aiGenerateFromTitle: { en: "AI-generate from title", pl: "Wygeneruj z tytułu (AI)" },
+
+  // Mode tabs
+  pasteAndAi:     { en: "Paste & let AI fill it in", pl: "Wklej, AI uzupełni" },
+  manualEntry:    { en: "Manual entry",       pl: "Wpis ręczny" },
+  photoOfCookbook:{ en: "Photo of a cookbook",pl: "Zdjęcie z książki kucharskiej" },
+  linkToUrl:      { en: "Link to a URL",      pl: "Link do strony" },
+
+  // Mode panels
+  aiExtraction:   { en: "AI extraction",      pl: "Ekstrakcja AI" },
+  extractRecipe:  { en: "Extract recipe",     pl: "Wyciągnij przepis" },
+  extracting:     { en: "Extracting…",        pl: "Przetwarzanie…" },
+  aiPasteHelper:  {
+    en: "You'll review every field before saving. AI fills in missing details — never replaces yours.",
+    pl: "Przed zapisem sprawdzisz każde pole. AI uzupełnia brakujące — nigdy nie nadpisuje Twojego.",
+  },
+  aiPastePlaceholder: {
+    en: "Paste anything — a recipe email from your mom, a copy/paste from a blog, a screenshot of a cookbook page. We'll pull out the title, ingredients, steps, and timing, then let you review and tidy up before saving.",
+    pl: "Wklej cokolwiek — e-mail z przepisem od mamy, kopię z bloga, zrzut z książki kucharskiej. Wyciągniemy tytuł, składniki, kroki i czasy, a Ty sprawdzisz i poprawisz przed zapisem.",
+  },
+  snapPhotoOfCookbook: { en: "Snap a photo of a cookbook page", pl: "Zrób zdjęcie strony książki kucharskiej" },
+  takePhotoHelper:{
+    en: "Take a photo (or pick from camera roll). AI will read the page and pull out the recipe.",
+    pl: "Zrób zdjęcie (lub wybierz z galerii). AI odczyta stronę i wyciągnie przepis.",
+  },
+  uploadImage:    { en: "Upload an image",    pl: "Wgraj zdjęcie" },
+  takePhoto:      { en: "Take photo",         pl: "Zrób zdjęcie" },
+  pasteUrlHere:   { en: "Paste a recipe URL", pl: "Wklej link do przepisu" },
+  fetchAndParse:  { en: "Fetch & parse",      pl: "Pobierz i przetwórz" },
+  fetchUrlHelper: {
+    en: "Works for most blogs and recipe sites. We'll grab the recipe and let you review.",
+    pl: "Działa dla większości blogów. Pobierzemy przepis i pozwolimy Ci go sprawdzić.",
+  },
+  aiFillMissing:  { en: "AI fill missing details", pl: "AI uzupełni brakujące" },
+
+  // Save / cancel / delete in form
+  saveToCookbook: { en: "Save to cookbook",   pl: "Zapisz w książce" },
+  deleteThisRecipe: { en: "Delete this recipe", pl: "Usuń ten przepis" },
+  signInToSaveRecipes: { en: "Sign in to save recipes to the cookbook.", pl: "Zaloguj się, aby zapisywać przepisy." },
+  signInArrow:    { en: "Sign in →",          pl: "Zaloguj się →" },
+  fillFormFirst:  {
+    en: "You can fill in the form first; sign-in returns you here.",
+    pl: "Możesz najpierw wypełnić formularz; zalogowanie wróci Cię tutaj.",
+  },
+
+  // Section / step editor
+  overnightStep:  { en: "Overnight step?",    pl: "Krok nocny?" },
+  recipeHasOvernight: {
+    en: "Recipe has an overnight rest (fridge, proof, freeze, marinate)",
+    pl: "Przepis ma odpoczynek nocny (lodówka, wyrastanie, mrożenie, marynowanie)",
+  },
+  overnightHint:  {
+    en: "Adds a \"The day before\" step at the top and groups the rest under \"Cooking day\". The scheduler will then plan the overnight step for the night before instead of pre-dawn the day of.",
+    pl: "Dodaje krok „Dzień wcześniej” na górze i grupuje resztę w „Dniu gotowania”. Harmonogram zaplanuje wtedy krok nocny na poprzedni wieczór zamiast wczesnego rana.",
+  },
+  addSection:     { en: "Add section",        pl: "Dodaj sekcję" },
+  addStep:        { en: "Add step",           pl: "Dodaj krok" },
+  addIngredient:  { en: "Add ingredient",     pl: "Dodaj składnik" },
+  moveUp:         { en: "Move up",            pl: "Przesuń w górę" },
+  moveDown:       { en: "Move down",          pl: "Przesuń w dół" },
+  deleteSection:  { en: "Delete section",     pl: "Usuń sekcję" },
+  sectionName:    { en: "Section name",       pl: "Nazwa sekcji" },
+  stepPlaceholder:{ en: "What happens in this step", pl: "Co się dzieje w tym kroku" },
+  qtyPh:          { en: "Qty",                pl: "Ilość" },
+  unitPh:         { en: "Unit",               pl: "Jedn." },
+  ingredientPh:   { en: "e.g. ground beef",   pl: "np. mielona wołowina" },
+  cuisinePh:      { en: "Cuisine (e.g. Italian)", pl: "Kuchnia (np. włoska)" },
+  titleEx:        { en: "e.g. Grandma's Sunday Lasagna", pl: "np. Niedzielna lasagna babci" },
+  subtitleEx:     { en: "A tagline, the family lore", pl: "Hasło, rodzinna legenda" },
+  hrs:            { en: "hrs",                pl: "godz" },
+  mins:           { en: "mins",               pl: "min" },
+
+  // ─── Meal plan modal & page ───
+  staggerSubtitle:{
+    en: "we'll back-time the schedule so everything lands at once.",
+    pl: "rozplanujemy harmonogram, żeby wszystko było gotowe naraz.",
+  },
+  needsHeadStartTitle: { en: "Needs a head start the night before", pl: "Wymaga rozpoczęcia poprzedniego wieczoru" },
+  overnightSentenceMid: { en: "an overnight step (chilling, proofing, freezing). Instead of waking up at", pl: "krok nocny (chłodzenie, wyrastanie, mrożenie). Zamiast wstawać o" },
+  overnightSentenceEnd: { en: "the day of, we'll start the night-before prep at:", pl: "w dniu gotowania, zaczniemy przygotowanie wieczorem o:" },
+  has:            { en: "has",                pl: "ma" },
+  have:           { en: "have",               pl: "mają" },
+  startingThe:    { en: "the day before",     pl: "poprzedniego dnia" },
+  // Already exists: youllStartAt, andEatAt, buildSchedule, planYourMeal, etc.
+
+  // Tweaks panel
+  tweaks:         { en: "Tweaks",             pl: "Ustawienia" },
+
+  // Shopping list
+  toBuyShort:     { en: "to buy",             pl: "do kupienia" },
+  onHand:         { en: "on hand",            pl: "na półce" },
+  tapToMark:      { en: "Tap to mark what's already in your pantry.", pl: "Dotknij, aby oznaczyć, co już masz w spiżarni." },
+  copyNeeded:     { en: "Copy needed",        pl: "Skopiuj do kupienia" },
+  download:       { en: "Download",           pl: "Pobierz" },
+  done:           { en: "Done",               pl: "Gotowe" },
+  copiedToClipboard: { en: "Copied the still-needed items to your clipboard.", pl: "Skopiowano potrzebne pozycje do schowka." },
+  nothingToShopFor: { en: "Nothing to shop for yet. Open a recipe and tap \"Shopping list.\"", pl: "Jeszcze nic do kupienia. Otwórz przepis i dotknij „Lista zakupów”." },
 };
 
 // Lookup tables for data-driven values that come from canonical
