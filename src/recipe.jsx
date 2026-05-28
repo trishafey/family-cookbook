@@ -508,7 +508,8 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
                           applied, setApplied, showNutrition, setShowNutrition,
                           doneBy, setDoneBy, finishTime, setFinishTime, schedule,
                           onCookMode, onShop, comments, addComment,
-                          allRecipes, onSaveRecipe, openRecipe }) {
+                          allRecipes, onSaveRecipe, openRecipe,
+                          authEmail, onEditRecipe, onDeleteRecipe }) {
   return (
     <>
       {/* HERO */}
@@ -595,7 +596,8 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
                          applied, setApplied, showNutrition, setShowNutrition,
                          doneBy, setDoneBy, finishTime, setFinishTime, schedule,
                          onCookMode, onShop, comments, addComment,
-                         allRecipes, onSaveRecipe, openRecipe }) {
+                         allRecipes, onSaveRecipe, openRecipe,
+                         authEmail, onEditRecipe, onDeleteRecipe }) {
   return (
     <>
       {/* Full-bleed hero */}
@@ -683,7 +685,8 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
                        applied, setApplied, showNutrition, setShowNutrition,
                        doneBy, setDoneBy, finishTime, setFinishTime, schedule,
                        onCookMode, onShop, comments, addComment,
-                       allRecipes, onSaveRecipe, openRecipe }) {
+                       allRecipes, onSaveRecipe, openRecipe,
+                       authEmail, onEditRecipe, onDeleteRecipe }) {
   return (
     <div className="recipe-binder">
       <div className="photo-binder" style={{ backgroundImage: `url(${recipe.photo})` }} />
@@ -832,6 +835,7 @@ export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, 
     onCookMode, onShop, comments, addComment,
     allRecipes, onSaveRecipe, onSaveToLab,
     openRecipe: onOpenRecipe || ((r) => {}),
+    authEmail, onEditRecipe, onDeleteRecipe,
   };
 
   return (
