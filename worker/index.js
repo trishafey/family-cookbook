@@ -63,7 +63,7 @@ app.get("/api/recipes", async (c) => {
   const rows = await c.env.DB.prepare(
     `SELECT r.blob, COALESCE(json_group_array(
        CASE WHEN c.id IS NULL THEN NULL
-            ELSE json_object('id', c.id, 'name', c.author, 'text', c.body, 'created_at', c.created_at)
+            ELSE json_object('id', c.id, 'name', c.author, 'text', c.body, 'created_at', c.created_at, 'created_by', c.created_by)
        END
      ) FILTER (WHERE c.id IS NOT NULL), '[]') AS live_comments
      FROM recipes r
@@ -85,6 +85,7 @@ function formatComment(c) {
     name: c.name,
     text: c.text,
     date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    created_by: c.created_by || null,
   };
 }
 
@@ -248,20 +249,24 @@ app.post("/api/admin/recipes/:id/comments", async (c) => {
   const id = crypto.randomUUID();
   const now = Date.now();
   await c.env.DB.prepare(
-    "INSERT INTO comments (id, recipe_id, author, body, created_at) VALUES (?, ?, ?, ?, ?)"
-  ).bind(id, c.req.param("id"), body.name.trim(), body.text.trim(), now).run();
+    "INSERT INTO comments (id, recipe_id, author, body, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)"
+  ).bind(id, c.req.param("id"), body.name.trim(), body.text.trim(), now, email).run();
 
-  return c.json(formatComment({ id, name: body.name.trim(), text: body.text.trim(), created_at: now }));
+  return c.json(formatComment({ id, name: body.name.trim(), text: body.text.trim(), created_at: now, created_by: email }));
 });
 
+// Only the author can remove their own note.
 app.delete("/api/admin/comments/:id", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
 
-  const res = await c.env.DB.prepare(
-    "DELETE FROM comments WHERE id = ?"
-  ).bind(c.req.param("id")).run();
-  if (!res.meta.changes) return c.json({ error: "not found" }, 404);
+  const row = await c.env.DB.prepare(
+    "SELECT created_by FROM comments WHERE id = ?"
+  ).bind(c.req.param("id")).first();
+  if (!row) return c.json({ error: "not found" }, 404);
+  if (row.created_by !== email) return c.json({ error: "not your note" }, 403);
+
+  await c.env.DB.prepare("DELETE FROM comments WHERE id = ?").bind(c.req.param("id")).run();
   return c.json({ ok: true });
 });
 

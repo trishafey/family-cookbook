@@ -460,7 +460,7 @@ function CooksNotes({ recipe, defaultOpen }) {
 // ─────────────────────────────────────────────────────────────
 // Shared: Comments (disclosure)
 // ─────────────────────────────────────────────────────────────
-function CommentsPanel({ recipe, addComment, authEmail, defaultOpen }) {
+function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOpen }) {
   const all = [...(recipe.comments || []), ...(recipe.liveComments || [])];
   const [cName, setCName] = useState("");
   const [cText, setCText] = useState("");
@@ -486,15 +486,33 @@ function CommentsPanel({ recipe, addComment, authEmail, defaultOpen }) {
         <span className="count">{all.length} {all.length === 1 ? "note" : "notes"}</span>
       </summary>
       <div className="disclosure-body">
-        {all.map((c, i) => (
-          <div className="comment" key={i}>
-            <div className="av">{c.name[0]}</div>
-            <div>
-              <div className="head"><span className="name">{c.name}</span><span className="date">{c.date}</span></div>
-              <div className="text">{c.text}</div>
+        {all.map((c, i) => {
+          const mine = c.created_by && authEmail && c.created_by === authEmail;
+          return (
+            <div className="comment" key={c.id || i}>
+              <div className="av">{(c.name?.[0] || "?").toUpperCase()}</div>
+              <div style={{ flex: 1 }}>
+                <div className="head">
+                  <span className="name">{c.name}</span>
+                  <span className="date">{c.date}</span>
+                  {mine && deleteComment && (
+                    <button
+                      type="button"
+                      className="btn ghost icon-only"
+                      onClick={async () => {
+                        if (!confirm("Delete this note?")) return;
+                        try { await deleteComment(c.id); } catch (err) { alert(err.message); }
+                      }}
+                      title="Delete your note"
+                      style={{ marginLeft: 8, color: "#C42807" }}
+                    ><Icon name="x" size={12} /></button>
+                  )}
+                </div>
+                <div className="text">{c.text}</div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {authEmail ? (
           <form className="comment-form" onSubmit={submit} style={{ marginTop: 16 }}>
             <h4 style={{ marginBottom: 8 }}>Leave a note</h4>
@@ -520,7 +538,7 @@ function CommentsPanel({ recipe, addComment, authEmail, defaultOpen }) {
 function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
                           applied, setApplied, showNutrition, setShowNutrition,
                           doneBy, setDoneBy, finishTime, setFinishTime, schedule,
-                          onCookMode, onShop, comments, addComment,
+                          onCookMode, onShop, comments, addComment, deleteComment,
                           allRecipes, onSaveRecipe, openRecipe,
                           authEmail, onEditRecipe, onDeleteRecipe }) {
   return (
@@ -591,7 +609,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
       </div>
       <div>
         <CooksNotes recipe={recipe} defaultOpen={true} />
-        <CommentsPanel recipe={recipe} addComment={addComment} authEmail={authEmail} defaultOpen={false} />
+        <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={false} />
       </div>
     </>
   );
@@ -603,7 +621,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
 function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
                          applied, setApplied, showNutrition, setShowNutrition,
                          doneBy, setDoneBy, finishTime, setFinishTime, schedule,
-                         onCookMode, onShop, comments, addComment,
+                         onCookMode, onShop, comments, addComment, deleteComment,
                          allRecipes, onSaveRecipe, openRecipe,
                          authEmail, onEditRecipe, onDeleteRecipe }) {
   return (
@@ -676,7 +694,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <span className="label">From the family</span>
       </div>
       <CooksNotes recipe={recipe} defaultOpen={true} />
-      <CommentsPanel recipe={recipe} addComment={addComment} authEmail={authEmail} defaultOpen={false} />
+      <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={false} />
     </>
   );
 }
@@ -687,7 +705,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
 function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
                        applied, setApplied, showNutrition, setShowNutrition,
                        doneBy, setDoneBy, finishTime, setFinishTime, schedule,
-                       onCookMode, onShop, comments, addComment,
+                       onCookMode, onShop, comments, addComment, deleteComment,
                        allRecipes, onSaveRecipe, openRecipe,
                        authEmail, onEditRecipe, onDeleteRecipe }) {
   return (
@@ -759,7 +777,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <span className="label">Margin notes</span>
       </div>
       <CooksNotes recipe={recipe} defaultOpen={true} />
-      <CommentsPanel recipe={recipe} addComment={addComment} authEmail={authEmail} defaultOpen={false} />
+      <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={false} />
     </div>
   );
 }
@@ -767,7 +785,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
 // ─────────────────────────────────────────────────────────────
 // Top-level Recipe detail — holds all state, picks the variant
 // ─────────────────────────────────────────────────────────────
-export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, onEditRecipe, onDeleteRecipe }) {
+export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, deleteComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, onEditRecipe, onDeleteRecipe }) {
   // Scaling state
   const [servings, setServings] = useState(recipe.servingsDefault);
   const [weight, setWeight] = useState(recipe.weightDefault || 1);
@@ -830,7 +848,7 @@ export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, 
     recipe, scaler, scaled, finalIngs, finalNutrition,
     applied, setApplied, showNutrition, setShowNutrition,
     doneBy, setDoneBy, finishTime, setFinishTime, schedule,
-    onCookMode, onShop, comments, addComment,
+    onCookMode, onShop, comments, addComment, deleteComment,
     allRecipes, onSaveRecipe, onSaveToLab,
     openRecipe: onOpenRecipe || ((r) => {}),
     authEmail, onEditRecipe, onDeleteRecipe,
