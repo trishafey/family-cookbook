@@ -9,6 +9,8 @@ import { COURSES, OCCASIONS, DIETS } from "./data.js";
 export function AddRecipe({ onClose, onSave, authEmail }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState(null);
   // Default to "manual" when no AI extraction is enabled, so users land
   // on the plain form. Once an AI flag is flipped on, "ai" becomes the
   // initial mode again.
@@ -85,6 +87,31 @@ export function AddRecipe({ onClose, onSave, authEmail }) {
     });
     setExtracting(false);
     setMode("manual"); // move into review-and-edit
+  };
+
+  const uploadPhoto = async (file) => {
+    if (!file) return;
+    setPhotoError(null);
+    setUploadingPhoto(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/admin/uploads", {
+        method: "POST",
+        credentials: "include",
+        body,
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `Upload failed (${res.status})`);
+      }
+      const { url } = await res.json();
+      setDraft(d => ({ ...d, photo: url }));
+    } catch (err) {
+      setPhotoError(err.message || "Upload failed");
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
   const save = async () => {
@@ -354,9 +381,21 @@ export function AddRecipe({ onClose, onSave, authEmail }) {
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                 <div style={{ width: 100, height: 80, backgroundImage: `url(${draft.photo})`, backgroundSize: "cover", backgroundPosition: "center", border: "1px solid var(--rule)", borderRadius: 4 }} />
                 <div style={{ flex: 1 }}>
-                  <button className="btn sm"><Icon name="camera" size={12} /> Upload photo</button>
+                  <label className="btn sm" style={{ cursor: authEmail && !uploadingPhoto ? "pointer" : "not-allowed", opacity: authEmail && !uploadingPhoto ? 1 : 0.5 }}>
+                    <Icon name="camera" size={12} /> {uploadingPhoto ? "Uploading…" : "Upload photo"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={!authEmail || uploadingPhoto}
+                      style={{ display: "none" }}
+                      onChange={(e) => uploadPhoto(e.target.files?.[0])}
+                    />
+                  </label>
                   {FLAGS.extractImage && (
                   <button className="btn ghost sm" style={{ marginLeft: 6 }}><Icon name="sparkle" size={12} /> AI-generate from title</button>
+                  )}
+                  {photoError && (
+                    <div style={{ marginTop: 6, fontSize: 12, color: "#933" }}>{photoError}</div>
                   )}
                 </div>
               </div>
