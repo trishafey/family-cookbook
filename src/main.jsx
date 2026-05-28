@@ -271,6 +271,7 @@ function App() {
         <AddRecipe
           onClose={() => { setEditingId(null); setView("recipe"); }}
           onSave={onSaveRecipe}
+          onDelete={onDeleteRecipe}
           authEmail={authEmail}
           initialRecipe={recipes.find(r => r.id === editingId)}
         />
