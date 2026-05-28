@@ -366,7 +366,7 @@ STEPS (preserve EVERY detail; just polish the prose)
 - DO rewrite the prose so it reads cleanly and warmly. Fix grammar. Replace fragments with full sentences. Reorder when an instruction is buried mid-sentence.
 - Keep all the original substance: every quantity, every cue ("until golden", "until water evaporates"), every conditional ("if you prefer"), every optional addition, every warning ("not too much or it will be bitter").
 - If the original mentions an ingredient or trick in the step text that wasn't in the ingredient list, keep that mention in the step.
-- Each step gets a short title `t` (max 60 chars) summarising the action plus a fuller `d` description (the polished prose).
+- Each step gets a short title 't' (max 60 chars) summarising the action plus a fuller 'd' description (the polished prose).
 - precision: "easy" (set and forget), "medium" (some attention), "careful" (precise), "watch" (don't walk away — heat, browning), "patient" (long wait — rest, rise, marinate).
 - mins: your best estimate; for passive steps (rest / marinate / freeze / proof) include the wait time.
 
