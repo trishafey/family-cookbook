@@ -171,10 +171,59 @@ app.post("/api/admin/recipes", async (c) => {
   return c.json({ ok: true, id: draft.id });
 });
 
-// Upload a recipe photo. Same Access-protected path as the other writes.
-// Accepts multipart/form-data with a single 'file' part; stores the bytes
-// in R2 keyed by a random id, and returns the URL the React app should
-// save into draft.photo.
+// Update an existing recipe. Partial updates allowed — anything not in
+// the body is left alone, except blob which is always replaced with the
+// merged result so the UI can read JSON.parse(row.blob) without joining
+// the column values back together.
+app.patch("/api/admin/recipes/:id", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+
+  const id = c.req.param("id");
+  const patch = await c.req.json();
+
+  const existing = await c.env.DB.prepare(
+    "SELECT blob FROM recipes WHERE id = ?"
+  ).bind(id).first();
+  if (!existing) return c.json({ error: "not found" }, 404);
+
+  const merged = { ...JSON.parse(existing.blob), ...patch, id };
+  const now = Date.now();
+  await c.env.DB.prepare(
+    `UPDATE recipes
+       SET title = ?, subtitle = ?, author = ?, cuisine = ?, course = ?,
+           photo = ?, blob = ?, updated_at = ?
+     WHERE id = ?`
+  ).bind(
+    merged.title,
+    merged.subtitle ?? null,
+    merged.author ?? null,
+    merged.cuisine ?? null,
+    merged.course ?? null,
+    merged.photo ?? null,
+    JSON.stringify(merged),
+    now,
+    id
+  ).run();
+
+  return c.json({ ok: true, id });
+});
+
+app.delete("/api/admin/recipes/:id", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+
+  const res = await c.env.DB.prepare(
+    "DELETE FROM recipes WHERE id = ?"
+  ).bind(c.req.param("id")).run();
+
+  if (!res.meta.changes) return c.json({ error: "not found" }, 404);
+  return c.json({ ok: true });
+});
+
+// Upload a recipe photo. Multipart with a single 'file' part; stored in
+// R2 keyed by a random id. Returns the URL the React app saves into
+// draft.photo.
 app.post("/api/admin/uploads", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);

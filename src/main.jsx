@@ -1,6 +1,6 @@
 // Main app — router, top nav, tweaks panel, modal hosts.
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { Icon, useStorage, useRecipes, useAuth, signInUrl, SIGN_OUT_URL, applyFilters } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
@@ -17,9 +17,10 @@ import { CookMode } from "./cook-mode.jsx";
 
 function App() {
   // ─── View routing ───
-  // view: "browse" | "recipe" | "add" | "meal"
+  // view: "browse" | "recipe" | "add" | "edit" | "meal"
   const [view, setView] = useState("browse");
   const [recipeId, setRecipeId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
   // ─── Recipe collection ───
   // Server-of-record is the D1 cookbook via /api/recipes; useRecipes caches
@@ -93,13 +94,17 @@ function App() {
     setAllComments(a => ({ ...a, [rid]: [...(a[rid] || []), c] }));
   };
 
-  // ─── Save a new recipe from Add flow ───
-  // POSTs to the Access-protected write endpoint, then refreshes the
-  // recipe list so the new entry appears immediately. Throws so the
-  // AddRecipe form can show an error if the save fails.
+  // ─── Save a recipe (create or update) ───
+  // POSTs new drafts to /api/admin/recipes, PATCHes existing ones at
+  // /api/admin/recipes/:id. Refreshes the cached list so the change
+  // shows up everywhere immediately. Throws on failure so the form
+  // can render the error inline.
   const onSaveRecipe = async (draft) => {
-    const res = await fetch("/api/admin/recipes", {
-      method: "POST",
+    const isUpdate = recipes.some(r => r.id === draft.id);
+    const url = isUpdate ? `/api/admin/recipes/${encodeURIComponent(draft.id)}` : "/api/admin/recipes";
+    const method = isUpdate ? "PATCH" : "POST";
+    const res = await fetch(url, {
+      method,
       credentials: "include",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(draft),
@@ -111,6 +116,29 @@ function App() {
     await refreshRecipes();
     setView("recipe");
     setRecipeId(draft.id);
+    setEditingId(null);
+  };
+
+  const onEditRecipe = (r) => {
+    setEditingId(r.id);
+    setView("edit");
+    window.scrollTo(0, 0);
+  };
+
+  const onDeleteRecipe = async (r) => {
+    if (!confirm(`Delete "${r.title}"? This can't be undone.`)) return;
+    const res = await fetch(`/api/admin/recipes/${encodeURIComponent(r.id)}`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      alert(error || `Delete failed (${res.status})`);
+      return;
+    }
+    await refreshRecipes();
+    backToBrowse();
   };
 
   // ─── Send a pairing suggestion or any draft to The Lab ───
@@ -184,11 +212,9 @@ function App() {
               <Icon name="plus" size={13} /> <span className="btn-label">Add recipe</span>
             </button>
             {authEmail ? (
-              <a className="btn ghost sm" href={SIGN_OUT_URL} title={`Signed in as ${authEmail} — tap to sign out`}>
-                <span className="btn-label">{authEmail.split("@")[0]}</span>
-              </a>
+              <AvatarMenu email={authEmail} />
             ) : (
-              <a className="btn ghost sm" href={signInUrl()} title="Sign in to add or edit recipes">
+              <a className="btn sm sign-in" href={signInUrl()} title="Sign in to add or edit recipes">
                 <span className="btn-label">Sign in</span>
               </a>
             )}
@@ -228,10 +254,21 @@ function App() {
           onSaveRecipe={onSaveRecipe}
           onOpenRecipe={openRecipe}
           onSaveToLab={onSaveToLab}
+          authEmail={authEmail}
+          onEditRecipe={onEditRecipe}
+          onDeleteRecipe={onDeleteRecipe}
         />
       )}
       {view === "add" && (
         <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} authEmail={authEmail} />
+      )}
+      {view === "edit" && (
+        <AddRecipe
+          onClose={() => { setEditingId(null); setView("recipe"); }}
+          onSave={onSaveRecipe}
+          authEmail={authEmail}
+          initialRecipe={recipes.find(r => r.id === editingId)}
+        />
       )}
       {FLAGS.lab && view === "lab" && (
         <ExperimentationLab
@@ -351,6 +388,33 @@ function App() {
         </TweakSection>
       </TweaksPanel>
     </>
+  );
+}
+
+function AvatarMenu({ email }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const initial = (email[0] || "?").toUpperCase();
+
+  useEffect(() => {
+    if (!open) return;
+    const onClickAway = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onClickAway);
+    return () => document.removeEventListener("mousedown", onClickAway);
+  }, [open]);
+
+  return (
+    <div className="avatar-menu" ref={ref}>
+      <button className="avatar" onClick={() => setOpen(o => !o)} title={email} aria-label="Account menu">
+        {initial}
+      </button>
+      {open && (
+        <div className="menu" role="menu">
+          <div className="label">{email}</div>
+          <a className="item" href={SIGN_OUT_URL}>Sign out</a>
+        </div>
+      )}
+    </div>
   );
 }
 

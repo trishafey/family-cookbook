@@ -104,12 +104,12 @@ h4 { font-size: 17px; line-height: 1.3; }
   padding: 14px 28px;
   display: flex; align-items: center; gap: 20px;
 }
-.brand { flex: 1; display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 0; }
 .brand .brand-logo { display: block; width: 150px; height: auto; padding: 20px; box-sizing: content-box; }
 .brand .brand-mark { display: none; height: 32px; width: auto; }
 
 .search {
-  flex: 0 1 480px; width: 480px;
+  flex: 1 1 480px; max-width: 480px;
   display: flex; align-items: center; gap: 8px;
   padding: 8px 12px;
   background: var(--paper-2);
@@ -132,6 +132,45 @@ h4 { font-size: 17px; line-height: 1.3; }
 }
 
 .nav-actions { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+
+.btn.sign-in {
+  background: #C42807; color: #fff; border-color: #C42807;
+}
+.btn.sign-in:hover { background: #a31f05; border-color: #a31f05; color: #fff; }
+
+.avatar-menu { position: relative; }
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #C42807; color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--sans); font-weight: 600; font-size: 14px;
+  border: none; cursor: pointer; padding: 0;
+  text-transform: uppercase;
+}
+.avatar:hover { background: #a31f05; }
+.avatar-menu .menu {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  min-width: 160px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  padding: 4px;
+  z-index: 100;
+}
+.avatar-menu .menu .item {
+  display: block; width: 100%; text-align: left;
+  padding: 8px 12px; border-radius: 4px;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--sans); font-size: 14px; color: var(--ink);
+  text-decoration: none;
+}
+.avatar-menu .menu .item:hover { background: var(--paper-2); }
+.avatar-menu .menu .label {
+  padding: 6px 12px; color: var(--ink-3); font-size: 12px;
+  border-bottom: 1px solid var(--rule); margin-bottom: 4px;
+  font-family: var(--sans); word-break: break-all;
+}
 
 /* Buttons */
 .btn {
