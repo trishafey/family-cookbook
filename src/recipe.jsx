@@ -284,7 +284,6 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
             </button>
             <span className="val servings-val">
               {currentServings}
-              {isWeight && <span className="weight-sub">{scaler.weight} lb roast</span>}
             </span>
             <button onClick={() => bumpServings(1)} aria-label="More servings">
               <Icon name="plus" size={11} />
@@ -345,12 +344,38 @@ function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
         <div key={g}>
           <div className="group-label">{g}</div>
           <ul>
-            {items.map((i, idx) => (
-              <li key={idx}>
-                <span className="qty">{formatQty(i.qty)} {i.unit}</span>
-                <span className="item">{i.item}</span>
-              </li>
-            ))}
+            {items.map((i, idx) => {
+              // The "main" weight-scaled ingredient (the roast / turkey / etc.)
+              // is the one whose unit matches the recipe's weightUnit on a
+              // weight-scaled recipe. Tag the ± control there so adjusting it
+              // updates the whole recipe.
+              const isWeightAnchor = recipe.scaleBy === "weight"
+                && i.scalesWithWeight && i.unit === (recipe.weightUnit || "lb");
+              return (
+                <li key={idx}>
+                  <span className="qty">
+                    {isWeightAnchor && (
+                      <button
+                        type="button"
+                        className="qty-bump"
+                        onClick={(e) => { e.preventDefault(); scaler.setWeight(Math.max(0.5, +(scaler.weight - 0.5).toFixed(1))); }}
+                        aria-label={`Decrease ${recipe.weightUnit || "lb"}`}
+                      ><Icon name="minus" size={9} /></button>
+                    )}
+                    {formatQty(i.qty)} {i.unit}
+                    {isWeightAnchor && (
+                      <button
+                        type="button"
+                        className="qty-bump"
+                        onClick={(e) => { e.preventDefault(); scaler.setWeight(+(scaler.weight + 0.5).toFixed(1)); }}
+                        aria-label={`Increase ${recipe.weightUnit || "lb"}`}
+                      ><Icon name="plus" size={9} /></button>
+                    )}
+                  </span>
+                  <span className="item">{i.item}</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}
@@ -399,7 +424,7 @@ function TimingBar({ doneBy, setDoneBy, finishTime, setFinishTime, schedule }) {
 // ─────────────────────────────────────────────────────────────
 // Shared: Steps list
 // ─────────────────────────────────────────────────────────────
-function StepsList({ steps, doneBy, schedule, finishTime }) {
+function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
   let lastSection = null;
   let lastDayOffset = null;
   return (
@@ -429,7 +454,25 @@ function StepsList({ steps, doneBy, schedule, finishTime }) {
                   <span className="time">{fmtDuration(s.mins)}</span>
                   {s.hands != null && <span>hands-on {fmtDuration(s.hands)}</span>}
                   {doneBy && schedule && (
-                    <span className="start">▶ {fmtTime(stepSched.start)} – {fmtTime(stepSched.end)}</span>
+                    <span className="start">
+                      ▶ {fmtTime(stepSched.start)} – {fmtTime(stepSched.end)}
+                      {bumpStepStart && (
+                        <span className="start-bump">
+                          <button
+                            type="button"
+                            onClick={() => bumpStepStart(i, -5)}
+                            aria-label="Start 5 min earlier"
+                            title="Start 5 min earlier"
+                          ><Icon name="minus" size={9} /></button>
+                          <button
+                            type="button"
+                            onClick={() => bumpStepStart(i, +5)}
+                            aria-label="Start 5 min later"
+                            title="Start 5 min later"
+                          ><Icon name="plus" size={9} /></button>
+                        </span>
+                      )}
+                    </span>
                   )}
                   {stepSched?.overnight && <span className="overnight-tag">park overnight</span>}
                 </div>
@@ -684,7 +727,7 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
 // ─────────────────────────────────────────────────────────────
 function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
                           applied, setApplied, showNutrition, setShowNutrition,
-                          doneBy, setDoneBy, finishTime, setFinishTime, schedule,
+                          doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                           onCookMode, onShop, comments, addComment, deleteComment,
                           allRecipes, onSaveRecipe, openRecipe,
                           authEmail, onEditRecipe, onDeleteRecipe }) {
@@ -745,7 +788,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
 
         <div>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
-          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} />
+          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
           {FLAGS.needHelp && <NeedHelp recipe={recipe} />}
         </div>
       </div>
@@ -767,7 +810,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
 // ─────────────────────────────────────────────────────────────
 function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
                          applied, setApplied, showNutrition, setShowNutrition,
-                         doneBy, setDoneBy, finishTime, setFinishTime, schedule,
+                         doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                          onCookMode, onShop, comments, addComment, deleteComment,
                          allRecipes, onSaveRecipe, openRecipe,
                          authEmail, onEditRecipe, onDeleteRecipe }) {
@@ -831,7 +874,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
 
         <div>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
-          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} />
+          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
           {FLAGS.needHelp && <NeedHelp recipe={recipe} />}
         </div>
       </div>
@@ -851,7 +894,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
 // ─────────────────────────────────────────────────────────────
 function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
                        applied, setApplied, showNutrition, setShowNutrition,
-                       doneBy, setDoneBy, finishTime, setFinishTime, schedule,
+                       doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                        onCookMode, onShop, comments, addComment, deleteComment,
                        allRecipes, onSaveRecipe, openRecipe,
                        authEmail, onEditRecipe, onDeleteRecipe }) {
@@ -915,7 +958,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <div>
           <h3 style={{ marginBottom: 14, fontStyle: "italic" }}>How to make it</h3>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
-          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} />
+          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
           {FLAGS.needHelp && <NeedHelp recipe={recipe} />}
         </div>
       </div>
@@ -985,16 +1028,45 @@ export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, 
   }, [recipe.nutrition, calFactor]);
 
   // Schedule
-  const schedule = useMemo(() =>
+  const baseSchedule = useMemo(() =>
     doneBy ? scheduleForFinish(scaled.steps, finishTime) : null,
   [doneBy, scaled.steps, finishTime]);
+
+  // Per-step start-time overrides on the recipe page. Each entry is the
+  // start time the user has nudged a step to; subsequent steps then flow
+  // forward from there so the rest of the schedule shifts to match.
+  // Lives in component state — resets when navigating away.
+  const [stepStartOverrides, setStepStartOverrides] = useState({});
+  useEffect(() => { setStepStartOverrides({}); }, [recipe.id, finishTime, doneBy]);
+
+  const schedule = useMemo(() => {
+    if (!baseSchedule) return null;
+    const out = new Array(scaled.steps.length);
+    let prevEnd = null;
+    for (let i = 0; i < scaled.steps.length; i++) {
+      const ovr = stepStartOverrides[i];
+      const start = ovr
+        ? new Date(ovr)
+        : prevEnd != null ? new Date(prevEnd) : new Date(baseSchedule.schedule[i].start);
+      const end = new Date(start.getTime() + (scaled.steps[i].mins || 0) * 60000);
+      out[i] = { ...baseSchedule.schedule[i], start, end };
+      prevEnd = end.getTime();
+    }
+    return { ...baseSchedule, schedule: out, startTime: out[0]?.start || baseSchedule.startTime };
+  }, [baseSchedule, scaled.steps, stepStartOverrides]);
+
+  const bumpStepStart = (i, deltaMin) => {
+    if (!schedule) return;
+    const next = new Date(schedule.schedule[i].start.getTime() + deltaMin * 60000);
+    setStepStartOverrides(o => ({ ...o, [i]: next.toISOString() }));
+  };
 
   const scaler = { servings, setServings, weight, setWeight, calTarget, setCalTarget };
 
   const variantProps = {
     recipe, scaler, scaled, finalIngs, finalNutrition,
     applied, setApplied, showNutrition, setShowNutrition,
-    doneBy, setDoneBy, finishTime, setFinishTime, schedule,
+    doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
     onCookMode, onShop, comments, addComment, deleteComment,
     allRecipes, onSaveRecipe, onSaveToLab,
     openRecipe: onOpenRecipe || ((r) => {}),

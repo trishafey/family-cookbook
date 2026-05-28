@@ -480,8 +480,25 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   border-bottom: 1px dotted var(--rule);
 }
 .ingredients-card li:last-child { border-bottom: none; }
-.ingredients-card li .qty { font-family: var(--mono); color: var(--accent); font-weight: 500; }
+.ingredients-card li .qty { font-family: var(--mono); color: var(--accent); font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
 .ingredients-card li .item { color: var(--ink-2); }
+.ingredients-card li .qty-bump {
+  background: var(--paper-2); border: 1px solid var(--rule);
+  width: 18px; height: 18px; border-radius: 4px;
+  display: inline-grid; place-items: center; cursor: pointer;
+  color: var(--ink-3); padding: 0;
+}
+.ingredients-card li .qty-bump:hover { color: var(--accent); border-color: var(--accent); }
+
+.steps-list .start { display: inline-flex; align-items: center; gap: 6px; }
+.steps-list .start-bump { display: inline-flex; gap: 2px; }
+.steps-list .start-bump button {
+  background: var(--paper-2); border: 1px solid var(--rule);
+  width: 18px; height: 18px; border-radius: 4px;
+  display: inline-grid; place-items: center; cursor: pointer;
+  color: var(--ink-3); padding: 0;
+}
+.steps-list .start-bump button:hover { color: var(--accent); border-color: var(--accent); }
 
 /* AI Adjust — lives INSIDE the ingredients card as a sub-section */
 .ai-adjust {
