@@ -619,57 +619,6 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               <input type="number" value={draft.cook} onChange={(e) => setDraft({ ...draft, cook: +e.target.value })} placeholder="Cook" style={{ width: 120 }} />
             </div>
           </div>
-
-          <div className="input-row">
-            <label>Overnight step?</label>
-            <div className="overnight-toggle">
-              <label className="check-line">
-                <input
-                  type="checkbox"
-                  checked={draft.steps.some(s => s.overnight)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      if (!draft.steps.some(s => s.overnight)) {
-                        // Two sections: "The day before" for the overnight
-                        // rest at the top, and "Cooking day" for everything
-                        // already in the list (so they read as the day-of
-                        // active prep).
-                        setDraft({
-                          ...draft,
-                          steps: [
-                            {
-                              t: "The day before (overnight step)",
-                              d: "Park in the fridge / freezer / counter overnight.",
-                              mins: 480,
-                              precision: "patient",
-                              overnight: true,
-                              section: "The day before",
-                            },
-                            ...draft.steps.map(s => ({ ...s, section: s.section || "Cooking day" })),
-                          ],
-                        });
-                      }
-                    } else {
-                      // Strip the overnight step and clear the auto-added
-                      // "Cooking day" section so the form returns to its
-                      // pre-toggle state. Custom sections the user named
-                      // themselves are left alone.
-                      setDraft({
-                        ...draft,
-                        steps: draft.steps
-                          .filter(s => !s.overnight)
-                          .map(s => s.section === "Cooking day" ? { ...s, section: null } : s),
-                      });
-                    }
-                  }}
-                />
-                <span>Recipe has an overnight rest (fridge, proof, freeze, marinate)</span>
-              </label>
-              <div className="hint">
-                Adds a "The day before" step to the very top of the steps below. The scheduler will plan that step for the night before instead of pre-dawn the day of.
-              </div>
-            </div>
-          </div>
           <div className="input-row">
             <label>Servings (default)</label>
             <div>
@@ -758,6 +707,49 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                 <Icon name="sparkle" size={12} /> AI fill missing details
               </button>
               )}
+            </div>
+          </div>
+
+          <div className="input-row">
+            <label>Overnight step?</label>
+            <div className="overnight-toggle">
+              <label className="check-line">
+                <input
+                  type="checkbox"
+                  checked={draft.steps.some(s => s.overnight)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      if (!draft.steps.some(s => s.overnight)) {
+                        setDraft({
+                          ...draft,
+                          steps: [
+                            {
+                              t: "The day before (overnight step)",
+                              d: "Park in the fridge / freezer / counter overnight.",
+                              mins: 480,
+                              precision: "patient",
+                              overnight: true,
+                              section: "The day before",
+                            },
+                            ...draft.steps.map(s => ({ ...s, section: s.section || "Cooking day" })),
+                          ],
+                        });
+                      }
+                    } else {
+                      setDraft({
+                        ...draft,
+                        steps: draft.steps
+                          .filter(s => !s.overnight)
+                          .map(s => s.section === "Cooking day" ? { ...s, section: null } : s),
+                      });
+                    }
+                  }}
+                />
+                <span>Recipe has an overnight rest (fridge, proof, freeze, marinate)</span>
+              </label>
+              <div className="hint">
+                Adds a "The day before" step at the top and groups the rest under "Cooking day". The scheduler will then plan the overnight step for the night before instead of pre-dawn the day of.
+              </div>
             </div>
           </div>
 
