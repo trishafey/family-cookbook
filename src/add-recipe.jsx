@@ -64,6 +64,25 @@ function CuisineSearch({ value, onChange, usedCuisines = [] }) {
 // Group an ordered array of items by their section key, preserving the
 // order each section first appears. Returns an array of { name, items }
 // where items keep their original index for in-place edits.
+// Re-orders a steps array so all entries of one section sit contiguously,
+// preserving the order each section first appears. Without this, an
+// array like [A_day1, B_day2, C_day1] renders on the recipe page as
+// "Day 1 / Day 2 / Day 1" — the edit form's visual grouping hides the
+// problem in the editor, but the recipe page walks the array linearly.
+function groupStepsBySection(steps) {
+  const sectionOrder = [];
+  const bySection = {};
+  for (const s of steps) {
+    const key = s.section || "";
+    if (!bySection[key]) {
+      bySection[key] = [];
+      sectionOrder.push(key);
+    }
+    bySection[key].push(s);
+  }
+  return sectionOrder.flatMap(k => bySection[k]);
+}
+
 function groupBySection(arr, keyOf, defaultName) {
   const seen = [];
   const byName = {};
@@ -185,8 +204,23 @@ function StepsEditor({ steps, onChange }) {
     if (!confirm(`Delete the "${name}" section and its steps?`)) return;
     onChange(steps.filter(s => (s.section || "") !== name));
   };
-  const addStepTo = (sectionName) =>
-    onChange([...steps, { t: "", d: "", mins: 0, precision: "easy", section: sectionName || null }]);
+  const addStepTo = (sectionName) => {
+    // Insert at the end of the matching section so the underlying array
+    // order matches what the user sees in the editor. Otherwise the
+    // recipe page (which renders steps linearly, not grouped) ends up
+    // with interleaved section headers like
+    // "Day before / Cooking day / Day before".
+    const newStep = { t: "", d: "", mins: 0, precision: "easy", section: sectionName || null };
+    const target = sectionName || "";
+    let lastIdx = -1;
+    steps.forEach((s, i) => { if ((s.section || "") === target) lastIdx = i; });
+    if (lastIdx === -1) onChange([...steps, newStep]);
+    else {
+      const next = [...steps];
+      next.splice(lastIdx + 1, 0, newStep);
+      onChange(next);
+    }
+  };
   const addSection = () => {
     const name = "New section";
     onChange([...steps, { t: "", d: "", mins: 0, precision: "easy", section: name }]);
@@ -309,12 +343,15 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     else if (editing) {
       // Backfill any optional fields the form expects but old recipes
       // might be missing, so we never bind <input>s to undefined.
+      // Also reorder steps so all members of a section sit together —
+      // self-heals recipes saved before that invariant was enforced.
       const empty = newDraft();
       setDraft(d => ({
         ...empty,
         ...d,
         nutrition: { ...empty.nutrition, ...(d.nutrition || {}) },
         tips: d.tips || [],
+        steps: groupStepsBySection(d.steps || []),
       }));
     }
   }, []);
@@ -389,6 +426,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
   const save = async () => {
     if (!draft.title.trim()) { alert("Give it a title first."); return; }
     const out = { ...draft, total: draft.total || (draft.prep + draft.cook) };
+    out.steps = groupStepsBySection(out.steps);
     if (!out.link?.url) delete out.link;
     setSaveError(null);
     setSaving(true);
