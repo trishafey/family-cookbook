@@ -402,6 +402,10 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
         ingredients:     ings,
         steps,
         tips:            parsed.tips            || [],
+        nutrition: {
+          ...fresh.nutrition,
+          ...(parsed.nutrition || {}),
+        },
         total:           (parsed.prep || 0) + (parsed.cook || 0),
       });
       setMode("manual");

@@ -331,22 +331,65 @@ const AI_OPENAI_MODEL = "gpt-4o-mini";
 
 const AI_EXTRACT_SYSTEM_PROMPT = `You are a recipe extraction assistant for a family cookbook. The user will paste text containing a recipe — could be an email from a relative, a blog post copy-paste, a screenshot transcript, or freeform notes. Extract the recipe into structured JSON matching the provided schema.
 
-Guidelines:
-- Use the closest match for course (Breakfast / Lunch / Dinner / Appetizer / Dessert / Snack).
-- Use null for fields you can't confidently determine.
-- For ingredients, group similar items under the same "grp" (e.g., "Sauce", "Dough", "Filling", "Garnish"). Use "Ingredients" if there is only one logical group.
-- For each step, write a short title (max 60 chars) summarizing what happens, and a fuller description.
+QUANTITIES (critical)
+- qty MUST always be a positive number > 0. NEVER return 0.
+- "a" / "an" / "one" → qty=1
+- "a couple" → qty=2
+- "a few" / "several" → qty=3
+- "a pinch" / "a dash" → qty=0.25, unit="tsp"
+- "a sprinkle" → qty=1, unit="tsp"
+- "to taste" → qty=0.5, unit="tsp"
+- If the recipe says "1 kg" or "2 lb", USE THAT NUMBER as qty and that unit. Do not drop quantities.
+- When the recipe is truly silent on a quantity, use your best estimate (default qty=1, unit="" for countable items; qty=1, unit="tbsp" for spreads/sauces).
+
+UNITS
+- unit is the measurement unit ONLY (cup, cups, tbsp, tsp, oz, lb, kg, g, ml, L, clove, cloves, can, cans, etc.).
+- For countable items without a measurement (e.g. "1 onion", "1 bay leaf", "3 cloves garlic"), put descriptors like "medium", "large", "ripe" inside the item name and use an appropriate count unit OR an empty string.
+  - "1 medium onion" → qty=1, unit="", item="medium onion"
+  - "3 cloves garlic" → qty=3, unit="clove", item="garlic"
+  - "few bay leaves" → qty=3, unit="", item="bay leaves"
+  - "2-3 whole allspice berries" → qty=3, unit="", item="whole allspice berries"
+- NEVER use literal "unit" as the unit value. Use empty string "" if there is no meaningful unit.
+
+INGREDIENT NOTES
+- If the recipe contains a descriptive note about an ingredient (a preferred cut, why this version, an optional substitution), include it in the item name in parentheses OR pull it into tips. Pick whichever reads more naturally. Example: "Pork chunks (best from pork butt; fat keeps the meat tender)".
+
+GROUPING
+- Group similar items under the same "grp" (e.g., "Sauce", "Dough", "Filling", "Garnish", "Meat", "Vegetables", "Spices"). Use "Ingredients" only when there is truly one logical group.
+
+STEPS
+- Each step gets a short title (max 60 chars) and a fuller description.
 - Step precision: "easy" (set and forget), "medium" (some attention), "careful" (precise), "watch" (don't walk away — heat, browning), "patient" (long wait — rest, rise, marinate).
-- For mins per step, give your best estimate. For passive steps (resting, marinating), include the wait time.
-- For diet tags, ONLY use values from this list when clearly applicable: Gluten-free, Dairy-free, Nut-free, Soy-free, Vegan, Vegetarian, Pescatarian, Carnivore, High protein, High fibre, Low carb, Low calorie.
+- For mins per step, give your best estimate. For passive steps (rest / marinate / freeze / proof), include the wait time.
+
+DIET (be liberal — apply by exclusion)
+- If the recipe does NOT contain wheat / barley / rye / flour / soy sauce → include "Gluten-free".
+- If the recipe does NOT contain milk / butter / cheese / cream / yogurt → include "Dairy-free".
+- If the recipe does NOT contain nuts → include "Nut-free".
+- If the recipe does NOT contain soy / soy sauce / tofu / edamame → include "Soy-free".
+- If the recipe is predominantly meat → "Carnivore" and "High protein".
+- If carbs (bread, pasta, rice, sugar, potatoes) are absent or minimal → "Low carb".
+- If there's no meat / fish / dairy / eggs → "Vegan".
+- If there's no meat / fish → "Vegetarian".
+- If the only animal product is fish/shellfish → "Pescatarian".
+
+NUTRITION (must provide estimates)
+- ALWAYS provide nutrition estimates per serving — even rough.
+- cal in calories, protein/carbs/fat/fiber in grams, sodium in milligrams.
+- Base your estimate on the ingredients and servings count.
+
+TIPS
+- Pull "for best results" / "variations" / "notes" / "tip:" sections into tips as separate short strings.
+
+DEFAULTS
 - Default servingsDefault to 4 if not specified.
 - Default difficulty to "Easy" if not clear.
-- Pull any "for best results" / "variations" / "notes" into tips as separate strings.`;
+- Default course based on the dish (use Dinner when ambiguous and the dish is hearty / main-course).`;
 
 const AI_RECIPE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "subtitle", "author", "cuisine", "course", "occasion", "diet", "prep", "cook", "servingsDefault", "difficulty", "ingredients", "steps", "tips"],
+  required: ["title", "subtitle", "author", "cuisine", "course", "occasion", "diet", "prep", "cook", "servingsDefault", "difficulty", "ingredients", "steps", "tips", "nutrition"],
   properties: {
     title:    { type: "string" },
     subtitle: { type: ["string", "null"] },
@@ -388,6 +431,19 @@ const AI_RECIPE_SCHEMA = {
       },
     },
     tips: { type: "array", items: { type: "string" } },
+    nutrition: {
+      type: "object",
+      additionalProperties: false,
+      required: ["cal", "protein", "carbs", "fat", "fiber", "sodium"],
+      properties: {
+        cal:     { type: "number" },
+        protein: { type: "number" },
+        carbs:   { type: "number" },
+        fat:     { type: "number" },
+        fiber:   { type: "number" },
+        sodium:  { type: "number" },
+      },
+    },
   },
 };
 
