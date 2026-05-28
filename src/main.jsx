@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRecipes, useAuth, signInUrl, SIGN_OUT_URL, applyFilters } from "./helpers.jsx";
+import { Icon, useStorage, useRecipes, useAuth, signInUrl, SIGN_OUT_URL, applyFilters, normalizeRecipe } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
 import { FiltersDrawer } from "./filters.jsx";
@@ -29,7 +29,10 @@ function App() {
   // shared backend — merged in so old additions don't disappear.
   const { recipes: serverRecipes, refresh: refreshRecipes } = useRecipes();
   const [extraRecipes] = useStorage("recipes:added", []);
-  const recipes = useMemo(() => [...extraRecipes, ...serverRecipes], [extraRecipes, serverRecipes]);
+  const recipes = useMemo(
+    () => [...extraRecipes.map(normalizeRecipe), ...serverRecipes],
+    [extraRecipes, serverRecipes]
+  );
   const recipe = recipes.find(r => r.id === recipeId);
 
   // ─── Sign-in state ───

@@ -144,13 +144,33 @@ export function useStorage(key, initial) {
   return [v, setV];
 }
 
+// Backfill defaults for fields the UI assumes exist. Older user-added
+// recipes can be missing arrays or nested objects; rendering crashes
+// rather than degrading without this.
+export function normalizeRecipe(r) {
+  return {
+    ...r,
+    diet: r.diet || [],
+    tips: r.tips || [],
+    comments: r.comments || [],
+    ingredients: r.ingredients || [],
+    steps: r.steps || [],
+    nutrition: { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodium: 0, ...(r.nutrition || {}) },
+    servingsDefault: r.servingsDefault || 1,
+    difficulty: r.difficulty || "Easy",
+  };
+}
+
 // ───── Recipes (from the cookbook API, with localStorage as offline cache) ─────
 // On first render this returns whatever was cached last time (instant), then
 // fetches /api/recipes in the background and updates when fresh data arrives.
 // `loading` is only true when the cache is empty AND the network hasn't
 // resolved yet — so returning visitors never see a loading spinner.
 export function useRecipes() {
-  const [recipes, setRecipes] = useStorage("recipes:cache", []);
+  const [rawRecipes, setRecipes] = useStorage("recipes:cache", []);
+  // Re-normalize cached recipes too — a stale cache from before the
+  // normalizer existed might still be missing fields.
+  const recipes = useMemo(() => rawRecipes.map(normalizeRecipe), [rawRecipes]);
   const [loading, setLoading] = useState(() => {
     try { return !localStorage.getItem("recipes:cache"); } catch { return true; }
   });
@@ -161,7 +181,7 @@ export function useRecipes() {
       const res = await fetch("/api/recipes");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setRecipes(data);
+      setRecipes(data.map(normalizeRecipe));
       setError(null);
     } catch (err) {
       setError(err);
