@@ -6,7 +6,7 @@ import { Icon, signInUrl } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
 import { COURSES, OCCASIONS, DIETS } from "./data.js";
 
-export function AddRecipe({ onClose, onSave, authEmail, initialRecipe = null }) {
+export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe = null }) {
   const editing = Boolean(initialRecipe);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -169,6 +169,17 @@ export function AddRecipe({ onClose, onSave, authEmail, initialRecipe = null }) 
           <h2>{editing ? draft?.title || "Edit recipe" : "Add a recipe to the cookbook"}</h2>
         </div>
         <div className="rhs">
+          {editing && onDelete && (
+            <button
+              className="btn ghost"
+              onClick={() => onDelete(initialRecipe)}
+              disabled={saving}
+              style={{ color: "#C42807", marginRight: 4 }}
+              title="Delete this recipe"
+            >
+              <Icon name="x" /> Delete
+            </button>
+          )}
           <button className="btn" onClick={onClose} disabled={saving}>Cancel</button>
           <button className="btn primary" onClick={save} disabled={saving || !authEmail}>
             {saving ? "Saving…" : (editing ? "Save changes" : "Save recipe")}

@@ -545,14 +545,9 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
               <Icon name="download" /> PDF
             </button>
             {authEmail && (
-              <>
-                <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
-                  <Icon name="edit" /> Edit
-                </button>
-                <button className="btn ghost" onClick={() => onDeleteRecipe(recipe)} style={{ color: "#C42807" }}>
-                  <Icon name="x" /> Delete
-                </button>
-              </>
+              <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
+                <Icon name="edit" /> Edit
+              </button>
             )}
           </div>
         </div>
@@ -639,14 +634,9 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
           <Icon name="print" /> Print
         </button>
         {authEmail && (
-          <>
-            <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
-              <Icon name="edit" /> Edit
-            </button>
-            <button className="btn ghost" onClick={() => onDeleteRecipe(recipe)} style={{ color: "#C42807" }}>
-              <Icon name="x" /> Delete
-            </button>
-          </>
+          <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
+            <Icon name="edit" /> Edit
+          </button>
         )}
       </div>
 
@@ -732,14 +722,9 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
           <Icon name="print" /> Print
         </button>
         {authEmail && (
-          <>
-            <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
-              <Icon name="edit" /> Edit
-            </button>
-            <button className="btn ghost" onClick={() => onDeleteRecipe(recipe)} style={{ color: "#C42807" }}>
-              <Icon name="x" /> Delete
-            </button>
-          </>
+          <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
+            <Icon name="edit" /> Edit
+          </button>
         )}
       </div>
 
