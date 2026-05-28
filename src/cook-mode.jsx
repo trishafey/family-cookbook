@@ -4,9 +4,11 @@ import { useState, useEffect, useMemo } from "react";
 import { useStorage, scheduleForFinish, fmtTime, fmtDuration, formatQty, Icon } from "./helpers.jsx";
 import { TimeOfDayInput } from "./ui.jsx";
 import { NeedHelp } from "./need-help.jsx";
+import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 
 export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClose }) {
+  const { t, tPrecision } = useLang();
   const [idx, setIdx] = useStorage(`cookmode:${recipe.id}:idx`, 0);
   // Per-step start-time overrides, stored as ISO strings. Editing a
   // step's start time anchors that step at the new time; subsequent
@@ -47,7 +49,7 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
   };
   const hasOverrides = Object.keys(startOverridesRaw).length > 0;
   const resetAdjustments = () => {
-    if (!confirm("Reset all timing adjustments?")) return;
+    if (!confirm(t("resetAllAdjustments"))) return;
     setStartOverrides({});
   };
   const [done, setDone] = useStorage(`cookmode:${recipe.id}:done`, []);
@@ -80,22 +82,22 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
           <span className="accent">{recipe.author}'s</span> {recipe.title}
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>Done by</span>
+          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>{t("doneBy")}</span>
           <TimeOfDayInput value={finishTime} onChange={setFinishTime} />
           <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--accent)", padding: "4px 10px", background: "var(--paper-2)", borderRadius: 4 }}>
-            Start at {fmtTime(startTime)}
+            {t("startAt")} {fmtTime(startTime)}
           </span>
           {hasOverrides && (
-            <button type="button" className="btn ghost sm" onClick={resetAdjustments} title="Reset all timing adjustments">Reset</button>
+            <button type="button" className="btn ghost sm" onClick={resetAdjustments} title={t("resetAllAdjustments")}>{t("reset")}</button>
           )}
-          <button className="btn" onClick={onClose}><Icon name="x" size={14} /> Exit</button>
+          <button className="btn" onClick={onClose}><Icon name="x" size={14} /> {t("exit")}</button>
         </div>
       </div>
 
       <div className="cookmode-body">
         {/* Sidebar: timeline & ingredients */}
         <div className="cookmode-side">
-          <div className="eyebrow" style={{ marginBottom: 12 }}>Timeline</div>
+          <div className="eyebrow" style={{ marginBottom: 12 }}>{t("timeline")}</div>
           <div className="cookmode-timeline">
             {steps.map((s, i) => (
               <div
@@ -120,7 +122,7 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
             ))}
           </div>
 
-          <div className="eyebrow" style={{ marginTop: 32, marginBottom: 12 }}>Ingredients on hand</div>
+          <div className="eyebrow" style={{ marginTop: 32, marginBottom: 12 }}>{t("ingredientsOnHand")}</div>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 12.5 }}>
             {ingredients.map((i, idx) => (
               <li key={idx} style={{ display: "grid", gridTemplateColumns: "60px 1fr", gap: 8, padding: "4px 0", borderBottom: "1px dotted var(--rule)" }}>
@@ -134,36 +136,36 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
         {/* Main step */}
         <div className="cookmode-main">
           <div className="cookmode-step-num">
-            STEP {String(idx + 1).padStart(2, "0")} OF {String(steps.length).padStart(2, "0")} · {cur.precision.toUpperCase()}
+            {t("step").toUpperCase()} {String(idx + 1).padStart(2, "0")} {t("of").toUpperCase()} {String(steps.length).padStart(2, "0")} · {tPrecision(cur.precision).toUpperCase()}
           </div>
           <h1 className="cookmode-step-title">{cur.t}</h1>
           <p className="cookmode-step-desc">{cur.d}</p>
 
           <div className="cookmode-step-time">
             <div>
-              <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4 }}>Start at</div>
+              <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4 }}>{t("startAt")}</div>
               <TimeOfDayInput value={curSched.start} onChange={(d) => setStepStart(idx, d)} />
               <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 4, fontStyle: "italic" }}>
-                Edit to shift the rest of the timeline
+                {t("editToShift")}
               </div>
             </div>
             <div style={{ height: 32, width: 1, background: "var(--rule)" }} />
             <div>
-              <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Takes</div>
+              <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>{t("takes")}</div>
               <div style={{ fontSize: 16 }}>{fmtDuration(cur.mins)}</div>
             </div>
             {cur.hands != null && (
               <>
                 <div style={{ height: 32, width: 1, background: "var(--rule)" }} />
                 <div>
-                  <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Hands-on</div>
+                  <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>{t("handsOn")}</div>
                   <div style={{ fontSize: 16 }}>{fmtDuration(cur.hands)}</div>
                 </div>
               </>
             )}
             <div style={{ height: 32, width: 1, background: "var(--rule)" }} />
             <div>
-              <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Done at</div>
+              <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>{t("doneAt")}</div>
               <div style={{ fontSize: 16 }}>{fmtTime(curSched.end)}</div>
             </div>
           </div>
@@ -184,7 +186,7 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
             </button>
             )}
             <span style={{ fontSize: 12, color: "var(--ink-3)", marginLeft: "auto" }}>
-              {done.length} of {steps.length} complete · press <span className="mono">SPACE</span>
+              {done.length} {t("of")} {steps.length} {t("complete")} <span className="mono">SPACE</span>
             </span>
           </div>
 

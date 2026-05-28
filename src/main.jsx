@@ -44,7 +44,7 @@ function App() {
   const recipe = recipes.find(r => r.id === recipeId);
 
   // ─── Language (English / Polish) ───
-  const [, , t] = useLang();
+  const { t, tDiet, tOccasion, tCourse } = useLang();
 
   // ─── Sign-in state ───
   const { email: authEmail } = useAuth();
@@ -236,16 +236,16 @@ function App() {
             <button
               className="btn ghost icon-only search-filter-btn"
               onClick={() => setFiltersOpen(true)}
-              title="Filters"
-              aria-label="Filters"
+              title={t("filters")}
+              aria-label={t("filters")}
             >
               <Icon name="filter" size={14} />
             </button>
           </div>
           <div className="nav-actions">
             {FLAGS.lab && (
-            <button className="btn ghost sm" onClick={() => setView("lab")} title="Kitchen experimentation">
-              <Icon name="sparkle" size={13} /> <span className="btn-label">The Lab</span>
+            <button className="btn ghost sm" onClick={() => setView("lab")} title={t("kitchenExp")}>
+              <Icon name="sparkle" size={13} /> <span className="btn-label">{t("theLab")}</span>
             </button>
             )}
             <button className="btn ghost sm" onClick={() => setView("meal")} title={t("buildMeal")}>
@@ -446,6 +446,7 @@ function AvatarMenu({ email }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const initial = (email[0] || "?").toUpperCase();
+  const { t } = useLang();
 
   useEffect(() => {
     if (!open) return;
@@ -456,13 +457,13 @@ function AvatarMenu({ email }) {
 
   return (
     <div className="avatar-menu" ref={ref}>
-      <button className="avatar" onClick={() => setOpen(o => !o)} title={email} aria-label="Account menu">
+      <button className="avatar" onClick={() => setOpen(o => !o)} title={email} aria-label="Menu">
         {initial}
       </button>
       {open && (
         <div className="menu" role="menu">
           <div className="label">{email}</div>
-          <a className="item" href={SIGN_OUT_URL}>Sign out</a>
+          <a className="item" href={SIGN_OUT_URL}>{t("signOut")}</a>
         </div>
       )}
     </div>
@@ -470,7 +471,7 @@ function AvatarMenu({ email }) {
 }
 
 function LanguageFab() {
-  const [lang, setLang] = useLang();
+  const { lang, setLang, t } = useLang();
   const isPolish = lang === "pl";
   const next = isPolish ? "en" : "pl";
   // Polish flag (white over red) shows when site is English (tap to switch
@@ -493,8 +494,8 @@ function LanguageFab() {
     <button
       className="lang-fab"
       onClick={() => setLang(next)}
-      aria-label={isPolish ? "Switch to English" : "Switch to Polish"}
-      title={isPolish ? "Switch to English" : "Switch to Polish"}
+      aria-label={isPolish ? t("switchToEN") : t("switchToPL")}
+      title={isPolish ? t("switchToEN") : t("switchToPL")}
     >
       {isPolish ? CanadianFlag : PolishFlag}
     </button>

@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Icon, fmtDuration, fmtTime, formatQty, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage } from "./helpers.jsx";
 import { convertIngredient } from "./units.js";
+import { useLang } from "./i18n.js";
 import { TimeOfDayInput } from "./ui.jsx";
 import { NeedHelp } from "./need-help.jsx";
 import { PairingsSection } from "./pairings.jsx";
@@ -249,6 +250,7 @@ function servingsForRecipe(recipe, scaler) {
 // Shared: Stats strip (prep / cook / total / servings)
 // ─────────────────────────────────────────────────────────────
 function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, setShowNutrition }) {
+  const { t } = useLang();
   const isWeight = recipe.scaleBy === "weight";
   const currentServings = servingsForRecipe(recipe, scaler);
 
@@ -266,19 +268,19 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
     <div className="stats-strip">
       <div className="row">
         <div className="cell">
-          <div className="label">Prep</div>
+          <div className="label">{t("prep")}</div>
           <div className="val">{recipe.prep}<span className="unit"> min</span></div>
         </div>
         <div className="cell">
-          <div className="label">Cook</div>
+          <div className="label">{t("cook")}</div>
           <div className="val">{scaled.cookMins}<span className="unit"> min</span></div>
         </div>
         <div className="cell">
-          <div className="label">Total</div>
+          <div className="label">{t("total")}</div>
           <div className="val">{fmtDuration(scaled.totalTime)}</div>
         </div>
         <div className="cell servings-cell">
-          <div className="label">Servings</div>
+          <div className="label">{t("servings")}</div>
           <div className="servings-control">
             <button onClick={() => bumpServings(-1)} aria-label="Fewer servings" disabled={currentServings <= 1}>
               <Icon name="minus" size={11} />
@@ -305,7 +307,7 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
       <div style={{ padding: "8px 14px", borderTop: "1px solid var(--rule)", textAlign: "center", background: "var(--paper-2)" }}>
         <button className="btn ghost sm" onClick={() => setShowNutrition(!showNutrition)} style={{ fontSize: 11 }}>
           <Icon name={showNutrition ? "chevD" : "chevR"} size={11} />
-          {showNutrition ? "Hide nutrition" : "Show nutrition per serving"}
+          {showNutrition ? t("hideNutrition") : t("showNutrition")}
         </button>
       </div>
     </div>
@@ -316,6 +318,7 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
 // Shared: Ingredients card (with grouping)
 // ─────────────────────────────────────────────────────────────
 function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
+  const { t } = useLang();
   const [units, setUnits] = useStorage("units:system", "imperial");
   const displayed = useMemo(
     () => finalIngs.map(i => convertIngredient(i, units)),
@@ -336,13 +339,13 @@ function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
   return (
     <div className="ingredients-card">
       <h3>
-        Ingredients
-        <span className="unit-toggle" role="group" aria-label="Units">
+        {t("ingredients")}
+        <span className="unit-toggle" role="group" aria-label={t("units")}>
           <button type="button" className={units === "imperial" ? "on" : ""} onClick={() => setUnits("imperial")}>US</button>
           <button type="button" className={units === "metric" ? "on" : ""} onClick={() => setUnits("metric")}>Metric</button>
         </span>
       </h3>
-      <div className="helper">{displayed.length} items, grouped by section</div>
+      <div className="helper">{displayed.length} {t("itemsGrouped")}</div>
 
       {Object.entries(grouped).map(([g, items]) => (
         <div key={g}>
@@ -385,7 +388,7 @@ function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
       ))}
 
       <button className="btn" style={{ width: "100%", marginTop: 20 }} onClick={onShop}>
-        <Icon name="bowl" /> Add to shopping list
+        <Icon name="bowl" /> {t("addToShoppingList")}
       </button>
 
       {children}
@@ -398,26 +401,27 @@ function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
 // ─────────────────────────────────────────────────────────────
 // Friendly day label like "Friday" / "Saturday" relative to the finish day.
 // dayOffset === 0 → "today" / day-of-finish; -1 → previous day; etc.
-function dayLabelFor(finish, dayOffset) {
+function dayLabelFor(finish, dayOffset, locale = "en-US") {
   const d = new Date(finish);
   d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() + dayOffset);
-  return d.toLocaleDateString("en-US", { weekday: "long" });
+  return d.toLocaleDateString(locale, { weekday: "long" });
 }
 
 function TimingBar({ doneBy, setDoneBy, finishTime, setFinishTime, schedule }) {
+  const { t, locale } = useLang();
   const startOffset = schedule?.schedule?.[0]?.dayOffset ?? 0;
   return (
     <div className={`timing-bar ${doneBy ? "active" : ""}`}>
       <Icon name="clock" />
       <label style={{ display: "inline-flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
         <input type="checkbox" checked={doneBy} onChange={(e) => setDoneBy(e.target.checked)} />
-        <span>I want this done by</span>
+        <span>{t("iWantThisDoneBy")}</span>
       </label>
       <TimeOfDayInput value={finishTime} onChange={setFinishTime} />
       {doneBy && schedule && (
         <span className="start-pill">
-          Start {startOffset < 0 ? `${dayLabelFor(finishTime, startOffset)} at ` : "at "}
+          {t("startAt")} {startOffset < 0 ? `${dayLabelFor(finishTime, startOffset, locale)} ` : ""}
           {fmtTime(schedule.startTime)}
         </span>
       )}
@@ -429,6 +433,7 @@ function TimingBar({ doneBy, setDoneBy, finishTime, setFinishTime, schedule }) {
 // Shared: Steps list
 // ─────────────────────────────────────────────────────────────
 function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
+  const { t, tPrecision, locale } = useLang();
   let lastSection = null;
   let lastDayOffset = null;
   return (
@@ -444,7 +449,7 @@ function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
           <React.Fragment key={i}>
             {showDay && (
               <div className="steps-day">
-                {dayLabelFor(finishTime, off)}{off === 0 ? " — day of" : off === -1 ? " — the day before" : ""}
+                {dayLabelFor(finishTime, off, locale)}{off === 0 ? ` — ${t("dayOf")}` : off === -1 ? ` — ${t("dayBefore")}` : ""}
               </div>
             )}
             {showSection && <h4 className="steps-section">{s.section}</h4>}
@@ -454,9 +459,9 @@ function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
                 <div className="t">{s.t}</div>
                 <div className="d">{s.d}</div>
                 <div className="meta">
-                  <span className={`precision-${s.precision}`}>● {s.precision}</span>
+                  <span className={`precision-${s.precision}`}>● {tPrecision(s.precision)}</span>
                   <span className="time">{fmtDuration(s.mins)}</span>
-                  {s.hands != null && <span>hands-on {fmtDuration(s.hands)}</span>}
+                  {s.hands != null && <span>{t("handsOn")} {fmtDuration(s.hands)}</span>}
                   {doneBy && schedule && (
                     <span className="start">
                       ▶ {fmtTime(stepSched.start)} – {fmtTime(stepSched.end)}
@@ -465,20 +470,20 @@ function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
                           <button
                             type="button"
                             onClick={() => bumpStepStart(i, -5)}
-                            aria-label="Start 5 min earlier"
-                            title="Start 5 min earlier"
+                            aria-label={t("startMinEarlier")}
+                            title={t("startMinEarlier")}
                           ><Icon name="minus" size={9} /></button>
                           <button
                             type="button"
                             onClick={() => bumpStepStart(i, +5)}
-                            aria-label="Start 5 min later"
-                            title="Start 5 min later"
+                            aria-label={t("startMinLater")}
+                            title={t("startMinLater")}
                           ><Icon name="plus" size={9} /></button>
                         </span>
                       )}
                     </span>
                   )}
-                  {stepSched?.overnight && <span className="overnight-tag">park overnight</span>}
+                  {stepSched?.overnight && <span className="overnight-tag">{t("parkOvernight")}</span>}
                 </div>
               </div>
             </div>
@@ -508,13 +513,14 @@ function familySaysFor(recipe) {
 // Shared: Cook's notes (disclosure)
 // ─────────────────────────────────────────────────────────────
 function CooksNotes({ recipe, defaultOpen }) {
+  const { t } = useLang();
   const familySays = FLAGS.familySays ? familySaysFor(recipe) : null;
   return (
     <details className="disclosure first" open={defaultOpen}>
       <summary>
         <span className="chev">›</span>
-        <h3>Cook's notes</h3>
-        <span className="count">{recipe.tips.length} {recipe.tips.length === 1 ? "note" : "notes"}{FLAGS.familySays && " + AI summary"}</span>
+        <h3>{t("cooksNotes")}</h3>
+        <span className="count">{recipe.tips.length} {recipe.tips.length === 1 ? t("oneNote") : t("manyNotes")}{FLAGS.familySays && " + AI summary"}</span>
       </summary>
       <div className="disclosure-body">
         {familySays && (
@@ -583,6 +589,7 @@ function StarRow({ value, onChange, readOnly, size = 18 }) {
 }
 
 function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOpen }) {
+  const { t } = useLang();
   // recipe.comments holds the original cookbook's curated placeholder
   // notes (left over from the seed data). The shared family notes live
   // in recipe.liveComments, which is the only thing we want to show now.
@@ -637,8 +644,8 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
     <details className="disclosure" open={defaultOpen}>
       <summary>
         <span className="chev">›</span>
-        <h3>Notes in the margin</h3>
-        <span className="count">{all.length} {all.length === 1 ? "note" : "notes"}</span>
+        <h3>{t("notesInMargin")}</h3>
+        <span className="count">{all.length} {all.length === 1 ? t("oneNote") : t("manyNotes")}</span>
       </summary>
       <div className="disclosure-body">
         {photos.length > 0 && (
@@ -674,7 +681,7 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
                         if (!confirm("Delete this note?")) return;
                         try { await deleteComment(c.id); } catch (err) { alert(err.message); }
                       }}
-                      title="Delete your note"
+                      title={t("deleteYourNote")}
                       style={{ marginLeft: 8, color: "#C42807" }}
                     ><Icon name="x" size={12} /></button>
                   )}
@@ -696,28 +703,28 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
         })}
         {authEmail ? (
           <form className="comment-form" onSubmit={submit} style={{ marginTop: 16 }}>
-            <h4 style={{ marginBottom: 8 }}>Leave a note</h4>
-            <input type="text" placeholder="Your name" value={cName} onChange={(e) => setCName(e.target.value)} required disabled={posting} />
-            <textarea placeholder="What did you change? What did the kids say? What would your grandma do?" value={cText} onChange={(e) => setCText(e.target.value)} required disabled={posting} />
+            <h4 style={{ marginBottom: 8 }}>{t("leaveANote")}</h4>
+            <input type="text" placeholder={t("yourName")} value={cName} onChange={(e) => setCName(e.target.value)} required disabled={posting} />
+            <textarea placeholder={t("commentPlaceholder")} value={cText} onChange={(e) => setCText(e.target.value)} required disabled={posting} />
             <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-              <label style={{ fontSize: 12, color: "var(--ink-3)" }}>Rating (optional):</label>
+              <label style={{ fontSize: 12, color: "var(--ink-3)" }}>{t("ratingOptional")}</label>
               <StarRow value={cRating} onChange={setCRating} />
               <label className="btn ghost sm" style={{ cursor: uploadingPhoto ? "wait" : "pointer", marginLeft: "auto" }}>
-                <Icon name="camera" size={12} /> {uploadingPhoto ? "Uploading…" : cPhoto ? "Photo attached" : "Add photo"}
+                <Icon name="camera" size={12} /> {uploadingPhoto ? t("uploading") : cPhoto ? t("photoAttached") : t("addPhoto")}
                 <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingPhoto || posting} onChange={(e) => uploadCommentPhoto(e.target.files?.[0])} />
               </label>
               {cPhoto && (
-                <button type="button" className="btn ghost icon-only" onClick={() => setCPhoto(null)} title="Remove photo"><Icon name="x" size={12} /></button>
+                <button type="button" className="btn ghost icon-only" onClick={() => setCPhoto(null)} title={t("removePhoto")}><Icon name="x" size={12} /></button>
               )}
             </div>
             {cPhoto && <img src={cPhoto} alt="" style={{ maxWidth: 180, borderRadius: 4, border: "1px solid var(--rule)" }} />}
             <button className="btn primary" style={{ alignSelf: "flex-end" }} disabled={posting || uploadingPhoto}>
-              {posting ? "Posting…" : "Post note"}
+              {posting ? t("posting") : t("postNote")}
             </button>
           </form>
         ) : (
           <div style={{ marginTop: 16, padding: 12, color: "var(--ink-3)", fontStyle: "italic", textAlign: "center" }}>
-            Sign in to leave a note.
+            {t("signInToLeaveNote")}
           </div>
         )}
       </div>
@@ -734,7 +741,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
                           doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                           onCookMode, onShop, comments, addComment, deleteComment,
                           allRecipes, onSaveRecipe, openRecipe,
-                          authEmail, onEditRecipe, onDeleteRecipe }) {
+                          authEmail, onEditRecipe, onDeleteRecipe, t }) {
   return (
     <>
       {/* HERO */}
@@ -758,20 +765,20 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
 
           <div className="recipe-actions">
             <button className="btn primary" onClick={() => onCookMode(recipe, scaled.steps, finalIngs)}>
-              <Icon name="play" /> Start cooking
+              <Icon name="play" /> {t("startCooking")}
             </button>
             <button className="btn" onClick={() => onShop([{ recipe, ings: finalIngs }])}>
-              <Icon name="bowl" /> Shopping list
+              <Icon name="bowl" /> {t("shoppingList")}
             </button>
             <button className="btn ghost" onClick={() => window.print()}>
-              <Icon name="print" /> Print
+              <Icon name="print" /> {t("print")}
             </button>
             <button className="btn ghost" onClick={() => alert("PDF export — coming soon.")}>
-              <Icon name="download" /> PDF
+              <Icon name="download" /> {t("pdf")}
             </button>
             {authEmail && (
               <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
-                <Icon name="edit" /> Edit
+                <Icon name="edit" /> {t("edit")}
               </button>
             )}
           </div>
@@ -817,7 +824,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
                          doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                          onCookMode, onShop, comments, addComment, deleteComment,
                          allRecipes, onSaveRecipe, openRecipe,
-                         authEmail, onEditRecipe, onDeleteRecipe }) {
+                         authEmail, onEditRecipe, onDeleteRecipe, t }) {
   return (
     <>
       {/* Full-bleed hero */}
@@ -850,17 +857,17 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
 
       <div className="recipe-actions">
         <button className="btn primary" onClick={() => onCookMode(recipe, scaled.steps, finalIngs)}>
-          <Icon name="play" /> Start cooking
+          <Icon name="play" /> {t("startCooking")}
         </button>
         <button className="btn" onClick={() => onShop([{ recipe, ings: finalIngs }])}>
-          <Icon name="bowl" /> Shopping list
+          <Icon name="bowl" /> {t("shoppingList")}
         </button>
         <button className="btn ghost" onClick={() => window.print()}>
-          <Icon name="print" /> Print
+          <Icon name="print" /> {t("print")}
         </button>
         {authEmail && (
           <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
-            <Icon name="edit" /> Edit
+            <Icon name="edit" /> {t("edit")}
           </button>
         )}
       </div>
@@ -901,7 +908,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
                        doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                        onCookMode, onShop, comments, addComment, deleteComment,
                        allRecipes, onSaveRecipe, openRecipe,
-                       authEmail, onEditRecipe, onDeleteRecipe }) {
+                       authEmail, onEditRecipe, onDeleteRecipe, t }) {
   return (
     <div className="recipe-binder">
       <div className="photo-binder" style={{ backgroundImage: `url(${recipe.photo})` }} />
@@ -938,17 +945,17 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
 
       <div className="recipe-actions">
         <button className="btn primary" onClick={() => onCookMode(recipe, scaled.steps, finalIngs)}>
-          <Icon name="play" /> Start cooking
+          <Icon name="play" /> {t("startCooking")}
         </button>
         <button className="btn" onClick={() => onShop([{ recipe, ings: finalIngs }])}>
-          <Icon name="bowl" /> Shopping list
+          <Icon name="bowl" /> {t("shoppingList")}
         </button>
         <button className="btn ghost" onClick={() => window.print()}>
-          <Icon name="print" /> Print
+          <Icon name="print" /> {t("print")}
         </button>
         {authEmail && (
           <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
-            <Icon name="edit" /> Edit
+            <Icon name="edit" /> {t("edit")}
           </button>
         )}
       </div>
@@ -980,6 +987,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
 // Top-level Recipe detail — holds all state, picks the variant
 // ─────────────────────────────────────────────────────────────
 export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, deleteComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, onEditRecipe, onDeleteRecipe }) {
+  const { t } = useLang();
   // Scaling state
   const [servings, setServings] = useState(recipe.servingsDefault);
   const [weight, setWeight] = useState(recipe.weightDefault || 1);
@@ -1074,13 +1082,13 @@ export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, 
     onCookMode, onShop, comments, addComment, deleteComment,
     allRecipes, onSaveRecipe, onSaveToLab,
     openRecipe: onOpenRecipe || ((r) => {}),
-    authEmail, onEditRecipe, onDeleteRecipe,
+    authEmail, onEditRecipe, onDeleteRecipe, t,
   };
 
   return (
     <div className="app" data-screen-label={`02 Recipe: ${recipe.title}`}>
       <button className="btn ghost" onClick={onBack} style={{ marginBottom: 24 }}>
-        <Icon name="chevL" /> Back to cookbook
+        <Icon name="chevL" /> {t("backToCookbook")}
       </button>
 
       {variant === "magazine" && <RecipeMagazine {...variantProps} />}

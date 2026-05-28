@@ -3,9 +3,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { Icon, Pill, fmtDuration } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
+import { useLang } from "./i18n.js";
 import { COURSES, OCCASIONS } from "./data.js";
 
 export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selectionMode, isFavorite, onToggleFavorite }) {
+  const { t, tDiet, tOccasion, tDifficulty } = useLang();
   const handleCardClick = (e) => {
     // Defensive — even if the heart's stopPropagation didn't fire on
     // iOS (target can be an inner SVG/path), bail when the tap lands
@@ -34,7 +36,7 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
           onPointerDown={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
-          aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          aria-label={isFavorite ? t("removeFromFavorites") : t("addToFavorites")}
           aria-pressed={isFavorite}>
           <Icon name={isFavorite ? "heartFill" : "heart"} size={13} />
         </button>
@@ -44,7 +46,7 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
         }
         <div className="meta-overlay">
           <span>{fmtDuration(recipe.total)}</span>
-          <span>{recipe.difficulty}</span>
+          <span>{tDifficulty(recipe.difficulty)}</span>
         </div>
       </div>
       <div className="body">
@@ -52,7 +54,7 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
         <div className="title">{recipe.title}</div>
         <div className="sub">{recipe.subtitle}</div>
         <div className="tags">
-          {recipe.diet.slice(0, 2).map((d) => <Pill key={d} kind="olive">{d}</Pill>)}
+          {recipe.diet.slice(0, 2).map((d) => <Pill key={d} kind="olive">{tDiet(d)}</Pill>)}
           <Pill kind="slate">{recipe.cuisine}</Pill>
         </div>
         <div className="footer">
@@ -66,7 +68,7 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
               return <><Icon name="starFill" size={10} /> {avg.toFixed(1)}</>;
             })()}
           </span>
-          <span>{recipe.occasion}</span>
+          <span>{tOccasion(recipe.occasion)}</span>
         </div>
       </div>
     </div>);
@@ -74,6 +76,7 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
 }
 
 export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab }) {
+  const { t, tCourse, tOccasion, tDiet } = useLang();
 
   // Active filter chips
   const activeChips = [];
@@ -112,11 +115,11 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
           The <em style={{ color: "var(--accent)" }}>Family</em> Cookbook
         </h1>
         <div style={{ marginTop: 24, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-          <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> Add a recipe</button>
-          <button className="btn" onClick={openMealBuilder}><Icon name="bowl" /> Build a meal</button>
+          <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> {t("addRecipe")}</button>
+          <button className="btn" onClick={openMealBuilder}><Icon name="bowl" /> {t("buildMeal")}</button>
           {FLAGS.lab && (
           <button className="btn" onClick={openLab} style={{ borderColor: "rgba(110,122,58,.4)", color: "var(--accent-2)" }}>
-            <Icon name="sparkle" /> Kitchen experimentation
+            <Icon name="sparkle" /> {t("kitchenExp")}
           </button>
           )}
         </div>
@@ -125,14 +128,21 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
       {/* Active filters */}
       {activeChips.length > 0 &&
       <div className="filterbar">
-          <span className="label">Filtering by</span>
-          {activeChips.map((c) =>
-        <button key={`${c.k}-${c.v}`} className="filter-pill on" onClick={() => removeChip(c.k, c.v)}>
-              {c.v} <Icon name="x" size={10} />
-            </button>
-        )}
+          <span className="label">{t("filteringBy")}</span>
+          {activeChips.map((c) => {
+            // Display label gets translated through the right table by key
+            const display = c.k === "courses" ? tCourse(c.v)
+              : c.k === "occasions" ? tOccasion(c.v)
+              : c.k === "diets" ? tDiet(c.v)
+              : c.v;
+            return (
+              <button key={`${c.k}-${c.v}`} className="filter-pill on" onClick={() => removeChip(c.k, c.v)}>
+                {display} <Icon name="x" size={10} />
+              </button>
+            );
+          })}
           <button className="btn ghost sm" style={{ marginLeft: "auto" }} onClick={() => setFilters({ courses: [], diets: [], occasions: [], authors: [], cuisines: [], difficulties: [], maxTime: 0 })}>
-            Clear all
+            {t("clearAll")}
           </button>
         </div>
       }
@@ -140,16 +150,16 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
       {/* Quick course pills */}
       {showingAll &&
       <div className="filterbar" style={{ marginTop: 56 }}>
-          <span className="label">Browse by course</span>
+          <span className="label">{t("browseByCourse")}</span>
           {COURSES.map((c) =>
-        <button key={c} className="filter-pill" onClick={() => setFilters((f) => ({ ...f, courses: [c] }))}>{c}</button>
+        <button key={c} className="filter-pill" onClick={() => setFilters((f) => ({ ...f, courses: [c] }))}>{tCourse(c)}</button>
         )}
-          <span className="label" style={{ marginLeft: 16 }}>Occasion</span>
+          <span className="label" style={{ marginLeft: 16 }}>{t("occasion")}</span>
           {OCCASIONS.map((o) =>
-        <button key={o} className="filter-pill" onClick={() => setFilters((f) => ({ ...f, occasions: [o] }))}>{o}</button>
+        <button key={o} className="filter-pill" onClick={() => setFilters((f) => ({ ...f, occasions: [o] }))}>{tOccasion(o)}</button>
         )}
           <button className="btn ghost sm" style={{ marginLeft: "auto" }} onClick={openFilters}>
-            <Icon name="filter" size={13} /> More filters
+            <Icon name="filter" size={13} /> {t("filters")}
           </button>
         </div>
       }
@@ -160,11 +170,11 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
           {favs.length > 0 && <>
           <div className="section-head" style={{ marginTop: 48 }}>
             <div className="lhs">
-              <div className="eyebrow">Family favorites</div>
-              <h2>The ones we keep coming back for</h2>
+              <div className="eyebrow">{t("familyFavorites")}</div>
+              <h2>{t("familyFavoritesSub")}</h2>
             </div>
             <div className="rhs">
-              <span className="dim mono" style={{ fontSize: 12 }}>{favs.length} recipes</span>
+              <span className="dim mono" style={{ fontSize: 12 }}>{favs.length} {t("recipes")}</span>
             </div>
           </div>
           <div className="grid">
@@ -174,10 +184,10 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
 
           <div className="section-head" style={{ marginTop: 64 }}>
             <div className="lhs">
-              <div className="eyebrow">The deeper shelves</div>
-              <h2>Everything else</h2>
+              <div className="eyebrow">{t("deeperShelves")}</div>
+              <h2>{t("everythingElse")}</h2>
             </div>
-            <div className="rhs"><span className="dim mono" style={{ fontSize: 12 }}>{rest.length} recipes</span></div>
+            <div className="rhs"><span className="dim mono" style={{ fontSize: 12 }}>{rest.length} {t("recipes")}</span></div>
           </div>
           <div className="grid">
             {rest.map((r) => <RecipeCard {...cardProps(r)} />)}
@@ -187,14 +197,14 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
       <>
           <div className="section-head" style={{ marginTop: 32 }}>
             <div className="lhs">
-              <div className="eyebrow">Search results</div>
-              <h2>{recipes.length} {recipes.length === 1 ? "recipe" : "recipes"}</h2>
+              <div className="eyebrow">{t("searchResults")}</div>
+              <h2>{recipes.length} {recipes.length === 1 ? t("recipe") : t("recipes")}</h2>
             </div>
           </div>
           {recipes.length === 0 ?
         <div style={{ padding: 80, textAlign: "center", color: "var(--ink-3)" }}>
-              <div style={{ fontSize: 48, marginBottom: 16, fontFamily: "var(--serif)", fontStyle: "italic" }}>Nothing matches.</div>
-              <div>Try fewer filters, or <button className="btn ghost sm" onClick={openAddRecipe}>add this recipe yourself</button>.</div>
+              <div style={{ fontSize: 48, marginBottom: 16, fontFamily: "var(--serif)", fontStyle: "italic" }}>{t("noResults")}</div>
+              <div>{t("noResultsTryAgain")} <button className="btn ghost sm" onClick={openAddRecipe}>{t("addThisRecipeYourself")}</button>.</div>
             </div> :
 
         <div className="grid">
