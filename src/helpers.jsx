@@ -117,7 +117,7 @@ const startOfHour = (d, h) => {
   return out;
 };
 
-export function scheduleForFinish(steps, finishTime) {
+export function scheduleForFinish(steps, finishTime, { eveningHour = OVERNIGHT_EVENING_HOUR } = {}) {
   const totalMin = steps.reduce((s, x) => s + (x.mins || 0), 0);
   const finish = new Date(finishTime);
   const dayOf = new Date(finish); dayOf.setHours(0, 0, 0, 0);
@@ -137,11 +137,11 @@ export function scheduleForFinish(steps, finishTime) {
 
     if (isOvernight(step)) {
       // End of overnight = when the next step starts.
-      // Start of overnight = the previous evening at OVERNIGHT_EVENING_HOUR.
+      // Start of overnight = the previous evening at eveningHour.
       currentDayOffset -= 1;
       const previousDay = new Date(dayOf);
       previousDay.setDate(previousDay.getDate() + currentDayOffset);
-      const start = startOfHour(previousDay, OVERNIGHT_EVENING_HOUR);
+      const start = startOfHour(previousDay, eveningHour);
       out[i] = { start, end, overnight: true, dayOffset: currentDayOffset };
       cursor = start;
     } else {
@@ -159,7 +159,7 @@ export function scheduleForFinish(steps, finishTime) {
         currentDayOffset -= 1;
         const previousDay = new Date(dayOf);
         previousDay.setDate(previousDay.getDate() + currentDayOffset);
-        cursor = startOfHour(previousDay, OVERNIGHT_EVENING_HOUR);
+        cursor = startOfHour(previousDay, eveningHour);
       }
     }
   }
