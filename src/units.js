@@ -1,26 +1,34 @@
 // Display-time unit conversion. The underlying recipe stays in whatever
 // the cook entered; we only translate at render time.
 //
-// Scope is intentionally narrow: only WEIGHTS (oz/lb ↔ g/kg) and bulk
-// METRIC LIQUIDS (ml/L → cups). Spoon-and-cup measures (cup/tbsp/tsp,
-// pint/quart) are kept as-is because they're already universally
-// understood and converting them produces awkward numbers
-// (a cup of flour ≠ a fixed mass).
+// Universal spoon-and-cup measures (cup, tbsp, tsp) stay as-is in both
+// directions because they read cleanly anywhere. Everything else —
+// weights and the larger volume units — flips to the chosen system.
 
 const TO_METRIC = {
+  // Weights
   oz:     { factor: 28,  unit: "g" },
   lb:     { factor: 454, unit: "g" },
   pound:  { factor: 454, unit: "g" },
   pounds: { factor: 454, unit: "g" },
+  // Larger imperial volumes — small ones get ml, big ones get L
+  "fl oz":{ factor: 30,   unit: "ml" },
+  floz:   { factor: 30,   unit: "ml" },
+  pint:   { factor: 473,  unit: "ml" },
+  pints:  { factor: 473,  unit: "ml" },
+  pt:     { factor: 473,  unit: "ml" },
+  quart:  { factor: 946,  unit: "ml" },
+  quarts: { factor: 946,  unit: "ml" },
+  qt:     { factor: 946,  unit: "ml" },
+  gallon: { factor: 3785, unit: "ml" },
+  gallons:{ factor: 3785, unit: "ml" },
+  gal:    { factor: 3785, unit: "ml" },
 };
 
 const TO_IMPERIAL = {
-  // Weight metric → lb / oz (whichever's friendlier)
-  g:  { factor: 1 / 454, unit: "lb",  small: { threshold: 100, factor: 1 / 28,  unit: "oz" } },
+  g:  { factor: 1 / 454,    unit: "lb",  small: { threshold: 100, factor: 1 / 28,  unit: "oz" } },
   kg: { factor: 1000 / 454, unit: "lb" },
-  // Bulk liquid metric → cups (small amounts stay metric, since US
-  // recipes rarely use sub-cup imperial volume).
-  ml: { factor: 1 / 240, unit: "cup", small: { threshold: 60, factor: 1, unit: "ml" } },
+  ml: { factor: 1 / 240,    unit: "cup", small: { threshold: 60,  factor: 1,       unit: "ml" } },
   l:  { factor: 1000 / 240, unit: "cup" },
 };
 
@@ -31,7 +39,9 @@ export function convertIngredient(ing, system) {
     const c = TO_METRIC[u];
     if (!c) return ing;
     const out = (ing.qty || 0) * c.factor;
-    if (c.unit === "g" && out >= 1000) return { ...ing, qty: round(out / 1000, 2), unit: "kg" };
+    // Bump ml to L for big volumes, g to kg for big weights.
+    if (c.unit === "ml" && out >= 1000) return { ...ing, qty: round(out / 1000, 2), unit: "L" };
+    if (c.unit === "g"  && out >= 1000) return { ...ing, qty: round(out / 1000, 2), unit: "kg" };
     return { ...ing, qty: round(out, out >= 50 ? 0 : 1), unit: c.unit };
   }
   if (system === "imperial") {
@@ -39,9 +49,7 @@ export function convertIngredient(ing, system) {
     if (!c) return ing;
     const raw = ing.qty || 0;
     if (c.small && raw < c.small.threshold) {
-      // For 'ml' under threshold we keep it as-is; matching the rule
-      // that tiny liquid amounts don't translate cleanly.
-      if (c.small.unit === u) return ing;
+      if (c.small.unit === u) return ing; // tiny ml stays as ml
       return { ...ing, qty: round(raw * c.small.factor, 2), unit: c.small.unit };
     }
     return { ...ing, qty: round(raw * c.factor, 2), unit: c.unit };
