@@ -394,8 +394,10 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
       total:           (parsed.prep || 0) + (parsed.cook || 0),
       // URL extraction tucks the source URL onto the response so it
       // populates the Source link field — saves the cook from copying
-      // it manually.
+      // it manually. Image extraction tucks an R2 photo URL onto
+      // .photo so the snapshot doubles as the hero image.
       link: parsed.sourceUrl ? { url: parsed.sourceUrl, label: "" } : fresh.link,
+      photo: parsed.photo || fresh.photo,
     });
     setMode("manual");
   };
@@ -441,6 +443,33 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
       applyExtraction(await res.json());
     } catch (err) {
       alert(err.message || "Could not fetch that page. Try copy-paste mode instead.");
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  // Real AI extraction from a photo of a cookbook page / recipe card.
+  // The Worker reads the image, asks gpt-4o-mini (vision) to parse
+  // it, and also parks the image in R2 so it becomes the recipe's
+  // hero photo automatically.
+  const runFromImage = async (file) => {
+    if (!file) return;
+    setExtracting(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/admin/ai/extract-image", {
+        method: "POST",
+        credentials: "include",
+        body,
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `Extraction failed (${res.status})`);
+      }
+      applyExtraction(await res.json());
+    } catch (err) {
+      alert(err.message || "Could not read that photo. Try a clearer shot, or use the manual form.");
     } finally {
       setExtracting(false);
     }
@@ -877,9 +906,31 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
             <div style={{ color: "var(--ink-3)", marginTop: 8, fontFamily: "var(--serif)" }}>
               {t("takePhotoHelper")}
             </div>
-            <div style={{ marginTop: 24, display: "flex", gap: 8, justifyContent: "center" }}>
-              <button className="btn primary"><Icon name="camera" size={13} /> {t("takePhoto")}</button>
-              <button className="btn">{t("uploadImage")}</button>
+            <div style={{ marginTop: 24, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+              {/* Two inputs: one with capture="environment" so iOS opens
+                  the rear camera directly, the other a plain file picker
+                  so the cook can pull from camera roll or files. */}
+              <label className="btn primary" style={{ cursor: extracting ? "not-allowed" : "pointer", opacity: extracting ? 0.5 : 1 }}>
+                <Icon name="camera" size={13} /> {extracting ? t("extracting") : t("takePhoto")}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  disabled={extracting}
+                  style={{ display: "none" }}
+                  onChange={(e) => runFromImage(e.target.files?.[0])}
+                />
+              </label>
+              <label className="btn" style={{ cursor: extracting ? "not-allowed" : "pointer", opacity: extracting ? 0.5 : 1 }}>
+                {extracting ? t("extracting") : t("uploadImage")}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={extracting}
+                  style={{ display: "none" }}
+                  onChange={(e) => runFromImage(e.target.files?.[0])}
+                />
+              </label>
             </div>
             <div style={{ marginTop: 20, fontSize: 12, color: "var(--ink-3)" }}>
               <span className="ai-sparkle"><Icon name="sparkle" size={11} /> AI-parsed</span> · You'll review every field before saving.
