@@ -1588,21 +1588,56 @@ app.post("/api/admin/ai/nutrition", async (c) => {
 //   • Soup/sauce/gravy/broth/jus/stock keywords → soup template
 //   • Butter/jam/aioli/relish/condiment keywords → condiment
 //   • everything else → default editorial template
-function buildHeroImagePrompt(title, course) {
+//
+// `ingredients` and `steps` (when supplied) are stitched into the
+// prompt as visual context — they tell the model what should
+// physically be in the dish and how it's plated / shaped /
+// cooked. The title alone often misses crucial visual cues
+// ("rolls" vs "loaf", "skillet" vs "casserole", "glazed" vs
+// "frosted"); those live in the steps, not the title.
+function buildHeroImageContext(ingredients, steps) {
+  // Top 8 ingredient names — earliest entries are typically the
+  // headline ones (proteins, flour, fruit) before the supporting
+  // cast (salt, oil, baking powder). qty/unit don't matter for
+  // visual prompting.
+  const items = Array.isArray(ingredients)
+    ? ingredients.slice(0, 8).map(i => (i?.item || "").trim()).filter(Boolean)
+    : [];
+  // First 3 step descriptions, trimmed to 120 chars each. Early
+  // steps usually pin down form factor (rolled, layered, poured),
+  // cookware (skillet, sheet pan), and finish (glazed, frosted).
+  const stepLines = Array.isArray(steps)
+    ? steps.slice(0, 3).map(s => {
+        const text = typeof s === "string" ? s : (s?.d || s?.t || "");
+        return text.trim().slice(0, 120);
+      }).filter(Boolean)
+    : [];
+  const parts = [];
+  if (items.length) parts.push(`Key ingredients visible in the dish: ${items.join(", ")}.`);
+  if (stepLines.length) parts.push(`Preparation cues for visual style: ${stepLines.join(" → ")}.`);
+  return parts.join(" ");
+}
+
+function buildHeroImagePrompt(title, course, ingredients, steps) {
   const NEG = "No text, no labels, no watermarks, no AI artifacts, no oversaturated colors, no excessive garnish, no modern restaurant fine-dining plating, no unrealistic ingredients, no plastic containers, no stock photo look, no cartoon appearance.";
+  const ctx = buildHeroImageContext(ingredients, steps);
+  // Append context as its own sentence near the end so the model
+  // treats it as supporting detail rather than overriding the
+  // editorial-style anchor.
+  const CTX = ctx ? ` ${ctx}` : "";
   const t = (title || "").toLowerCase();
   const SOUP = /soup|sauce|gravy|broth|jus|stock|chili|stew|bisque|chowder/;
   const COND = /butter|jam|preserve|chutney|relish|aioli|salsa|crema|hummus|pesto|spread|compote|curd|marmalade/;
   if (course === "Dessert") {
-    return `Professional editorial food photography of ${title}, rustic homemade dessert presented in a ceramic baking dish with a serving portion visible nearby. Warm natural window light, cozy family gathering aesthetic, farmhouse table, neutral ceramics, slightly zoomed out composition, realistic textures, homemade appearance, high-end cookbook photography, photorealistic, highly detailed, no text. ${NEG}`;
+    return `Professional editorial food photography of ${title}, rustic homemade dessert presented in a ceramic baking dish with a serving portion visible nearby. Warm natural window light, cozy family gathering aesthetic, farmhouse table, neutral ceramics, slightly zoomed out composition, realistic textures, homemade appearance, high-end cookbook photography, photorealistic, highly detailed, no text.${CTX} ${NEG}`;
   }
   if (COND.test(t)) {
-    return `Professional editorial food photography of ${title}, served in a small ceramic ramekin on a rustic wooden table. The bowl should appear relatively small within the frame, with plenty of surrounding negative space and a few relevant ingredients nearby. Warm natural light, cozy farmhouse aesthetic, neutral ceramics, homemade appearance, photorealistic cookbook photography, highly detailed, no text. ${NEG}`;
+    return `Professional editorial food photography of ${title}, served in a small ceramic ramekin on a rustic wooden table. The bowl should appear relatively small within the frame, with plenty of surrounding negative space and a few relevant ingredients nearby. Warm natural light, cozy farmhouse aesthetic, neutral ceramics, homemade appearance, photorealistic cookbook photography, highly detailed, no text.${CTX} ${NEG}`;
   }
   if (SOUP.test(t)) {
-    return `Professional editorial food photography of ${title}, served in a small ceramic bowl on a rustic wooden table. Slightly zoomed out composition with ingredients subtly visible in the scene. Warm natural light, cozy farmhouse aesthetic, homemade appearance, neutral ceramics, shallow depth of field, cookbook photography, photorealistic, highly detailed, no text. ${NEG}`;
+    return `Professional editorial food photography of ${title}, served in a small ceramic bowl on a rustic wooden table. Slightly zoomed out composition with ingredients subtly visible in the scene. Warm natural light, cozy farmhouse aesthetic, homemade appearance, neutral ceramics, shallow depth of field, cookbook photography, photorealistic, highly detailed, no text.${CTX} ${NEG}`;
   }
-  return `Professional editorial food photography of ${title}, styled for a premium family cookbook. Rustic wooden table, warm natural window light, soft shadows, neutral ceramic dishware, cozy farmhouse aesthetic, realistic textures, authentic homemade appearance, inviting and comforting. Slightly zoomed out composition showing the plated dish plus a few relevant ingredients and serving elements around it. Shallow depth of field, high-end food magazine quality, warm earth tones, natural colors, no artificial garnish, no restaurant plating tweezers, no text, no watermarks. Focus on the food looking homemade, traditional, and delicious. Photorealistic, highly detailed, 4k food photography. ${NEG}`;
+  return `Professional editorial food photography of ${title}, styled for a premium family cookbook. Rustic wooden table, warm natural window light, soft shadows, neutral ceramic dishware, cozy farmhouse aesthetic, realistic textures, authentic homemade appearance, inviting and comforting. Slightly zoomed out composition showing the plated dish plus a few relevant ingredients and serving elements around it. Shallow depth of field, high-end food magazine quality, warm earth tones, natural colors, no artificial garnish, no restaurant plating tweezers, no text, no watermarks. Focus on the food looking homemade, traditional, and delicious. Photorealistic, highly detailed, 4k food photography.${CTX} ${NEG}`;
 }
 
 app.post("/api/admin/ai/hero-image", async (c) => {
@@ -1615,7 +1650,7 @@ app.post("/api/admin/ai/hero-image", async (c) => {
   const course = (body?.course || "").trim();
   if (!title) return c.json({ error: "missing title" }, 400);
 
-  const prompt = buildHeroImagePrompt(title, course);
+  const prompt = buildHeroImagePrompt(title, course, body?.ingredients, body?.steps);
 
   const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
