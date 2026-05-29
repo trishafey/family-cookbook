@@ -126,11 +126,8 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
           {!simpleMode && (
             <button className="btn" onClick={openMealBuilder}><Icon name="bowl" /> {t("buildMeal")}</button>
           )}
-          {!simpleMode && FLAGS.lab && (
-            <button className="btn" onClick={openLab} style={{ borderColor: "rgba(110,122,58,.4)", color: "var(--accent-2)" }}>
-              <Icon name="sparkle" /> {t("kitchenExp")}
-            </button>
-          )}
+          {/* Lab access lives in the top-nav button only. The
+              masthead button was duplicate chrome. */}
         </div>
       </header>
 
