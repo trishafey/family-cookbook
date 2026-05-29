@@ -25,7 +25,7 @@ export const FLAGS = {
   extractImage: on("extractImage") || true,   // Add Recipe → photo of a recipe card → draft
   adjust:       on("adjust")       || false,  // Recipe page → "Adjust with AI" chips + free text
   familySays:   on("familySays")   || false,  // Recipe page → "AI summary · what the family does differently"
-  pairings:     on("pairings")     || false,  // Recipe page → AI-generated pairing tiles (curated ones stay)
+  pairings:     on("pairings")     || true,   // Recipe page → AI-generated pairing tiles (curated ones stay)
   needHelp:     on("needHelp")     || false,  // Recipe page + cook mode → "Need help cooking?" Q&A
   lab:          on("lab")          || false,  // The Lab / Kitchen experimentation view
 };

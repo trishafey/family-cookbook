@@ -489,14 +489,66 @@ export function pairingsFor(recipeId) {
 // ─────────────────────────────────────────────────────────────
 // PairingsSection — bottom of recipe page
 // ─────────────────────────────────────────────────────────────
-export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, onSaveToLab }) {
-  const { recipes: recIds, suggestions: rawSuggestions } = pairingsFor(recipe.id);
-  const pairedRecipes = recIds.map(id => allRecipes.find(r => r.id === id)).filter(Boolean);
-  const suggestions = FLAGS.pairings ? rawSuggestions : [];
+export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, onSaveToLab, authEmail }) {
+  // Pairings come from two layers, in priority order:
+  //  1. recipe.pairings — AI-generated and cached on the recipe blob
+  //     by /api/admin/ai/pairings. Persisted server-side so every
+  //     visitor sees the same result without re-paying for the call.
+  //  2. PAIRINGS[recipe.id] — hand-curated entries that ship in
+  //     pairings.jsx. Used as a fallback for recipes that have
+  //     curated picks but no AI-generated set yet.
+  // When AI pairings exist, the curated set is ignored to avoid
+  // mixing two different "moods" of suggestion.
+  const curated = pairingsFor(recipe.id);
+  const cached = recipe.pairings;
+  const source = cached
+    ? { recipes: cached.fromBook || [], suggestions: cached.suggestions || [] }
+    : curated;
+  const pairedRecipes = source.recipes.map(id => allRecipes.find(r => r.id === id)).filter(Boolean);
+  const suggestions = FLAGS.pairings ? source.suggestions : [];
 
   const [activeSugg, setActiveSugg] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState(null);
 
-  if (pairedRecipes.length === 0 && suggestions.length === 0) return null;
+  const generate = async (force = false) => {
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const res = await fetch("/api/admin/ai/pairings", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ recipeId: recipe.id, force }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `Pairings failed (${res.status})`);
+      }
+      const data = await res.json();
+      // Worker already saved the pairings server-side; mirror that
+      // onto the in-memory recipe so the section re-renders without
+      // a full page refresh.
+      onSaveRecipe?.({
+        ...recipe,
+        pairings: {
+          fromBook: data.fromBook || [],
+          suggestions: data.suggestions || [],
+          generatedAt: data.generatedAt,
+        },
+      });
+    } catch (err) {
+      setGenError(err.message || "Could not generate pairings.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // Show the "Generate pairings" call-to-action when the flag is on,
+  // the cook is signed in, and there's nothing to display yet.
+  const canGenerate = FLAGS.pairings && authEmail;
+  const emptyState = pairedRecipes.length === 0 && suggestions.length === 0;
+  if (emptyState && !canGenerate) return null;
 
   return (
     <>
@@ -504,9 +556,40 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
         <span className="label">Goes great with</span>
       </div>
 
-      {FLAGS.pairings && (
-      <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)", marginBottom: 24, fontSize: 16 }}>
-        AI-curated pairings — from the cookbook and new suggestions to round out the meal.
+      {FLAGS.pairings && !emptyState && (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+        <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)", fontSize: 16 }}>
+          {cached
+            ? "AI-curated pairings — from the cookbook and new suggestions to round out the meal."
+            : "Curated pairings to round out the meal."}
+        </div>
+        {cached && authEmail && (
+          <button
+            className="btn ghost sm"
+            onClick={() => generate(true)}
+            disabled={generating}
+            title="Regenerate with AI"
+          >
+            <Icon name="sparkle" size={11} /> {generating ? "Regenerating…" : "Regenerate"}
+          </button>
+        )}
+      </div>
+      )}
+
+      {emptyState && canGenerate && (
+      <div style={{
+        border: "1px dashed var(--rule)", borderRadius: 8,
+        padding: 28, textAlign: "center", marginBottom: 24,
+      }}>
+        <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)", fontSize: 16, marginBottom: 14 }}>
+          No pairings yet — let the AI suggest some.
+        </div>
+        <button className="btn primary" onClick={() => generate(false)} disabled={generating}>
+          <Icon name="sparkle" size={13} /> {generating ? "Generating pairings…" : "Generate pairings"}
+        </button>
+        {genError && (
+          <div style={{ marginTop: 12, fontSize: 13, color: "#933" }}>{genError}</div>
+        )}
       </div>
       )}
 
