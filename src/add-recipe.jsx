@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Icon, signInUrl } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
-import { COURSES, OCCASIONS, DIETS, ORIGINS } from "./data.js";
+import { COURSES, OCCASIONS, DIETS, ORIGINS, RECIPES as SEED_RECIPES } from "./data.js";
 import { COUNTRIES } from "./countries.js";
 import { useLang } from "./i18n.js";
 
@@ -596,6 +596,32 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           <h2>{editing ? draft?.title || t("editRecipeTitle") : t("addRecipeToCookbook")}</h2>
         </div>
         <div className="rhs">
+          {editing && initialRecipe && SEED_RECIPES.some(r => r.id === initialRecipe.id) && (
+            <button
+              className="btn ghost"
+              onClick={async () => {
+                if (!confirm(t("resetSeedConfirm"))) return;
+                try {
+                  const res = await fetch(`/api/admin/recipes/${encodeURIComponent(initialRecipe.id)}/reset-from-seed`, {
+                    method: "POST",
+                    credentials: "include",
+                  });
+                  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Reset failed");
+                  // Bounce out of the editor — onClose triggers the parent
+                  // to refresh recipes from the server, then re-renders
+                  // the recipe view with the restored canonical content.
+                  onClose();
+                } catch (err) {
+                  alert(err.message || "Reset failed");
+                }
+              }}
+              disabled={saving}
+              style={{ marginRight: 4 }}
+              title={t("resetSeedHint")}
+            >
+              <Icon name="chevL" /> {t("resetSeed")}
+            </button>
+          )}
           {editing && onDelete && (
             <button
               className="btn ghost"

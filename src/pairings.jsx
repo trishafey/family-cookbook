@@ -501,27 +501,50 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
   // mixing two different "moods" of suggestion.
   const curated = pairingsFor(recipe.id);
   const cached = recipe.pairings;
-  const source = cached
-    ? { recipes: cached.fromBook || [], suggestions: cached.suggestions || [] }
-    : curated;
-  const pairedRecipes = source.recipes.map(id => allRecipes.find(r => r.id === id)).filter(Boolean);
-  const suggestions = FLAGS.pairings ? source.suggestions : [];
+  // Single resolved view of what to render. When there's a cached
+  // AI blob we use it; otherwise we fall back to curated, but we
+  // ALSO surface curated entries to the pin/regenerate flow so the
+  // cook can lock in (e.g.) kopytki even before AI has been run.
+  const fromBookIds = cached?.fromBook ?? curated.recipes;
+  const suggestionList = cached?.suggestions ?? curated.suggestions;
+  const pinnedFromBook = new Set(cached?.pinnedFromBook || []);
+  const pairedRecipes = fromBookIds.map(id => allRecipes.find(r => r.id === id)).filter(Boolean);
+  const suggestions = FLAGS.pairings ? suggestionList : [];
 
   const [activeSugg, setActiveSugg] = useState(null);
   const [activeBookPair, setActiveBookPair] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState(null);
 
-  // Toggle the pinned flag on an AI suggestion at index i. Pinned
-  // suggestions survive Regenerate — the worker is told to keep
-  // them as-is and only generate enough fresh ones to fill the rest
-  // of the slots.
-  const togglePin = (i) => {
-    if (!cached) return;
-    const next = (cached.suggestions || []).map((s, idx) => idx === i ? { ...s, pinned: !s.pinned } : s);
+  // "Adopt" the currently-displayed pairings as the cached blob.
+  // Used the first time a cook pins something on a recipe whose
+  // pairings are only curated — pinning needs a writable cache, so
+  // we promote curated → cached on the spot. After that, pin /
+  // regenerate operate on cached as usual.
+  const ensureCached = () => cached || {
+    fromBook: curated.recipes,
+    suggestions: curated.suggestions,
+    pinnedFromBook: [],
+    generatedAt: null,
+  };
+
+  const togglePinSuggestion = (i) => {
+    const base = ensureCached();
+    const list = base.suggestions || [];
+    const next = list.map((s, idx) => idx === i ? { ...s, pinned: !s.pinned } : s);
     onSaveRecipe?.({
       ...recipe,
-      pairings: { ...cached, suggestions: next },
+      pairings: { ...base, suggestions: next },
+    });
+  };
+
+  const togglePinFromBook = (id) => {
+    const base = ensureCached();
+    const pinned = new Set(base.pinnedFromBook || []);
+    if (pinned.has(id)) pinned.delete(id); else pinned.add(id);
+    onSaveRecipe?.({
+      ...recipe,
+      pairings: { ...base, pinnedFromBook: [...pinned] },
     });
   };
 
@@ -529,16 +552,20 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
     setGenerating(true);
     setGenError(null);
     try {
-      // Pinned suggestions get sent to the worker so they're kept
-      // verbatim alongside whatever the AI generates next.
-      const keepSuggestions = cached
-        ? (cached.suggestions || []).filter(s => s.pinned)
+      // Pinned items get sent to the worker so they're kept verbatim
+      // across regenerate. Falls back to the curated set when no AI
+      // cache exists yet — pinning kopytki on goulash should work on
+      // the very first regenerate.
+      const base = cached || curated;
+      const keepSuggestions = (base.suggestions || []).filter(s => s.pinned);
+      const keepFromBook = cached
+        ? (cached.pinnedFromBook || [])
         : [];
       const res = await fetch("/api/admin/ai/pairings", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ recipeId: recipe.id, force, keepSuggestions }),
+        body: JSON.stringify({ recipeId: recipe.id, force, keepSuggestions, keepFromBook }),
       });
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({}));
@@ -547,12 +574,15 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
       const data = await res.json();
       // Worker already saved the pairings server-side; mirror that
       // onto the in-memory recipe so the section re-renders without
-      // a full page refresh.
+      // a full page refresh. Preserve any pinnedFromBook the client
+      // sent — the worker echoes them in data.fromBook but the
+      // pinnedFromBook flag is client-only state.
       onSaveRecipe?.({
         ...recipe,
         pairings: {
           fromBook: data.fromBook || [],
           suggestions: data.suggestions || [],
+          pinnedFromBook: keepFromBook,
           generatedAt: data.generatedAt,
         },
       });
@@ -563,8 +593,6 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
     }
   };
 
-  // Show the "Generate pairings" call-to-action when the flag is on,
-  // the cook is signed in, and there's nothing to display yet.
   const canGenerate = FLAGS.pairings && authEmail;
   const emptyState = pairedRecipes.length === 0 && suggestions.length === 0;
   if (emptyState && !canGenerate) return null;
@@ -582,17 +610,24 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
             ? "AI-curated pairings — from the cookbook and new suggestions to round out the meal."
             : "Curated pairings to round out the meal."}
         </div>
-        {cached && authEmail && (
+        {/* Regenerate is available whenever the cook is signed in,
+            even on hand-curated pairings (clicking promotes the
+            curated set to a fresh AI generation). Pinned items —
+            in-book IDs or suggestions — survive the regenerate. */}
+        {canGenerate && (
           <button
             className="btn ghost sm"
             onClick={() => generate(true)}
             disabled={generating}
-            title="Regenerate with AI"
+            title={cached ? "Regenerate with AI (pinned items kept)" : "Generate AI pairings (pinned items kept)"}
           >
-            <Icon name="sparkle" size={11} /> {generating ? "Regenerating…" : "Regenerate"}
+            <Icon name="sparkle" size={11} /> {generating ? (cached ? "Regenerating…" : "Generating…") : (cached ? "Regenerate" : "Generate with AI")}
           </button>
         )}
       </div>
+      )}
+      {genError && !emptyState && (
+        <div style={{ marginTop: -12, marginBottom: 16, fontSize: 13, color: "#933" }}>{genError}</div>
       )}
 
       {emptyState && canGenerate && (
@@ -613,10 +648,23 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
       )}
 
       <div className="pairings-grid">
-        {pairedRecipes.map(r => (
-          <div key={r.id} className="pairing-tile from-book" onClick={() => setActiveBookPair(r)}>
+        {pairedRecipes.map(r => {
+          const pinned = pinnedFromBook.has(r.id);
+          return (
+          <div key={r.id} className={`pairing-tile from-book ${pinned ? "pinned" : ""}`} onClick={() => setActiveBookPair(r)}>
             <div className="photo" style={{ backgroundImage: `url(${r.photoCard || r.photo})` }}>
               <div className="ribbon">In the cookbook</div>
+              {authEmail && (
+                <button
+                  type="button"
+                  className={`pairing-pin ${pinned ? "on" : "off"}`}
+                  onClick={(e) => { e.stopPropagation(); togglePinFromBook(r.id); }}
+                  aria-label={pinned ? "Unpin pairing" : "Pin pairing (keep on regenerate)"}
+                  title={pinned ? "Pinned — will be kept on regenerate" : "Pin — keep on regenerate"}
+                >
+                  <Icon name="pin" size={11} />
+                </button>
+              )}
             </div>
             <div className="body">
               <div className="kind">{r.course} · by {r.author}</div>
@@ -628,17 +676,17 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
               </div>
             </div>
           </div>
-        ))}
+        )})}
 
         {suggestions.map((s, i) => (
           <div key={i} className={`pairing-tile suggestion ${s.pinned ? "pinned" : ""}`} onClick={() => setActiveSugg(s)}>
             <div className="photo" style={{ background: `linear-gradient(135deg, ${s.photoTone}, ${s.photoTone}cc)` }}>
               <div className="ribbon ai"><Icon name="sparkle" size={9} /> New suggestion</div>
-              {cached && authEmail && (
+              {authEmail && (
                 <button
                   type="button"
                   className={`pairing-pin ${s.pinned ? "on" : "off"}`}
-                  onClick={(e) => { e.stopPropagation(); togglePin(i); }}
+                  onClick={(e) => { e.stopPropagation(); togglePinSuggestion(i); }}
                   aria-label={s.pinned ? "Unpin suggestion" : "Pin suggestion (keep on regenerate)"}
                   title={s.pinned ? "Pinned — will be kept on regenerate" : "Pin — keep on regenerate"}
                 >

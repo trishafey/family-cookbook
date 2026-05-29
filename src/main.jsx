@@ -348,7 +348,13 @@ function App() {
         <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} authEmail={authEmail} usedCuisines={usedCuisines} usedAuthors={usedAuthors} />
       )}
       {view === "edit" && (() => {
-        const editingRecipe = recipes.find(r => r.id === editingId);
+        // IMPORTANT: read from canonicalRecipes, NOT the localized
+        // `recipes` array. The editor must see the canonical
+        // English fields — otherwise editing while the UI is in
+        // Polish saves the Polish overlay back as the canonical
+        // blob, and flipping back to English would show Polish for
+        // good. (Repro: open Apple Pie in PL, edit-save, flip to EN.)
+        const editingRecipe = canonicalRecipes.find(r => r.id === editingId);
         if (!editingRecipe) {
           // Defensive: the recipe id may be stale (recipe was deleted in
           // another tab, or extraRecipes got cleared). Send the user back
