@@ -3,10 +3,166 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Icon, signInUrl } from "./helpers.jsx";
+import { Modal } from "./ui.jsx";
 import { FLAGS } from "./config/flags.js";
 import { COURSES, OCCASIONS, DIETS, ORIGINS, RECIPES as SEED_RECIPES } from "./data.js";
 import { COUNTRIES } from "./countries.js";
 import { useLang } from "./i18n.js";
+
+// ─────────────────────────────────────────────────────────────
+// AI Polish — per-field diff modal
+// ─────────────────────────────────────────────────────────────
+// Cook clicks "AI Polish" on an edit form. We send the current
+// draft to /api/admin/ai/polish-recipe; the worker returns a
+// list of proposals, each touching ONE field. We render them as
+// per-row diffs the cook can accept/discard before applying. The
+// cook is always the author — the AI never silently overwrites.
+
+// Set a value at a dot-notation path inside a recipe-shaped
+// object. Used to apply accepted polish proposals.
+//   setAtPath(draft, "steps.2.d", "Mix until smooth.")
+function setAtPath(obj, path, value) {
+  const parts = path.split(".");
+  const go = (node, idx) => {
+    if (idx === parts.length) return value;
+    const key = parts[idx];
+    if (Array.isArray(node)) {
+      const i = parseInt(key, 10);
+      const next = [...node];
+      next[i] = go(node[i] ?? {}, idx + 1);
+      return next;
+    }
+    return { ...(node || {}), [key]: go(node?.[key], idx + 1) };
+  };
+  return go(obj, 0);
+}
+
+function PolishModal({ open, onClose, draft, onApply }) {
+  const [proposals, setProposals] = useState(null);
+  const [accepted, setAccepted] = useState(new Set());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setProposals(null);
+    setAccepted(new Set());
+    setError(null);
+    setLoading(true);
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/ai/polish-recipe", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ recipe: draft }),
+        });
+        if (!res.ok) {
+          const { error: msg } = await res.json().catch(() => ({}));
+          throw new Error(msg || `Polish failed (${res.status})`);
+        }
+        const { proposals: list } = await res.json();
+        setProposals(list || []);
+        // Default: every proposal accepted. Cook unchecks the
+        // ones they don't want.
+        setAccepted(new Set((list || []).map((_, i) => i)));
+      } catch (err) {
+        setError(err.message || "Could not reach the kitchen AI.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+    // We only want to re-fetch when the modal is re-opened — not
+    // every time the cook checks a box (which would mutate state
+    // mid-review). The draft snapshot at open time is the
+    // contract for this review session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const toggle = (i) => {
+    setAccepted(s => {
+      const n = new Set(s);
+      if (n.has(i)) n.delete(i); else n.add(i);
+      return n;
+    });
+  };
+
+  const apply = () => {
+    const picked = (proposals || []).filter((_, i) => accepted.has(i));
+    onApply(picked);
+    onClose();
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="AI Polish — review proposals"
+      subtitle="Each change touches one field. Accept what helps, ignore the rest. The cook is always the author."
+      size="lg"
+      footer={
+        <>
+          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+            {proposals && proposals.length > 0
+              ? `${accepted.size} of ${proposals.length} accepted`
+              : ""}
+          </span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn" onClick={onClose}>Cancel</button>
+            <button
+              className="btn primary"
+              onClick={apply}
+              disabled={!proposals || accepted.size === 0}
+            >
+              Apply {accepted.size} change{accepted.size === 1 ? "" : "s"}
+            </button>
+          </div>
+        </>
+      }
+    >
+      {loading && (
+        <div style={{ padding: 24, textAlign: "center", color: "var(--ink-3)", fontStyle: "italic" }}>
+          Reading the recipe…
+        </div>
+      )}
+      {error && (
+        <div style={{ padding: 12, color: "#933", fontSize: 14 }}>{error}</div>
+      )}
+      {proposals && proposals.length === 0 && (
+        <div style={{ padding: 24, textAlign: "center", color: "var(--ink-3)" }}>
+          The AI didn't find anything worth changing. The recipe is already in good shape.
+        </div>
+      )}
+      {proposals && proposals.length > 0 && (
+        <div className="polish-proposals">
+          {proposals.map((p, i) => (
+            <label key={i} className={`proposal ${accepted.has(i) ? "" : "discarded"}`}>
+              <div className="head">
+                <input
+                  type="checkbox"
+                  checked={accepted.has(i)}
+                  onChange={() => toggle(i)}
+                />
+                <div className="label">{p.label}</div>
+                <div className="reason">{p.reason}</div>
+              </div>
+              <div className="diff">
+                <div className="row current">
+                  <span className="tag">now</span>
+                  <span className="text">{p.current || <em>(empty)</em>}</span>
+                </div>
+                <div className="row proposed">
+                  <span className="tag">→</span>
+                  <span className="text">{p.proposed}</span>
+                </div>
+              </div>
+            </label>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
 
 function CuisineSearch({ value, onChange, usedCuisines = [] }) {
   const { t } = useLang();
@@ -312,6 +468,11 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
   const [generatingPhoto, setGeneratingPhoto] = useState(false);
   const [estimatingNutrition, setEstimatingNutrition] = useState(false);
   const [nutritionError, setNutritionError] = useState(null);
+  // AI Polish modal — only used when editing an existing recipe.
+  // The cook clicks "AI Polish" → the modal fetches per-field
+  // proposals → the cook accepts/discards → accepted changes are
+  // applied to draft (still unsaved until the cook hits Save).
+  const [polishOpen, setPolishOpen] = useState(false);
   // Editing skips the AI/photo/URL flows — they only make sense for
   // bringing in a brand-new recipe. New entries default to manual
   // unless an AI flag opens up paste-text mode.
@@ -703,6 +864,17 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               title={t("resetSeedHint")}
             >
               <Icon name="chevL" /> {t("resetSeed")}
+            </button>
+          )}
+          {editing && authEmail && (
+            <button
+              className="btn ghost"
+              onClick={() => setPolishOpen(true)}
+              disabled={saving}
+              style={{ marginRight: 4 }}
+              title="Ask the AI to suggest small polish edits (review each one before applying)"
+            >
+              <Icon name="sparkle" /> AI Polish
             </button>
           )}
           {editing && onDelete && (
@@ -1296,6 +1468,21 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
         </div>
       )}
       </fieldset>
+      <PolishModal
+        open={polishOpen}
+        onClose={() => setPolishOpen(false)}
+        draft={draft}
+        onApply={(picked) => {
+          // Apply each accepted proposal to the draft via the
+          // dot-path setter. The cook still has to Save to
+          // persist — Polish only stages changes.
+          setDraft(d => {
+            let next = d;
+            for (const p of picked) next = setAtPath(next, p.path, p.proposed);
+            return next;
+          });
+        }}
+      />
     </div>
   );
 }

@@ -2028,6 +2028,132 @@ const AI_NUTRITION_SCHEMA = {
   additionalProperties: false,
 };
 
+// ─── AI: Polish recipe — per-field enrichment proposals ───
+// The cook explicitly asks for an enrichment pass on a recipe
+// they've already saved or are editing. The model produces a list
+// of small, specific proposals — each touching ONE field — that
+// the cook reviews and accepts/discards individually in a diff
+// modal. The model never overwrites anything; the cook decides.
+//
+// Constraints (in the system prompt):
+//   • Never touch i.qtyNote or any verbatim intuitive measure
+//     ("by eye", "to taste", "until X happens"). Sacred.
+//   • Don't invent new ingredients or steps.
+//   • Don't add precision where the cook used vagueness on purpose.
+//   • Each proposal is one field change with a one-clause reason.
+//
+// Paths are dot-notation pointers into the recipe shape:
+//   "title", "subtitle"
+//   "tips.0", "tips.3"
+//   "steps.2.t", "steps.2.d"
+//   "ingredients.5.item", "ingredients.5.unit"
+const AI_POLISH_SCHEMA = {
+  type: "object",
+  properties: {
+    proposals: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          // Dot-notation pointer (e.g. "steps.2.d", "tips.0").
+          path:     { type: "string" },
+          // Human-readable label for the diff modal ("Step 3 instructions").
+          label:    { type: "string" },
+          current:  { type: "string" },
+          proposed: { type: "string" },
+          // One short clause — why this change improves the recipe.
+          reason:   { type: "string" },
+        },
+        required: ["path", "label", "current", "proposed", "reason"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["proposals"],
+  additionalProperties: false,
+};
+
+app.post("/api/admin/ai/polish-recipe", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI API key not configured." }, 500);
+
+  const body = await c.req.json().catch(() => ({}));
+  const recipe = body?.recipe;
+  if (!recipe?.title) return c.json({ error: "missing recipe" }, 400);
+
+  // Compact context — we send title/subtitle/ingredients/steps/
+  // tips so the model can scan everything. Comments and pairings
+  // are noise here.
+  const context = {
+    title:    recipe.title,
+    subtitle: recipe.subtitle,
+    course:   recipe.course,
+    cuisine:  recipe.cuisine,
+    ingredients: recipe.ingredients || [],
+    steps:    (recipe.steps || []).map((s, i) => ({ i, t: s.t, d: s.d })),
+    tips:     recipe.tips || [],
+  };
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `You polish a family-cookbook recipe. The cook has explicitly asked for an enrichment pass on this recipe — you produce a list of small, specific proposals (each touches ONE field) that the cook reviews and accepts or discards one at a time. You never apply changes yourself.
+
+ALLOWED kinds of proposals:
+  • Typo / grammar / capitalization fixes on title, subtitle, step titles, step descriptions, tips.
+  • Filling in missing structural data: a step that just says "mix" could become "mix until smooth and uniform"; a tip that's a fragment could be a full sentence.
+  • Tightening rambling steps; replacing vague WORDS where the cook clearly didn't intend vagueness ("do the thing" → "fold the dough") but NOT replacing intentional vagueness (see below).
+  • Normalising units that are clearly inconsistent ("tablespoons" → "tbsp" if the rest of the recipe uses abbreviations).
+
+NEVER do these:
+  • Don't touch any ingredient where qtyNote is non-empty. The cook's intuitive measure ("by eye", "to taste", "a glug") is sacred. Skip those ingredients entirely.
+  • Don't replace intuitive cooking cues in steps. "until the bone shows", "when you can smell the garlic", "stir until your arm gets tired" — leave them word-for-word.
+  • Don't invent new ingredients or new steps that weren't in the source.
+  • Don't add precise times/temperatures to steps that don't have them — that's a craft judgement the cook owns.
+  • Don't change tags, diet, course, occasion, cuisine, nutrition. The cook handles those manually.
+  • Don't propose changes when current and proposed would be identical.
+
+Each proposal:
+  • path — dot-notation pointer ("title", "subtitle", "steps.2.t", "steps.2.d", "ingredients.5.item", "ingredients.5.unit", "tips.0", "tips.3")
+  • label — human-readable ("Title", "Step 3 title", "Step 3 instructions", "Ingredient 6 name", "Tip 1")
+  • current — current value (verbatim)
+  • proposed — proposed value (your improvement)
+  • reason — one short clause ("Typo fix", "Filled in missing cue", "Tightened wording")
+
+If the recipe is already in good shape, return an empty proposals array. Better to be conservative — small focused list is better than a long list of nitpicks.`,
+        },
+        { role: "user", content: JSON.stringify(context, null, 2) },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "polish_recipe", strict: true, schema: AI_POLISH_SCHEMA },
+      },
+    }),
+  });
+  if (!openaiRes.ok) {
+    console.error("OpenAI polish-recipe error", openaiRes.status, await openaiRes.text());
+    return c.json({ error: `OpenAI returned ${openaiRes.status}.` }, 502);
+  }
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return c.json({ error: "OpenAI returned no content." }, 502);
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+
+  logAiEvent(c, "polish-recipe", recipe?.id || null, {
+    title: recipe.title,
+    proposalCount: parsed?.proposals?.length || 0,
+  });
+  return c.json(parsed);
+});
+
 app.post("/api/admin/ai/nutrition", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
