@@ -142,16 +142,56 @@ function IngredientsEditor({ ingredients, onChange }) {
             )}
           </div>
           {sec.items.map((i) => (
-            <div key={i._idx} style={{ display: "grid", gridTemplateColumns: "70px 80px 1fr 24px", gap: 6, marginBottom: 6 }}>
-              <input type="number" step="0.25" value={i.qty || ""} placeholder={t("qtyPh")}
-                onChange={(e) => update(i._idx, { qty: e.target.value === "" ? 0 : +e.target.value })} />
-              <input value={i.unit} placeholder={t("unitPh")}
-                onChange={(e) => update(i._idx, { unit: e.target.value })} />
-              <input value={i.item} placeholder={t("ingredientPh")}
-                onChange={(e) => update(i._idx, { item: e.target.value })} />
-              <button type="button" className="btn ghost icon-only" onClick={() => remove(i._idx)}>
-                <Icon name="x" size={12} />
-              </button>
+            <div key={i._idx} style={{ marginBottom: 6 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "70px 80px 1fr 24px", gap: 6 }}>
+                <input
+                  type="number" step="0.25"
+                  value={i.qty || ""}
+                  placeholder={t("qtyPh")}
+                  onChange={(e) => update(i._idx, { qty: e.target.value === "" ? 0 : +e.target.value })}
+                  disabled={!!i.qtyNote}
+                  title={i.qtyNote ? `Showing intuitive measure: "${i.qtyNote}". Clear it to set a number.` : undefined}
+                />
+                <input
+                  value={i.unit}
+                  placeholder={t("unitPh")}
+                  onChange={(e) => update(i._idx, { unit: e.target.value })}
+                  disabled={!!i.qtyNote}
+                />
+                <input value={i.item} placeholder={t("ingredientPh")}
+                  onChange={(e) => update(i._idx, { item: e.target.value })} />
+                <button type="button" className="btn ghost icon-only" onClick={() => remove(i._idx)}>
+                  <Icon name="x" size={12} />
+                </button>
+              </div>
+              {/* Intuitive measure ("by eye", "to taste", "a glug").
+                  Shown when the AI extracted one or the cook
+                  manually typed one. Disables qty + unit while set —
+                  the family-cook measure is the truth here, not a
+                  fake number. */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, paddingLeft: 4 }}>
+                <input
+                  value={i.qtyNote || ""}
+                  placeholder={t("qtyNotePh")}
+                  onChange={(e) => update(i._idx, { qtyNote: e.target.value })}
+                  style={{
+                    flex: 1, maxWidth: 220,
+                    fontFamily: "var(--serif)", fontStyle: "italic",
+                    fontSize: 12, padding: "3px 6px",
+                    border: "1px dashed var(--rule)",
+                    borderRadius: 4,
+                    background: i.qtyNote ? "rgba(110,122,58,.06)" : "transparent",
+                  }}
+                  aria-label="Intuitive measure"
+                />
+                {i.qtyNote && (
+                  <button type="button" onClick={() => update(i._idx, { qtyNote: "" })}
+                    style={{ background: "none", border: 0, color: "var(--ink-3)", cursor: "pointer", fontSize: 11 }}
+                    aria-label="Clear intuitive measure">
+                    clear
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           <button type="button" className="btn ghost sm" onClick={() => addIngredientTo(sec.name)}>

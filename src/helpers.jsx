@@ -5,6 +5,17 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 // ───── Math / formatting ─────
 
 // Render a fractional quantity nicely. 0.5 → "½", 1.25 → "1¼"
+// Format an ingredient's display quantity. Family-cook intuitive
+// measures ("by eye", "a glug", "to taste") live in i.qtyNote and
+// are shown verbatim — they're how the recipe is taught, not
+// gaps to be filled with bogus precision. Falls back to the
+// numeric qty + unit when qtyNote isn't set.
+export function formatIngredientQty(i) {
+  const note = (i?.qtyNote || "").trim();
+  if (note) return note;
+  return `${formatQty(i?.qty)} ${i?.unit || ""}`.trim();
+}
+
 export function formatQty(n) {
   if (n == null || n === 0 || isNaN(n)) return "";
   const sign = n < 0 ? "-" : "";

@@ -321,6 +321,7 @@ const S = {
   qtyPh:          { en: "Qty",                pl: "Ilość" },
   unitPh:         { en: "Unit",               pl: "Jedn." },
   ingredientPh:   { en: "e.g. ground beef",   pl: "np. mielona wołowina" },
+  qtyNotePh:      { en: "or 'by eye', 'to taste'…", pl: "albo 'na oko', 'do smaku'…" },
   cuisinePh:      { en: "Cuisine (e.g. Italian)", pl: "Kuchnia (np. włoska)" },
   titleEx:        { en: "e.g. Grandma's Sunday Lasagna", pl: "np. Niedzielna lasagna babci" },
   subtitleEx:     { en: "A tagline, the family lore", pl: "Hasło, rodzinna legenda" },

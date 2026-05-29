@@ -6,7 +6,7 @@
 //      a quick recipe modal that the user can "make" or save to the book.
 
 import { useState } from "react";
-import { Icon, fmtDuration, formatQty } from "./helpers.jsx";
+import { Icon, fmtDuration, formatQty, formatIngredientQty } from "./helpers.jsx";
 import { Modal } from "./ui.jsx";
 import { FLAGS } from "./config/flags.js";
 
@@ -860,7 +860,7 @@ function PairingSuggestionModal({ suggestion, forRecipe, onClose, onSaveRecipe, 
           <ul style={{ listStyle: "none", padding: 0, margin: 0, marginBottom: 22 }}>
             {suggestion.ingredients.map((i, idx) => (
               <li key={idx} style={{ display: "grid", gridTemplateColumns: "60px 1fr", gap: 10, padding: "5px 0", borderBottom: "1px dotted var(--rule)", fontSize: 13.5 }}>
-                <span className="mono" style={{ color: "var(--accent)" }}>{formatQty(i.qty)} {i.unit}</span>
+                <span className="mono" style={{ color: "var(--accent)" }}>{formatIngredientQty(i)}</span>
                 <span style={{ color: "var(--ink-2)" }}>{i.item}</span>
               </li>
             ))}

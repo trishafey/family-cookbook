@@ -2,7 +2,7 @@
 // Drafts live as "experiments" until promoted to the main cookbook.
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Icon, useStorage, fmtDuration, formatQty } from "./helpers.jsx";
+import { Icon, useStorage, fmtDuration, formatQty, formatIngredientQty } from "./helpers.jsx";
 
 // ─────────────────────────────────────────────────────────────
 // Mock AI: turns a free-text request into a structured recipe.
@@ -870,7 +870,7 @@ function LabRecipeCard({ draft }) {
           <ul>
             {draft.ingredients.map((i, idx) => (
               <li key={idx}>
-                <span style={{ fontFamily: "var(--mono)", color: "var(--accent)" }}>{formatQty(i.qty)} {i.unit}</span>{" "}
+                <span style={{ fontFamily: "var(--mono)", color: "var(--accent)" }}>{formatIngredientQty(i)}</span>{" "}
                 {i.item}
               </li>
             ))}
