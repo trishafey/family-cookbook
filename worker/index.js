@@ -162,6 +162,138 @@ app.get("/api/admin/login", (c) => {
 });
 
 // Create a new recipe. The draft from the AddRecipe form has the full
+// ─── AI: translate recipe to the other language on save ───
+// Fired after a successful POST or PATCH. The handler doesn't await
+// this — it uses ctx.waitUntil so the response returns immediately and
+// the translation lands a few seconds later. The next time anyone
+// fetches /api/recipes the new translation is part of the row.
+//
+// Each call is roughly 0.001¢ at gpt-4o-mini rates; the same daily cap
+// table guards against runaway. We translate only the user-authored
+// fields (title / subtitle / ingredient items / step titles+descriptions
+// / tips). Quantities, units, sections, precision, mins, etc. stay
+// canonical so the math + scheduler keep working in either language.
+
+const AI_TRANSLATE_SYSTEM_PROMPT = `You are a recipe translator for a family cookbook.
+
+You will receive a recipe written in one language and you must translate the user-authored fields into the target language matching the provided JSON schema.
+
+Rules:
+- Translate naturally — match the tone of a warm family cookbook, not a literal machine translation.
+- Preserve proper nouns: people's names ("Patricia", "Babcia Krystyna"), brand names ("Bullseye BBQ sauce"), and traditional dish names that don't translate cleanly ("Pierogi", "Goulash").
+- Translate descriptive cuisine adjectives ("Italian" → "włoska", "Hungarian" → "węgierska") only when they're being used as descriptors.
+- Preserve every detail in step descriptions. Do not summarise.
+- Keep the same array lengths for ingredients, steps, and tips as the input.
+- For ingredient items, translate only the food name. Adjectives like "medium" / "ripe" / "fresh" should also be translated. Numeric quantities and units stay out of the item text (they're tracked separately).
+- For steps, translate both the short title and the long description.`;
+
+const AI_TRANSLATE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title", "subtitle", "ingredients", "steps", "tips"],
+  properties: {
+    title:    { type: "string" },
+    subtitle: { type: ["string", "null"] },
+    tips:     { type: "array", items: { type: "string" } },
+    ingredients: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["item"],
+        properties: { item: { type: "string" } },
+      },
+    },
+    steps: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["t", "d"],
+        properties: { t: { type: "string" }, d: { type: "string" } },
+      },
+    },
+  },
+};
+
+const LANG_NAME = { en: "English", pl: "Polish" };
+
+async function translateAndStore(env, recipeId, recipe, fromLang, toLang) {
+  if (!env.OPENAI_API_KEY || fromLang === toLang) return;
+
+  // Daily cap reuses the same table as extraction.
+  const today = new Date().toISOString().slice(0, 10);
+  const row = await env.DB.prepare("SELECT cost_cents FROM ai_usage WHERE date = ?").bind(today).first();
+  if ((row?.cost_cents || 0) >= AI_DAILY_CAP_CENTS) {
+    console.warn("translate skipped: daily cap reached");
+    return;
+  }
+  await env.DB.prepare(
+    "INSERT INTO ai_usage (date, cost_cents) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET cost_cents = cost_cents + excluded.cost_cents"
+  ).bind(today, AI_COST_PER_CALL_CENTS).run();
+
+  // Strip down the input so the model only sees what it needs to translate.
+  const input = {
+    title: recipe.title || "",
+    subtitle: recipe.subtitle || "",
+    ingredients: (recipe.ingredients || []).map(i => ({ item: i.item || "" })),
+    steps: (recipe.steps || []).map(s => ({ t: s.t || "", d: s.d || "" })),
+    tips: recipe.tips || [],
+  };
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages: [
+        { role: "system", content: AI_TRANSLATE_SYSTEM_PROMPT },
+        { role: "user", content: `Translate this recipe from ${LANG_NAME[fromLang] || fromLang} to ${LANG_NAME[toLang] || toLang}:\n\n${JSON.stringify(input)}` },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "translation", strict: true, schema: AI_TRANSLATE_SCHEMA },
+      },
+    }),
+  });
+
+  if (!openaiRes.ok) {
+    console.error("translate failed", openaiRes.status, await openaiRes.text());
+    return;
+  }
+
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return;
+
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { console.error("translate returned malformed JSON"); return; }
+
+  // Merge into the existing translations blob — a recipe might have
+  // a Polish translation already and we don't want to clobber it
+  // with a partial update.
+  const existing = await env.DB.prepare("SELECT translations FROM recipes WHERE id = ?").bind(recipeId).first();
+  const allTranslations = existing?.translations ? JSON.parse(existing.translations) : {};
+  allTranslations[toLang] = parsed;
+
+  await env.DB.prepare("UPDATE recipes SET translations = ? WHERE id = ?")
+    .bind(JSON.stringify(allTranslations), recipeId)
+    .run();
+
+  // Also update the blob so the next /api/recipes read returns the
+  // translation inline alongside the canonical fields.
+  const blobRow = await env.DB.prepare("SELECT blob FROM recipes WHERE id = ?").bind(recipeId).first();
+  if (blobRow?.blob) {
+    const merged = { ...JSON.parse(blobRow.blob), translations: allTranslations };
+    await env.DB.prepare("UPDATE recipes SET blob = ? WHERE id = ?")
+      .bind(JSON.stringify(merged), recipeId).run();
+  }
+}
+
 // nested shape (ingredients, steps, tips, etc.); we keep that in the
 // blob column and lift the indexable fields into their own columns.
 app.post("/api/admin/recipes", async (c) => {
@@ -196,6 +328,10 @@ app.post("/api/admin/recipes", async (c) => {
     // Most common cause: PRIMARY KEY conflict (someone reused an id).
     return c.json({ error: String(err.message || err) }, 409);
   }
+
+  // Fire-and-forget translation to Polish. The cook doesn't wait for it;
+  // the next /api/recipes refresh after a few seconds will include it.
+  c.executionCtx.waitUntil(translateAndStore(c.env, draft.id, draft, "en", "pl"));
 
   return c.json({ ok: true, id: draft.id });
 });
@@ -234,6 +370,11 @@ app.patch("/api/admin/recipes/:id", async (c) => {
     now,
     id
   ).run();
+
+  // Re-translate after every edit so Polish stays in sync with the
+  // canonical English. Fire-and-forget; the cook's PATCH returns
+  // immediately.
+  c.executionCtx.waitUntil(translateAndStore(c.env, id, merged, "en", "pl"));
 
   return c.json({ ok: true, id });
 });

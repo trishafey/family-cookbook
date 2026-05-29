@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRecipes, useAuth, useFavorites, signInUrl, SIGN_OUT_URL, applyFilters, normalizeRecipe, ErrorBoundary } from "./helpers.jsx";
+import { Icon, useStorage, useRecipes, useAuth, useFavorites, signInUrl, SIGN_OUT_URL, applyFilters, normalizeRecipe, localizeRecipe, ErrorBoundary } from "./helpers.jsx";
 import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
@@ -35,9 +35,18 @@ function App() {
   // shared backend — merged in so old additions don't disappear.
   const { recipes: serverRecipes, refresh: refreshRecipes } = useRecipes();
   const [extraRecipes, setExtraRecipes] = useStorage("recipes:added", []);
-  const recipes = useMemo(
+  // Read language up-front so the recipes list can flow through
+  // localizeRecipe before anything downstream sees it. Cards, recipe
+  // pages, meal plan, cook mode — they all consume `recipes` so we
+  // only have to localize once at this seam.
+  const { lang: currentLang } = useLang();
+  const canonicalRecipes = useMemo(
     () => [...extraRecipes.map(normalizeRecipe), ...serverRecipes],
     [extraRecipes, serverRecipes]
+  );
+  const recipes = useMemo(
+    () => canonicalRecipes.map(r => localizeRecipe(r, currentLang)),
+    [canonicalRecipes, currentLang]
   );
   // Cuisines actually used in the cookbook, most-frequent first — pinned
   // as pills at the top of the cuisine dropdown in AddRecipe.
@@ -49,6 +58,8 @@ function App() {
   const recipe = recipes.find(r => r.id === recipeId);
 
   // ─── Language (English / Polish) ───
+  // currentLang above is from the same hook; pulling the rest of the
+  // helpers here so the localised data flows from one source.
   const { t, tDiet, tOccasion, tCourse } = useLang();
 
   // ─── Sign-in state ───
