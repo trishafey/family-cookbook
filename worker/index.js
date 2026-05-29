@@ -296,6 +296,42 @@ async function translateAndStore(env, recipeId, recipe, fromLang, toLang) {
 
 // nested shape (ingredients, steps, tips, etc.); we keep that in the
 // blob column and lift the indexable fields into their own columns.
+// One-shot Polish backfill for recipes that don't have a translation
+// yet. Family member visits this URL once after the translate-on-save
+// feature ships; future saves keep themselves in sync. Fires every
+// translation in parallel via waitUntil so the response returns fast,
+// and the family sees the new translations within ~10 seconds on
+// the next refresh.
+app.get("/api/admin/translate-missing", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!c.env.OPENAI_API_KEY) {
+    return c.json({ error: "OpenAI API key is not configured on this Worker." }, 500);
+  }
+
+  const rows = await c.env.DB.prepare(
+    "SELECT id, blob, translations FROM recipes"
+  ).all();
+
+  const queued = [];
+  const skipped = [];
+  for (const row of rows.results) {
+    const existing = row.translations ? JSON.parse(row.translations) : {};
+    if (existing.pl) { skipped.push(row.id); continue; }
+    const recipe = JSON.parse(row.blob);
+    c.executionCtx.waitUntil(translateAndStore(c.env, row.id, recipe, "en", "pl"));
+    queued.push(row.id);
+  }
+
+  return c.json({
+    ok: true,
+    queued: queued.length,
+    skipped: skipped.length,
+    queuedIds: queued,
+    message: `Queued ${queued.length} translation${queued.length === 1 ? "" : "s"}. They'll land in the next /api/recipes refresh within ~10 seconds.`,
+  });
+});
+
 app.post("/api/admin/recipes", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
