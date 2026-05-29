@@ -207,7 +207,7 @@ const S = {
   linkLabelPh:    { en: "Link label",         pl: "Nazwa linku" },
   courseSlashCuisine: { en: "Course / Cuisine", pl: "Danie / Kuchnia" },
   dietPrefsLbl:   { en: "Diet / preferences", pl: "Dieta / preferencje" },
-  prepCookMin:    { en: "Prep / Cook (min)",  pl: "Przygotowanie / Gotowanie (min)" },
+  prepCookMin:    { en: "Prep / Cook time (min)", pl: "Czas przygotowania / gotowania (min)" },
   prepPh:         { en: "Prep",               pl: "Przygotowanie" },
   cookPh:         { en: "Cook",               pl: "Gotowanie" },
   servingsDefaultLbl: { en: "Servings (default)", pl: "Porcje (domyślne)" },

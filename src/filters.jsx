@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { fmtDuration } from "./helpers.jsx";
 import { Drawer } from "./ui.jsx";
-import { COURSES, OCCASIONS, DIETS, CUISINES, AUTHORS } from "./data.js";
+import { COURSES, OCCASIONS, DIETS, CUISINES } from "./data.js";
 import { useLang } from "./i18n.js";
 
 export function FiltersDrawer({ open, onClose, filters, setFilters }) {
@@ -82,14 +82,6 @@ export function FiltersDrawer({ open, onClose, filters, setFilters }) {
         </div>
       </div>
 
-      <div className="drawer-section">
-        <h4>{t("createdBy")}</h4>
-        <div className="pills">
-          {AUTHORS.map(a => (
-            <button key={a} className={`filter-pill ${filters.authors.includes(a) ? "on" : ""}`} onClick={() => toggle("authors", a)}>{a}</button>
-          ))}
-        </div>
-      </div>
     </Drawer>
   );
 }

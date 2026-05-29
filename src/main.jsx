@@ -55,6 +55,17 @@ function App() {
     for (const r of recipes) if (r.cuisine) counts[r.cuisine] = (counts[r.cuisine] || 0) + 1;
     return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([c]) => c);
   }, [recipes]);
+  // Past 'Added by' authors, most-recently used first. Powers the
+  // datalist suggestions in the AddRecipe form so the user usually
+  // picks a name with one tap instead of retyping.
+  const usedAuthors = useMemo(() => {
+    const seen = new Map();
+    const sorted = [...recipes].sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
+    for (const r of sorted) {
+      if (r.author && !seen.has(r.author)) seen.set(r.author, r.updated_at || 0);
+    }
+    return Array.from(seen.keys());
+  }, [recipes]);
   const recipe = recipes.find(r => r.id === recipeId);
 
   // ─── Language (English / Polish) ───
@@ -322,7 +333,7 @@ function App() {
         </ErrorBoundary>
       )}
       {view === "add" && (
-        <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} authEmail={authEmail} usedCuisines={usedCuisines} />
+        <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} authEmail={authEmail} usedCuisines={usedCuisines} usedAuthors={usedAuthors} />
       )}
       {view === "edit" && (() => {
         const editingRecipe = recipes.find(r => r.id === editingId);
@@ -342,6 +353,7 @@ function App() {
               authEmail={authEmail}
               initialRecipe={editingRecipe}
               usedCuisines={usedCuisines}
+              usedAuthors={usedAuthors}
             />
           </ErrorBoundary>
         );

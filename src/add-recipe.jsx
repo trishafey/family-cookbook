@@ -303,7 +303,7 @@ function StepsEditor({ steps, onChange }) {
   );
 }
 
-export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe = null, usedCuisines = [] }) {
+export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe = null, usedCuisines = [], usedAuthors = [] }) {
   const { t, tCourse, tOccasion, tDiet, tDifficulty } = useLang();
   const editing = Boolean(initialRecipe);
   const [saving, setSaving] = useState(false);
@@ -571,6 +571,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
 
       {mode === "manual" && draft && (
         <div style={{ maxWidth: 800 }}>
+          {/* IDENTITY: what this dish is + provenance */}
           <div className="input-row">
             <label>{t("titleRequired")}</label>
             <div>
@@ -586,7 +587,18 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           <div className="input-row">
             <label>{t("addedByLbl")}</label>
             <div>
-              <input value={draft.author} onChange={(e) => setDraft({ ...draft, author: e.target.value })} placeholder={t("yourName")} />
+              {/* Datalist gives a dropdown of past authors (most-recently
+                  used first via the order they appear in usedAuthors) but
+                  still lets the user type a brand-new name. */}
+              <input
+                list="past-authors"
+                value={draft.author}
+                onChange={(e) => setDraft({ ...draft, author: e.target.value })}
+                placeholder={t("yourName")}
+              />
+              <datalist id="past-authors">
+                {usedAuthors.map(a => <option key={a} value={a} />)}
+              </datalist>
             </div>
           </div>
           <div className="input-row">
@@ -606,6 +618,8 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               />
             </div>
           </div>
+
+          {/* CLASSIFICATION: how it fits in the cookbook */}
           <div className="input-row">
             <label>{t("courseSlashCuisine")}</label>
             <div style={{ display: "flex", gap: 8 }}>
@@ -624,34 +638,6 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
             </div>
           </div>
           <div className="input-row">
-            <label>{t("dietPrefsLbl")}</label>
-            <div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {DIETS.map(d => (
-                  <button
-                    key={d}
-                    className={`filter-pill ${draft.diet.includes(d) ? "on" : ""}`}
-                    onClick={() => setDraft(p => ({ ...p, diet: p.diet.includes(d) ? p.diet.filter(x => x !== d) : [...p.diet, d] }))}
-                  >{tDiet(d)}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="input-row">
-            <label>{t("prepCookMin")}</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input type="number" value={draft.prep || ""} onChange={(e) => setDraft({ ...draft, prep: e.target.value === "" ? 0 : +e.target.value })} placeholder={t("prepPh")} style={{ width: 120 }} />
-              <input type="number" value={draft.cook || ""} onChange={(e) => setDraft({ ...draft, cook: e.target.value === "" ? 0 : +e.target.value })} placeholder={t("cookPh")} style={{ width: 120 }} />
-            </div>
-          </div>
-          <div className="input-row">
-            <label>{t("servingsDefaultLbl")}</label>
-            <div>
-              <input type="number" value={draft.servingsDefault || ""} onChange={(e) => setDraft({ ...draft, servingsDefault: e.target.value === "" ? 0 : +e.target.value })} style={{ width: 100 }} />
-            </div>
-          </div>
-
-          <div className="input-row">
             <label>{t("difficultyLbl")}</label>
             <div style={{ display: "flex", gap: 8 }}>
               {["Easy", "Medium", "Hard"].map(d => (
@@ -664,7 +650,6 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               ))}
             </div>
           </div>
-
           <div className="input-row">
             <label>{t("nutritionPerServing")}</label>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 6, maxWidth: 480 }}>
@@ -691,35 +676,14 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               ))}
             </div>
           </div>
-
-          <div className="input-row" style={{ alignItems: "stretch" }}>
-            <label>{t("cooksNotesTipsLbl")}</label>
+          <div className="input-row">
+            <label>{t("servingsDefaultLbl")}</label>
             <div>
-              {(draft.tips || []).map((tip, idx) => (
-                <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 24px", gap: 6, marginBottom: 6 }}>
-                  <input
-                    type="text"
-                    value={tip}
-                    placeholder={t("exampleTip")}
-                    onChange={(e) => {
-                      const tips = [...(draft.tips || [])];
-                      tips[idx] = e.target.value;
-                      setDraft({ ...draft, tips });
-                    }}
-                  />
-                  <button type="button" className="btn ghost icon-only" onClick={() => {
-                    setDraft({ ...draft, tips: (draft.tips || []).filter((_, i) => i !== idx) });
-                  }}><Icon name="x" size={12} /></button>
-                </div>
-              ))}
-              <button type="button" className="btn ghost sm" onClick={() => {
-                setDraft({ ...draft, tips: [...(draft.tips || []), ""] });
-              }}>
-                <Icon name="plus" size={12} /> {t("addTip")}
-              </button>
+              <input type="number" value={draft.servingsDefault || ""} onChange={(e) => setDraft({ ...draft, servingsDefault: e.target.value === "" ? 0 : +e.target.value })} style={{ width: 100 }} />
             </div>
           </div>
 
+          {/* BODY: the actual recipe content */}
           <div className="input-row" style={{ alignItems: "stretch" }}>
             <label>{t("ingredients")}</label>
             <div>
@@ -734,7 +698,20 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               )}
             </div>
           </div>
-
+          <div className="input-row">
+            <label>{t("dietPrefsLbl")}</label>
+            <div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {DIETS.map(d => (
+                  <button
+                    key={d}
+                    className={`filter-pill ${draft.diet.includes(d) ? "on" : ""}`}
+                    onClick={() => setDraft(p => ({ ...p, diet: p.diet.includes(d) ? p.diet.filter(x => x !== d) : [...p.diet, d] }))}
+                  >{tDiet(d)}</button>
+                ))}
+              </div>
+            </div>
+          </div>
           <div className="input-row">
             <label>{t("overnightStep")}</label>
             <div className="overnight-toggle">
@@ -777,7 +754,6 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               </div>
             </div>
           </div>
-
           <div className="input-row" style={{ alignItems: "stretch" }}>
             <label>{t("steps")}</label>
             <div>
@@ -785,6 +761,45 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                 steps={draft.steps}
                 onChange={(steps) => setDraft({ ...draft, steps })}
               />
+            </div>
+          </div>
+          <div className="input-row" style={{ alignItems: "stretch" }}>
+            <label>{t("cooksNotesTipsLbl")}</label>
+            <div>
+              {(draft.tips || []).map((tip, idx) => (
+                <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 24px", gap: 6, marginBottom: 6 }}>
+                  <input
+                    type="text"
+                    value={tip}
+                    placeholder={t("exampleTip")}
+                    onChange={(e) => {
+                      const tips = [...(draft.tips || [])];
+                      tips[idx] = e.target.value;
+                      setDraft({ ...draft, tips });
+                    }}
+                  />
+                  <button type="button" className="btn ghost icon-only" onClick={() => {
+                    setDraft({ ...draft, tips: (draft.tips || []).filter((_, i) => i !== idx) });
+                  }}><Icon name="x" size={12} /></button>
+                </div>
+              ))}
+              <button type="button" className="btn ghost sm" onClick={() => {
+                setDraft({ ...draft, tips: [...(draft.tips || []), ""] });
+              }}>
+                <Icon name="plus" size={12} /> {t("addTip")}
+              </button>
+            </div>
+          </div>
+
+          {/* TIMING (kept near the bottom — feels more like a stat than
+              identity, and the cook usually fills it in once the steps
+              are written) */}
+          <div className="input-row">
+            <label>{t("prepCookMin")}</label>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input type="number" value={draft.prep || ""} onChange={(e) => setDraft({ ...draft, prep: e.target.value === "" ? 0 : +e.target.value })} placeholder={t("prepPh")} style={{ width: 120 }} />
+              <span style={{ color: "var(--ink-3)", fontFamily: "var(--mono)" }}>/</span>
+              <input type="number" value={draft.cook || ""} onChange={(e) => setDraft({ ...draft, cook: e.target.value === "" ? 0 : +e.target.value })} placeholder={t("cookPh")} style={{ width: 120 }} />
             </div>
           </div>
 
