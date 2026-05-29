@@ -39,6 +39,22 @@ const SHOPPING_ACTION_LABELS = {
   "print":    "Print",
 };
 
+const FEATURE_USAGE_LABELS = {
+  "cook-mode-start":   "Cook mode",
+  "meal-plan-open":    "Meal plan",
+  "build-a-meal-open": "Build a meal",
+};
+
+const FILTER_KEY_LABELS = {
+  courses: "Course",
+  diets: "Diet",
+  occasions: "Occasion",
+  authors: "Cook",
+  cuisines: "Cuisine",
+  difficulties: "Difficulty",
+  maxTime: "Max time",
+};
+
 function featureLabel(key) {
   return FEATURE_LABELS[key] || key;
 }
@@ -86,6 +102,22 @@ function fmtUsd(usd) {
   if (usd < 0.005) return "< $0.01";
   if (usd < 0.50) return `$${usd.toFixed(4)}`;
   return `$${usd.toFixed(2)}`;
+}
+
+function Stat({ label, value, sub }) {
+  return (
+    <div style={{ minWidth: 120 }}>
+      <div style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--ink-3)" }}>
+        {label}
+      </div>
+      <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 500, marginTop: 2 }}>
+        {value}
+      </div>
+      {sub && (
+        <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 1 }}>{sub}</div>
+      )}
+    </div>
+  );
 }
 
 // Format an ISO timestamp into "Jan 12, 3:14 pm" — local time.
@@ -160,6 +192,20 @@ export function AdminAIUsage({ onClose }) {
   const totalAdds = (data?.addMethodTotals || []).reduce((a, b) => a + (b.n || 0), 0);
   const totalViews = (data?.viewTotals || []).reduce((a, b) => a + (b.n || 0), 0);
   const totalShopping = (data?.shoppingActionTotals || []).reduce((a, b) => a + (b.n || 0), 0);
+
+  const maxFeatureUsageN = Math.max(1, ...(data?.featureUsage || []).map(r => r.n || 0));
+  const maxCookN     = Math.max(1, ...(data?.cookModeTopRecipes || []).map(r => r.n || 0));
+  const maxSearchN   = Math.max(1, ...(data?.topSearches || []).map(r => r.n || 0));
+  const maxFilterN   = Math.max(1, ...(data?.filterUsage || []).map(r => r.n || 0));
+
+  const cookFinishes = data?.cookModeCompletion?.finishes || 0;
+  const cookCompleted = data?.cookModeCompletion?.completed || 0;
+  const cookCompletionPct = cookFinishes > 0 ? Math.round((cookCompleted / cookFinishes) * 100) : null;
+
+  const funnel = data?.funnel || {};
+  const funnelAdded = funnel.total_added || 0;
+  const stickPct = funnelAdded > 0 ? Math.round((funnel.viewed_twice / funnelAdded) * 100) : null;
+  const cookedPct = funnelAdded > 0 ? Math.round((funnel.cooked / funnelAdded) * 100) : null;
 
   return (
     <div className="app admin-ai-usage" data-screen-label="Admin · AI usage">
@@ -258,26 +304,28 @@ export function AdminAIUsage({ onClose }) {
             {data.recentPrompts.length === 0 && (
               <div className="admin-ai-empty">No free-text prompts yet.</div>
             )}
-            <table className="admin-ai-table">
-              <thead>
-                <tr>
-                  <th>When</th>
-                  <th>Who</th>
-                  <th>Feature</th>
-                  <th>Prompt</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recentPrompts.map((row, i) => (
-                  <tr key={i}>
-                    <td className="ts">{fmtTs(row.created_at)}</td>
-                    <td>{row.user_email}</td>
-                    <td>{featureLabel(row.feature)}</td>
-                    <td className="prompt">{row.prompt}</td>
+            <div className="admin-ai-table-wrap">
+              <table className="admin-ai-table">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>Who</th>
+                    <th>Feature</th>
+                    <th>Prompt</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.recentPrompts.map((row, i) => (
+                    <tr key={i}>
+                      <td className="ts">{fmtTs(row.created_at)}</td>
+                      <td>{row.user_email}</td>
+                      <td>{featureLabel(row.feature)}</td>
+                      <td className="prompt">{row.prompt}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
 
           {/* Recent activity feed */}
@@ -289,28 +337,30 @@ export function AdminAIUsage({ onClose }) {
             {data.recentEvents.length === 0 && (
               <div className="admin-ai-empty">No activity yet.</div>
             )}
-            <table className="admin-ai-table">
-              <thead>
-                <tr>
-                  <th>When</th>
-                  <th>Who</th>
-                  <th>Feature</th>
-                  <th>Recipe</th>
-                  <th>Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recentEvents.map((row, i) => (
-                  <tr key={i}>
-                    <td className="ts">{fmtTs(row.created_at)}</td>
-                    <td>{row.user_email}</td>
-                    <td>{featureLabel(row.feature)}</td>
-                    <td>{row.recipe_id || ""}</td>
-                    <td className="meta">{summariseMeta(row.feature, row.meta)}</td>
+            <div className="admin-ai-table-wrap">
+              <table className="admin-ai-table">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>Who</th>
+                    <th>Feature</th>
+                    <th>Recipe</th>
+                    <th>Details</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.recentEvents.map((row, i) => (
+                    <tr key={i}>
+                      <td className="ts">{fmtTs(row.created_at)}</td>
+                      <td>{row.user_email}</td>
+                      <td>{featureLabel(row.feature)}</td>
+                      <td>{row.recipe_id || ""}</td>
+                      <td className="meta">{summariseMeta(row.feature, row.meta)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
 
           {/* Section break — switch from AI cost analytics to user behaviour. */}
@@ -323,7 +373,37 @@ export function AdminAIUsage({ onClose }) {
                 ? `${totalViews} ${totalViews === 1 ? "view" : "views"} · ${totalAdds} ${totalAdds === 1 ? "recipe added" : "recipes added"} · ${totalShopping} shopping list ${totalShopping === 1 ? "action" : "actions"}${includeAdmins ? "" : " · admins excluded"}.`
                 : "No user activity captured yet — once people start using the cookbook it'll show up here."}
             </p>
+            <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginTop: 12, fontSize: 13, color: "var(--ink-2)" }}>
+              <Stat label="Active this week" value={`${data.weeklyActive ?? 0}`} />
+              <Stat label="Returning vs prior week" value={`${data.returningUsers ?? 0}`} />
+              {stickPct != null && <Stat label="Added recipes viewed 2+ times" value={`${stickPct}%`} />}
+              {cookedPct != null && <Stat label="Added recipes ever cooked" value={`${cookedPct}%`} />}
+              {cookCompletionPct != null && <Stat label="Cook-mode completion" value={`${cookCompletionPct}%`} sub={`${cookFinishes} ${cookFinishes === 1 ? "session" : "sessions"}`} />}
+            </div>
           </div>
+
+          {/* Feature usage */}
+          <section>
+            <h2 className="admin-ai-h2">Feature usage</h2>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>
+              How often each surface gets opened.
+            </div>
+            {data.featureUsage?.length ? (
+              <div className="admin-ai-bars">
+                {data.featureUsage.map((row) => (
+                  <div className="row" key={row.event}>
+                    <div className="label">{FEATURE_USAGE_LABELS[row.event] || row.event}</div>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${(row.n / maxFeatureUsageN) * 100}%` }} />
+                    </div>
+                    <div className="n">{row.n}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-ai-empty">Nothing yet.</div>
+            )}
+          </section>
 
           {/* Most-viewed recipes */}
           <section>
@@ -345,6 +425,81 @@ export function AdminAIUsage({ onClose }) {
               </div>
             ) : (
               <div className="admin-ai-empty">No views logged yet.</div>
+            )}
+          </section>
+
+          {/* Most-cooked recipes — cook-mode sessions are a stronger
+              signal than views (someone went into cooking mode = they
+              actually planned to make it). */}
+          <section>
+            <h2 className="admin-ai-h2">Most-cooked recipes</h2>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>
+              Top 10 by cook-mode sessions started.
+            </div>
+            {data.cookModeTopRecipes?.length ? (
+              <div className="admin-ai-bars">
+                {data.cookModeTopRecipes.map((row) => (
+                  <div className="row" key={row.recipe_id}>
+                    <div className="label">{row.title || row.recipe_id}</div>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${(row.n / maxCookN) * 100}%` }} />
+                    </div>
+                    <div className="n">{row.n}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-ai-empty">No cook-mode sessions yet.</div>
+            )}
+          </section>
+
+          {/* What people search for */}
+          <section>
+            <h2 className="admin-ai-h2">What people search for</h2>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>
+              Top 20 search queries, lower-cased and grouped.
+            </div>
+            {data.topSearches?.length ? (
+              <div className="admin-ai-bars">
+                {data.topSearches.map((row) => (
+                  <div className="row" key={row.query}>
+                    <div className="label">"{row.query}"</div>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${(row.n / maxSearchN) * 100}%` }} />
+                    </div>
+                    <div className="n">{row.n}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-ai-empty">No searches logged yet.</div>
+            )}
+          </section>
+
+          {/* Filters used — answers "which slices of the cookbook get
+              browsed most often." */}
+          <section>
+            <h2 className="admin-ai-h2">Filters used</h2>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>
+              Each row counts how often a particular filter value got selected.
+            </div>
+            {data.filterUsage?.length ? (
+              <div className="admin-ai-bars">
+                {data.filterUsage.map((row, i) => (
+                  <div className="row" key={`${row.filter_key}-${row.filter_value}-${i}`}>
+                    <div className="label">
+                      <span style={{ color: "var(--ink-3)" }}>{FILTER_KEY_LABELS[row.filter_key] || row.filter_key}:</span>{" "}
+                      {row.filter_value}
+                    </div>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${(row.n / maxFilterN) * 100}%` }} />
+                    </div>
+                    <div className="n">{row.n}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-ai-empty">No filters applied yet.</div>
             )}
           </section>
 

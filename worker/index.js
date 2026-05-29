@@ -302,7 +302,13 @@ app.get("/api/admin/ai-usage", async (c) => {
   const includeAdmins = c.req.query("includeAdmins") === "1";
   const adminFilter = adminFilterSql(includeAdmins);
 
-  const [viewTotals, addMethodTotals, shoppingActionTotals, behavioralCallRow] = await Promise.all([
+  const ueAdminFilter = adminFilter.replace(/user_email/g, "ue.user_email");
+
+  const [
+    viewTotals, addMethodTotals, shoppingActionTotals, behavioralCallRow,
+    cookModeTopRecipes, cookModeCompletionRow, featureUsage,
+    topSearches, filterUsage, funnelRow, weeklyActiveRow, returningUsersRow,
+  ] = await Promise.all([
     // Top viewed recipes — JOIN to surface the title alongside the id.
     safe(`SELECT ue.recipe_id,
                  r.title,
@@ -311,7 +317,7 @@ app.get("/api/admin/ai-usage", async (c) => {
             LEFT JOIN recipes r ON r.id = ue.recipe_id
            WHERE ue.event = 'view-recipe'
              AND ue.recipe_id IS NOT NULL
-             ${adminFilter.replace(/user_email/g, "ue.user_email")}
+             ${ueAdminFilter}
            GROUP BY ue.recipe_id, r.title
            ORDER BY n DESC
            LIMIT 10`),
@@ -332,13 +338,104 @@ app.get("/api/admin/ai-usage", async (c) => {
            GROUP BY action
            ORDER BY n DESC`),
     safe(`SELECT COUNT(*) AS n FROM user_events WHERE 1=1 ${adminFilter}`),
+    // Top recipes opened in cook mode.
+    safe(`SELECT ue.recipe_id,
+                 r.title,
+                 COUNT(*) AS n
+            FROM user_events ue
+            LEFT JOIN recipes r ON r.id = ue.recipe_id
+           WHERE ue.event = 'cook-mode-start'
+             AND ue.recipe_id IS NOT NULL
+             ${ueAdminFilter}
+           GROUP BY ue.recipe_id, r.title
+           ORDER BY n DESC
+           LIMIT 10`),
+    // Cook mode completion rate: a session "completes" when stepsReached
+    // / totalSteps >= 0.9 (lets the final-step nav-away still count).
+    safe(`SELECT COUNT(*) AS finishes,
+                 SUM(CASE
+                   WHEN CAST(json_extract(meta, '$.totalSteps') AS REAL) > 0
+                    AND CAST(json_extract(meta, '$.stepsReached') AS REAL)
+                        / CAST(json_extract(meta, '$.totalSteps') AS REAL) >= 0.9
+                   THEN 1 ELSE 0 END) AS completed
+            FROM user_events
+           WHERE event = 'cook-mode-finish'
+             ${adminFilter}`),
+    // Counts for the meta-features (cook mode, meal plan, build-a-meal).
+    safe(`SELECT event, COUNT(*) AS n
+            FROM user_events
+           WHERE event IN ('cook-mode-start', 'meal-plan-open', 'build-a-meal-open')
+             ${adminFilter}
+           GROUP BY event
+           ORDER BY n DESC`),
+    // Top search queries (lower-cased for grouping).
+    safe(`SELECT LOWER(json_extract(meta, '$.query')) AS query,
+                 COUNT(*) AS n
+            FROM user_events
+           WHERE event = 'search'
+             AND json_extract(meta, '$.query') IS NOT NULL
+             AND LENGTH(json_extract(meta, '$.query')) > 0
+             ${adminFilter}
+           GROUP BY query
+           ORDER BY n DESC
+           LIMIT 20`),
+    // Most-applied filters (key + value pair).
+    safe(`SELECT json_extract(meta, '$.filter') AS filter_key,
+                 json_extract(meta, '$.value')  AS filter_value,
+                 COUNT(*) AS n
+            FROM user_events
+           WHERE event = 'filter-apply'
+             AND json_extract(meta, '$.filter') IS NOT NULL
+             ${adminFilter}
+           GROUP BY filter_key, filter_value
+           ORDER BY n DESC
+           LIMIT 20`),
+    // Funnel: of added recipes, how many got viewed >= 2x and how many
+    // ever entered cook mode. Single row with three counts.
+    safe(`WITH added AS (
+            SELECT DISTINCT recipe_id FROM user_events
+             WHERE event = 'add-recipe' AND recipe_id IS NOT NULL ${adminFilter}
+          ),
+          viewed_twice AS (
+            SELECT recipe_id FROM user_events
+             WHERE event = 'view-recipe' AND recipe_id IS NOT NULL ${adminFilter}
+             GROUP BY recipe_id HAVING COUNT(*) >= 2
+          ),
+          cooked AS (
+            SELECT DISTINCT recipe_id FROM user_events
+             WHERE event = 'cook-mode-start' AND recipe_id IS NOT NULL ${adminFilter}
+          )
+          SELECT
+            (SELECT COUNT(*) FROM added) AS total_added,
+            (SELECT COUNT(*) FROM added a INNER JOIN viewed_twice v ON v.recipe_id = a.recipe_id) AS viewed_twice,
+            (SELECT COUNT(*) FROM added a INNER JOIN cooked c ON c.recipe_id = a.recipe_id) AS cooked`),
+    // Distinct users active in the last 7 days.
+    safe(`SELECT COUNT(DISTINCT user_email) AS wau
+            FROM user_events
+           WHERE created_at >= datetime('now', '-7 days')
+             ${adminFilter}`),
+    // Returning users: active in last 7 days AND in the prior 7 days.
+    safe(`SELECT COUNT(DISTINCT a.user_email) AS returning
+            FROM user_events a
+           INNER JOIN user_events b ON b.user_email = a.user_email
+           WHERE a.created_at >= datetime('now', '-7 days')
+             AND b.created_at <  datetime('now', '-7 days')
+             AND b.created_at >= datetime('now', '-14 days')
+             ${adminFilter.replace(/user_email/g, "a.user_email")}
+             ${adminFilter.replace(/user_email/g, "b.user_email")}`),
   ]);
 
   const behavioralCalls = behavioralCallRow[0]?.n || 0;
+  const cookModeCompletion = cookModeCompletionRow[0] || { finishes: 0, completed: 0 };
+  const funnel = funnelRow[0] || { total_added: 0, viewed_twice: 0, cooked: 0 };
+  const weeklyActive = weeklyActiveRow[0]?.wau || 0;
+  const returningUsers = returningUsersRow[0]?.returning || 0;
 
   return c.json({
     featureTotals, userTotals, recentPrompts, recentEvents, tokenTotals, imageCalls,
     viewTotals, addMethodTotals, shoppingActionTotals, behavioralCalls,
+    cookModeTopRecipes, cookModeCompletion, featureUsage,
+    topSearches, filterUsage, funnel, weeklyActive, returningUsers,
     includesAdmins: includeAdmins,
   });
 });

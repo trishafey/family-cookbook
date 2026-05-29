@@ -2981,6 +2981,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .admin-ai-usage .admin-ai-table {
   width: 100%; border-collapse: collapse; font-size: 13px;
 }
+.admin-ai-usage .admin-ai-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .admin-ai-usage .admin-ai-table th {
   text-align: left; padding: 8px 12px;
   font-family: var(--mono); font-size: 10px;
@@ -3020,6 +3024,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .admin-ai-usage .admin-ai-bars .bar-track { grid-column: 1; }
   .admin-ai-usage .admin-ai-table {
     font-size: 12px;
+    min-width: 560px;
   }
   .admin-ai-usage .admin-ai-table th,
   .admin-ai-usage .admin-ai-table td { padding: 6px 8px; }

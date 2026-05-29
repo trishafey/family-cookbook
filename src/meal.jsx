@@ -1,9 +1,11 @@
 // Build a meal — multi-select recipes, then preview the combined plan.
 
-import { Icon, fmtDuration } from "./helpers.jsx";
+import { useEffect } from "react";
+import { Icon, fmtDuration, logEvent } from "./helpers.jsx";
 import { RecipeCard } from "./browse.jsx";
 
 export function BuildAMeal({ recipes, selection, clearSelection, toggleSelect, openRecipe, onClose, onShop, onPlanMeal }) {
+  useEffect(() => { logEvent("build-a-meal-open"); }, []);
   const selected = selection.map(id => recipes.find(r => r.id === id)).filter(Boolean);
   const totalTime = Math.max(...selected.map(r => r.total), 0);
   const totalCal  = selected.reduce((s, r) => s + r.nutrition.cal, 0);

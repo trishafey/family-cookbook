@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRecipes, useAuth, useFavorites, signInUrl, SIGN_OUT_URL, applyFilters, normalizeRecipe, localizeRecipe, ErrorBoundary } from "./helpers.jsx";
+import { Icon, useStorage, useRecipes, useAuth, useFavorites, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary } from "./helpers.jsx";
 import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
@@ -101,6 +101,31 @@ function App() {
   const filtered = useMemo(() => applyFilters(recipes, { q: query, ...filters }), [recipes, query, filters]);
 
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // Analytics: log search queries (debounced) and filter applies.
+  // For filters we compare to the previous snapshot and emit one
+  // event per newly-added selection — so the dashboard shows what
+  // people actively chose, not what was already on screen.
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) return;
+    const handle = setTimeout(() => logEvent("search", null, { query: q.slice(0, 100) }), 1500);
+    return () => clearTimeout(handle);
+  }, [query]);
+  const prevFiltersRef = useRef(null);
+  useEffect(() => {
+    const prev = prevFiltersRef.current;
+    if (prev) {
+      for (const k of ["courses", "diets", "occasions", "authors", "cuisines", "difficulties"]) {
+        const added = (filters[k] || []).filter(v => !(prev[k] || []).includes(v));
+        for (const v of added) logEvent("filter-apply", null, { filter: k, value: v });
+      }
+      if (filters.maxTime && filters.maxTime !== prev.maxTime) {
+        logEvent("filter-apply", null, { filter: "maxTime", value: String(filters.maxTime) });
+      }
+    }
+    prevFiltersRef.current = filters;
+  }, [filters]);
 
   // ─── Meal selection ───
   const [selection, setSelection] = useStorage("meal:selection", []);

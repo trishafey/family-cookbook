@@ -1,7 +1,7 @@
 // Cooking mode — one step at a time, full-screen, with reverse-timing.
 
-import { useState, useEffect, useMemo } from "react";
-import { useStorage, scheduleForFinish, fmtTime, fmtDuration, formatQty, formatIngredientQty, Icon } from "./helpers.jsx";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useStorage, scheduleForFinish, fmtTime, fmtDuration, formatQty, formatIngredientQty, Icon, logEvent } from "./helpers.jsx";
 import { TimeOfDayInput } from "./ui.jsx";
 import { NeedHelp } from "./need-help.jsx";
 import { useLang } from "./i18n.js";
@@ -10,6 +10,26 @@ import { FLAGS } from "./config/flags.js";
 export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClose, authEmail }) {
   const { t, tPrecision } = useLang();
   const [idx, setIdx] = useStorage(`cookmode:${recipe.id}:idx`, 0);
+
+  // Analytics: log one start per cook-mode session and one finish
+  // (with the highest step reached) when the modal unmounts. The
+  // session boundary is the component's lifetime, not the recipe id.
+  const maxStepRef = useRef(idx);
+  useEffect(() => {
+    logEvent("cook-mode-start", recipe.id, { totalSteps: steps.length });
+    return () => {
+      logEvent("cook-mode-finish", recipe.id, {
+        stepsReached: maxStepRef.current + 1,
+        totalSteps: steps.length,
+      });
+    };
+    // Intentionally empty deps — we want one start at mount, one
+    // finish at unmount. recipe.id is stable for this modal session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (idx > maxStepRef.current) maxStepRef.current = idx;
+  }, [idx]);
   // Per-step start-time overrides, stored as ISO strings. Editing a
   // step's start time anchors that step at the new time; subsequent
   // steps then flow forward from it, so the rest of the timeline

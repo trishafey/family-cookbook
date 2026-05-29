@@ -2,8 +2,8 @@
 // 1. PlanMealModal — pick a finish date+time
 // 2. MealPlanPage   — combined timeline + per-recipe tabs
 
-import { useState, useMemo, Fragment } from "react";
-import { Icon, fmtDuration, fmtTime, scheduleForFinish } from "./helpers.jsx";
+import { useState, useEffect, useMemo, Fragment } from "react";
+import { Icon, fmtDuration, fmtTime, logEvent, scheduleForFinish } from "./helpers.jsx";
 import { Modal } from "./ui.jsx";
 import { useLang } from "./i18n.js";
 
@@ -165,6 +165,8 @@ const RECIPE_COLORS = ["#b04a2a", "#6e7a3a", "#3a5a6a", "#d68a2a", "#8a3a5a"];
 export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, onCookMode, onShop }) {
   const { t, locale } = useLang();
   const [tab, setTab] = useState("combined");
+
+  useEffect(() => { logEvent("meal-plan-open"); }, []);
 
   // Each recipe gets its own back-scheduled timeline
   const perRecipe = useMemo(() => {
