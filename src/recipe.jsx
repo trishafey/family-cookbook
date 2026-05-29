@@ -286,7 +286,7 @@ function servingsForRecipe(recipe, scaler) {
 // ─────────────────────────────────────────────────────────────
 // Shared: Stats strip (prep / cook / total / servings)
 // ─────────────────────────────────────────────────────────────
-function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, setShowNutrition }) {
+function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, setShowNutrition, simpleMode }) {
   const { t } = useLang();
   const isWeight = recipe.scaleBy === "weight";
   const currentServings = servingsForRecipe(recipe, scaler);
@@ -331,7 +331,7 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
           </div>
         </div>
       </div>
-      {showNutrition && (
+      {showNutrition && !simpleMode && (
         <>
         <div className="row nutrition">
           <div className="cell"><div className="val">{finalNutrition.cal}</div><div className="label">Calories</div></div>
@@ -346,12 +346,14 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
         </div>
         </>
       )}
-      <div style={{ padding: "8px 14px", borderTop: "1px solid var(--rule)", textAlign: "center", background: "var(--paper-2)" }}>
-        <button className="btn ghost sm" onClick={() => setShowNutrition(!showNutrition)} style={{ fontSize: 11 }}>
-          <Icon name={showNutrition ? "chevD" : "chevR"} size={11} />
-          {showNutrition ? t("hideNutrition") : t("showNutrition")}
-        </button>
-      </div>
+      {!simpleMode && (
+        <div style={{ padding: "8px 14px", borderTop: "1px solid var(--rule)", textAlign: "center", background: "var(--paper-2)" }}>
+          <button className="btn ghost sm" onClick={() => setShowNutrition(!showNutrition)} style={{ fontSize: 11 }}>
+            <Icon name={showNutrition ? "chevD" : "chevR"} size={11} />
+            {showNutrition ? t("hideNutrition") : t("showNutrition")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -979,7 +981,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
                           doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                           onCookMode, onShop, comments, addComment, deleteComment,
                           allRecipes, onSaveRecipe, openRecipe, onSaveToLab,
-                          authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith }) {
+                          authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
   const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <>
@@ -994,18 +996,20 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
           <div className="sub">{recipe.subtitle}</div>
           <SourceLink recipe={recipe} />
 
-          <TagRow recipe={recipe} scaled={scaled} />
+          {!simpleMode && <TagRow recipe={recipe} scaled={scaled} />}
 
           <StatsStrip
         recipe={recipe} scaler={scaler} scaled={scaled}
             finalNutrition={finalNutrition}
-            showNutrition={showNutrition} setShowNutrition={setShowNutrition}
+            showNutrition={showNutrition} setShowNutrition={setShowNutrition} simpleMode={simpleMode}
           />
 
           <div className="recipe-actions">
-            <button className="btn primary" onClick={() => onCookMode(recipe, scaled.steps, finalIngs)}>
-              <Icon name="play" /> {t("startCooking")}
-            </button>
+            {!simpleMode && (
+              <button className="btn primary" onClick={() => onCookMode(recipe, scaled.steps, finalIngs)}>
+                <Icon name="play" /> {t("startCooking")}
+              </button>
+            )}
             <button className="btn" onClick={() => onShop([{ recipe, ings: finalIngs }])}>
               <Icon name="bowl" /> {t("shoppingList")}
             </button>
@@ -1039,9 +1043,11 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
         </aside>
 
         <div>
-          <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
+          {!simpleMode && (
+            <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
+          )}
           <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
-          {FLAGS.needHelp && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
+          {FLAGS.needHelp && !simpleMode && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
 
@@ -1065,7 +1071,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
                          doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                          onCookMode, onShop, comments, addComment, deleteComment,
                          allRecipes, onSaveRecipe, openRecipe, onSaveToLab,
-                         authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith }) {
+                         authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
   const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <>
@@ -1089,18 +1095,20 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
         </div>
       </div>
 
-      <TagRow recipe={recipe} scaled={scaled} />
+      {!simpleMode && <TagRow recipe={recipe} scaled={scaled} />}
 
       <StatsStrip
         recipe={recipe} scaler={scaler} scaled={scaled}
         finalNutrition={finalNutrition}
-        showNutrition={showNutrition} setShowNutrition={setShowNutrition}
+        showNutrition={showNutrition} setShowNutrition={setShowNutrition} simpleMode={simpleMode}
       />
 
       <div className="recipe-actions">
-        <button className="btn primary" onClick={() => onCookMode(recipe, scaled.steps, finalIngs)}>
-          <Icon name="play" /> {t("startCooking")}
-        </button>
+        {!simpleMode && (
+          <button className="btn primary" onClick={() => onCookMode(recipe, scaled.steps, finalIngs)}>
+            <Icon name="play" /> {t("startCooking")}
+          </button>
+        )}
         <button className="btn" onClick={() => onShop([{ recipe, ings: finalIngs }])}>
           <Icon name="bowl" /> {t("shoppingList")}
         </button>
@@ -1128,9 +1136,11 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
         </aside>
 
         <div>
-          <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
+          {!simpleMode && (
+            <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
+          )}
           <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
-          {FLAGS.needHelp && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
+          {FLAGS.needHelp && !simpleMode && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
 
@@ -1152,7 +1162,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
                        doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                        onCookMode, onShop, comments, addComment, deleteComment,
                        allRecipes, onSaveRecipe, openRecipe,
-                       authEmail, onEditRecipe, onDeleteRecipe }) {
+                       authEmail, onEditRecipe, onDeleteRecipe, simpleMode }) {
   const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <div className="recipe-binder">
@@ -1180,18 +1190,20 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <span><strong>{scaler.servings || `${scaler.weight} lb`}</strong> {t("servingsLong")}</span>
       </div>
 
-      <TagRow recipe={recipe} scaled={scaled} />
+      {!simpleMode && <TagRow recipe={recipe} scaled={scaled} />}
 
       <StatsStrip
         recipe={recipe} scaler={scaler} scaled={scaled}
         finalNutrition={finalNutrition}
-        showNutrition={showNutrition} setShowNutrition={setShowNutrition}
+        showNutrition={showNutrition} setShowNutrition={setShowNutrition} simpleMode={simpleMode}
       />
 
       <div className="recipe-actions">
-        <button className="btn primary" onClick={() => onCookMode(recipe, scaled.steps, finalIngs)}>
-          <Icon name="play" /> {t("startCooking")}
-        </button>
+        {!simpleMode && (
+          <button className="btn primary" onClick={() => onCookMode(recipe, scaled.steps, finalIngs)}>
+            <Icon name="play" /> {t("startCooking")}
+          </button>
+        )}
         <button className="btn" onClick={() => onShop([{ recipe, ings: finalIngs }])}>
           <Icon name="bowl" /> {t("shoppingList")}
         </button>
@@ -1215,9 +1227,11 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
         </aside>
         <div>
           <h3 style={{ marginBottom: 14, fontStyle: "italic" }}>How to make it</h3>
-          <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
+          {!simpleMode && (
+            <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
+          )}
           <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
-          {FLAGS.needHelp && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
+          {FLAGS.needHelp && !simpleMode && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
 
@@ -1233,7 +1247,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
 // ─────────────────────────────────────────────────────────────
 // Top-level Recipe detail — holds all state, picks the variant
 // ─────────────────────────────────────────────────────────────
-export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, deleteComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith }) {
+export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, deleteComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
   const { t } = useLang();
   // Scaling state
   const [servings, setServings] = useState(recipe.servingsDefault);
@@ -1333,6 +1347,7 @@ export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, 
     allRecipes, onSaveRecipe, onSaveToLab,
     openRecipe: onOpenRecipe || ((r) => {}),
     authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith,
+    simpleMode,
   };
 
   return (

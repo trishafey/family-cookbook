@@ -77,6 +77,20 @@ function App() {
   // ─── Sign-in state ───
   const { email: authEmail } = useAuth();
 
+  // ─── Simplified view ───
+  // Accessibility-first mode for less technical cooks (especially
+  // older family members). Strips out AI surfaces, filters,
+  // timing, nutrition, and the cook-mode flow — leaves the
+  // printout-like core (photo, ingredients, steps, comments,
+  // pairings). Toggled from the avatar menu. Body class drives
+  // typography/layout adjustments in CSS.
+  const [simpleMode, setSimpleMode] = useStorage("ui:simpleMode", false);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.body.classList.toggle("simple-mode", !!simpleMode);
+    return () => document.body.classList.remove("simple-mode");
+  }, [simpleMode]);
+
   // ─── Search / filter ───
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState({
@@ -272,30 +286,39 @@ function App() {
               onChange={(e) => { setQuery(e.target.value); if (view !== "browse") setView("browse"); }}
             />
             {query && <button className="btn ghost icon-only" onClick={() => setQuery("")}><Icon name="x" size={12} /></button>}
-            <button
-              className="btn ghost icon-only search-filter-btn"
-              onClick={() => setFiltersOpen(true)}
-              title={t("filters")}
-              aria-label={t("filters")}
-            >
-              <Icon name="filter" size={14} />
-            </button>
+            {!simpleMode && (
+              <button
+                className="btn ghost icon-only search-filter-btn"
+                onClick={() => setFiltersOpen(true)}
+                title={t("filters")}
+                aria-label={t("filters")}
+              >
+                <Icon name="filter" size={14} />
+              </button>
+            )}
           </div>
           <div className="nav-actions">
-            {FLAGS.lab && (
+            {!simpleMode && FLAGS.lab && (
             <button className="btn ghost sm" onClick={() => setView("lab")} title={t("kitchenExp")}>
               <Icon name="sparkle" size={13} /> <span className="btn-label">{t("theLab")}</span>
             </button>
             )}
-            <button className="btn ghost sm" onClick={() => setView("meal")} title={t("buildMeal")}>
-              <Icon name="bowl" size={13} /> <span className="btn-label">{t("buildMeal")}</span>
-              {selection.length > 0 && <span style={{ marginLeft: 4, padding: "1px 6px", background: "var(--accent)", color: "var(--paper)", borderRadius: 999, fontSize: 10, fontWeight: 600 }}>{selection.length}</span>}
-            </button>
+            {!simpleMode && (
+              <button className="btn ghost sm" onClick={() => setView("meal")} title={t("buildMeal")}>
+                <Icon name="bowl" size={13} /> <span className="btn-label">{t("buildMeal")}</span>
+                {selection.length > 0 && <span style={{ marginLeft: 4, padding: "1px 6px", background: "var(--accent)", color: "var(--paper)", borderRadius: 999, fontSize: 10, fontWeight: 600 }}>{selection.length}</span>}
+              </button>
+            )}
             <button className="btn primary sm" onClick={() => setView("add")} title={t("addRecipe")}>
               <Icon name="plus" size={13} /> <span className="btn-label">{t("addRecipe")}</span>
             </button>
             {authEmail ? (
-              <AvatarMenu email={authEmail} onAdminAIUsage={() => setView("admin-ai-usage")} />
+              <AvatarMenu
+                email={authEmail}
+                simpleMode={simpleMode}
+                onToggleSimpleMode={() => setSimpleMode(m => !m)}
+                onAdminAIUsage={() => setView("admin-ai-usage")}
+              />
             ) : (
               <a className="btn sm sign-in" href={signInUrl()} title={t("signIn")}>
                 <Icon name="chef" size={13} /> <span className="btn-label">{t("signIn")}</span>
@@ -342,6 +365,7 @@ function App() {
           onEditRecipe={onEditRecipe}
           onDeleteRecipe={onDeleteRecipe}
           onBuildMealWith={(paired) => buildMealWith(recipe, paired)}
+          simpleMode={simpleMode}
         />
         </ErrorBoundary>
       )}
@@ -513,7 +537,7 @@ function App() {
 // fine. Add to this array if more admins need access.
 const ADMIN_EMAILS = ["patricia.fejdasz@gmail.com"];
 
-function AvatarMenu({ email, onAdminAIUsage }) {
+function AvatarMenu({ email, simpleMode, onToggleSimpleMode, onAdminAIUsage }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const initial = (email[0] || "?").toUpperCase();
@@ -527,6 +551,10 @@ function AvatarMenu({ email, onAdminAIUsage }) {
     return () => document.removeEventListener("mousedown", onClickAway);
   }, [open]);
 
+  // Items rendered as buttons need the same look-and-feel as the
+  // <a> below — easier to keep style overrides in one place.
+  const itemBtnStyle = { background: "none", border: 0, textAlign: "left", width: "100%", cursor: "pointer", font: "inherit", color: "inherit" };
+
   return (
     <div className="avatar-menu" ref={ref}>
       <button className="avatar" onClick={() => setOpen(o => !o)} title={email} aria-label="Menu">
@@ -535,12 +563,20 @@ function AvatarMenu({ email, onAdminAIUsage }) {
       {open && (
         <div className="menu" role="menu">
           <div className="label">{email}</div>
+          <button
+            type="button"
+            className="item"
+            onClick={() => { setOpen(false); onToggleSimpleMode?.(); }}
+            style={itemBtnStyle}
+          >
+            {simpleMode ? t("simpleModeOn") : t("simpleModeOff")}
+          </button>
           {isAdmin && (
             <button
               type="button"
               className="item"
               onClick={() => { setOpen(false); onAdminAIUsage?.(); }}
-              style={{ background: "none", border: 0, textAlign: "left", width: "100%", cursor: "pointer", font: "inherit", color: "inherit" }}
+              style={itemBtnStyle}
             >
               AI usage
             </button>
