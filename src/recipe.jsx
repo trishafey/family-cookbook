@@ -648,7 +648,10 @@ function FamilySaysBlock({ recipe, scaler, applied, setApplied, onSaveRecipe, au
 
 function CooksNotes({ recipe, defaultOpen, scaler, applied, setApplied, onSaveRecipe, authEmail }) {
   const { t } = useLang();
-  const familySaysOn = FLAGS.familySays;
+  // AI Summary (FamilySaysBlock) is hidden in the UI for now —
+  // the worker endpoint still runs so cached summaries are
+  // preserved, but the block doesn't render. Bring it back by
+  // restoring the FLAGS.familySays gate.
   return (
     <details className="disclosure first" open={defaultOpen}>
       <summary>
@@ -656,20 +659,9 @@ function CooksNotes({ recipe, defaultOpen, scaler, applied, setApplied, onSaveRe
         <h3>{t("cooksNotes")}</h3>
         <span className="count">
           {recipe.tips.length} {recipe.tips.length === 1 ? t("oneNote") : t("manyNotes")}
-          {familySaysOn && recipe.familySays && " + AI summary"}
         </span>
       </summary>
       <div className="disclosure-body">
-        {familySaysOn && (
-          <FamilySaysBlock
-            recipe={recipe}
-            scaler={scaler}
-            applied={applied}
-            setApplied={setApplied}
-            onSaveRecipe={onSaveRecipe}
-            authEmail={authEmail}
-          />
-        )}
         <ul style={{ paddingLeft: 18, margin: 0 }}>
           {recipe.tips.map((tip, i) => (
             <li key={i} style={{ fontFamily: "var(--serif)", fontSize: 16, lineHeight: 1.5, padding: "6px 0", color: "var(--ink-2)" }}>{tip}</li>
@@ -1040,7 +1032,9 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="recipe-body">
         <aside className="ingredients-panel">
           <IngredientsCard recipe={recipe} finalIngs={finalIngs} scaler={scaler} onShop={() => onShop([{ recipe, ings: finalIngs }])}>
-            {FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} authEmail={authEmail} />}
+            {/* Adjust with AI is hidden for now — the chips
+                migrated into Need Help. Bring this back with a
+                more dynamic per-user variant approach later. */}
           </IngredientsCard>
         </aside>
 
@@ -1127,7 +1121,9 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="recipe-body">
         <aside className="ingredients-panel">
           <IngredientsCard recipe={recipe} finalIngs={finalIngs} scaler={scaler} onShop={() => onShop([{ recipe, ings: finalIngs }])}>
-            {FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} authEmail={authEmail} />}
+            {/* Adjust with AI is hidden for now — the chips
+                migrated into Need Help. Bring this back with a
+                more dynamic per-user variant approach later. */}
           </IngredientsCard>
         </aside>
 
@@ -1212,7 +1208,9 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="binder-body">
         <aside>
           <IngredientsCard recipe={recipe} finalIngs={finalIngs} scaler={scaler} onShop={() => onShop([{ recipe, ings: finalIngs }])}>
-            {FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} authEmail={authEmail} />}
+            {/* Adjust with AI is hidden for now — the chips
+                migrated into Need Help. Bring this back with a
+                more dynamic per-user variant approach later. */}
           </IngredientsCard>
         </aside>
         <div>

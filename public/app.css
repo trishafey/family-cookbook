@@ -1032,9 +1032,9 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
    ───────────────────────────────────────────────────────────────────── */
 .need-help {
   margin-top: 40px;
-  border: 1px solid var(--rule);
+  border: 1px solid rgba(58,90,106,.2);
   border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, rgba(58,90,106,.04), transparent 70%);
+  background: rgba(58,90,106,.06);
   overflow: hidden;
 }
 .need-help .head {

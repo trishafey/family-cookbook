@@ -4,23 +4,54 @@
 import { useState, useEffect, useRef } from "react";
 import { Icon, signInUrl } from "./helpers.jsx";
 
-// Curated prompts shown as chips. Adapts to whether we're in cook mode
-// (with a current step) or in the full-page steps section.
+// Curated prompts shown as chips. Adapts to whether we're in cook
+// mode (with a current step) or in the full-page steps section.
+// Includes the adjust-style chips (GF, dairy-free, weeknight,
+// per-recipe extras) that used to live in the standalone "Adjust
+// with AI" box — moved here so the cook has one place to ask the
+// kitchen AI anything, including dietary swaps. A more dynamic
+// per-user variant approach can replace this later.
+const PER_RECIPE_PROMPTS = {
+  "ewas-pierogies": [
+    { label: "Meat filling variation",        t: "How do I make a ground meat filling for these pierogies?" },
+    { label: "Sauerkraut & mushroom filling", t: "How do I make a sauerkraut and mushroom filling?" },
+    { label: "Blueberry (sweet) pierogies",   t: "Can I make blueberry pierogies with this dough?" },
+  ],
+  "trish-covid-bread": [
+    { label: "Olive + rosemary loaf",     t: "How do I add olives and rosemary to this bread?" },
+    { label: "Date, walnut & cinnamon",   t: "How do I make a sweet date-walnut-cinnamon variation?" },
+  ],
+  "kt-turkey": [
+    { label: "Make the stuffing meatless", t: "How do I make the stuffing meatless?" },
+  ],
+  "block-party-ribs": [
+    { label: "Rib broth into tomato soup", t: "How do I use the leftover rib broth for Ryszard's tomato soup?" },
+  ],
+};
+
 function makeHelpPrompts(recipe, currentStep) {
   const base = [
     { label: "I'm missing an ingredient", t: `I don't have one of the ingredients for ${recipe.title}. What can I sub?` },
     { label: "I added too much…", t: "I accidentally added too much of one ingredient — how do I save this?" },
     { label: "It's overcooking", t: "I think it's overcooking. How do I rescue it?" },
-    { label: "Substitute for diet", t: "What's a way to adapt this for a diet restriction?" },
     { label: "Make it ahead", t: "Can this be made ahead, and how?" },
   ];
+  // Dietary swap chips — skip the ones the recipe already is.
+  const diet = recipe.diet || [];
+  const swaps = [];
+  if (!diet.includes("Gluten-free")) swaps.push({ label: "Make it gluten-free", t: `What are good gluten-free substitutions for ${recipe.title}?` });
+  if (!diet.includes("Dairy-free"))  swaps.push({ label: "Make it dairy-free",  t: `What are good dairy-free substitutions for ${recipe.title}?` });
+  swaps.push({ label: "Quicker weeknight version", t: `How do I make a quicker weeknight version of ${recipe.title}?` });
+  const perRecipe = PER_RECIPE_PROMPTS[recipe.id] || [];
   if (currentStep) {
     return [
       { label: `Help with: ${currentStep.t}`, t: `I'm on the step "${currentStep.t}". ${currentStep.d.slice(0, 80)}… What if it doesn't look right?` },
       ...base,
+      ...swaps,
+      ...perRecipe,
     ];
   }
-  return base;
+  return [...base, ...swaps, ...perRecipe];
 }
 
 export function NeedHelp({ recipe, currentStep, compact, defaultOpen, authEmail, servings, weight, appliedAdjustments }) {
