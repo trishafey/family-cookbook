@@ -258,8 +258,8 @@ const S = {
   removePage:     { en: "Remove page",        pl: "Usuń stronę" },
   extractRecipeN: { en: "Extract recipe ({n})", pl: "Wyciągnij przepis ({n})" },
   multiPagePhotoHelper: {
-    en: "Add up to 6 photos — front + back of a recipe card, or both pages of a cookbook spread. You'll review every field before saving.",
-    pl: "Dodaj do 6 zdjęć — przód i tył karty z przepisem albo obie strony rozkładówki książki. Sprawdzisz każde pole przed zapisem.",
+    en: "Add up to 6 photos — front + back of a recipe card, or both pages of a cookbook spread. Drag-and-drop works on desktop. You'll review every field before saving.",
+    pl: "Dodaj do 6 zdjęć — przód i tył karty z przepisem albo obie strony rozkładówki książki. Na komputerze możesz upuszczać pliki na pole. Sprawdzisz każde pole przed zapisem.",
   },
   pasteUrlHere:   { en: "Paste a recipe URL", pl: "Wklej link do przepisu" },
   fetchAndParse:  { en: "Fetch & parse",      pl: "Pobierz i przetwórz" },
