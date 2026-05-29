@@ -30,6 +30,51 @@ function featureLabel(key) {
   return FEATURE_LABELS[key] || key;
 }
 
+// OpenAI list prices in USD per 1M tokens. The API returns versioned
+// model strings (e.g. "gpt-4o-mini-2024-07-18"), so we match by prefix.
+// Update when OpenAI changes pricing.
+const PRICE_PER_M = {
+  "gpt-4o-mini": { in: 0.15, out: 0.60 },
+  "gpt-4o":      { in: 2.50, out: 10.00 },
+};
+// gpt-image-1 standard 1024x1024. We don't surface size yet so this
+// is the assumed-for-all-images rate.
+const IMAGE_PRICE_USD = 0.04;
+
+function priceFor(model) {
+  if (!model) return null;
+  for (const key of Object.keys(PRICE_PER_M)) {
+    if (model.startsWith(key)) return PRICE_PER_M[key];
+  }
+  return null;
+}
+
+function estimateCostUsd(tokenTotals, imageCalls) {
+  let usd = 0;
+  for (const row of tokenTotals || []) {
+    const price = priceFor(row.model);
+    if (!price) continue;
+    usd += (row.prompt_tokens || 0) * price.in / 1_000_000;
+    usd += (row.completion_tokens || 0) * price.out / 1_000_000;
+  }
+  usd += (imageCalls || 0) * IMAGE_PRICE_USD;
+  return usd;
+}
+
+function fmtTokens(n) {
+  if (!n) return "0";
+  if (n < 1000) return `${n}`;
+  if (n < 1_000_000) return `${(n / 1000).toFixed(1)}k`;
+  return `${(n / 1_000_000).toFixed(2)}M`;
+}
+
+function fmtUsd(usd) {
+  if (usd <= 0) return "$0.00";
+  if (usd < 0.005) return "< $0.01";
+  if (usd < 0.50) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(2)}`;
+}
+
 // Format an ISO timestamp into "Jan 12, 3:14 pm" — local time.
 function fmtTs(iso) {
   if (!iso) return "";
@@ -89,6 +134,10 @@ export function AdminAIUsage({ onClose }) {
   const totalCalls = (data?.featureTotals || []).reduce((a, b) => a + (b.n || 0), 0);
   const maxFeatureN = Math.max(1, ...(data?.featureTotals || []).map(r => r.n || 0));
   const maxUserN    = Math.max(1, ...(data?.userTotals || []).map(r => r.n || 0));
+  const totalTokens = (data?.tokenTotals || []).reduce(
+    (a, r) => a + (r.prompt_tokens || 0) + (r.completion_tokens || 0), 0,
+  );
+  const estCostUsd = estimateCostUsd(data?.tokenTotals, data?.imageCalls);
 
   return (
     <div className="app admin-ai-usage" data-screen-label="Admin · AI usage">
@@ -105,7 +154,7 @@ export function AdminAIUsage({ onClose }) {
         </h1>
         <p style={{ color: "var(--ink-3)", fontFamily: "var(--serif)", fontSize: 15, marginTop: 8 }}>
           {totalCalls > 0
-            ? `${totalCalls} AI calls logged across all features.`
+            ? `${totalCalls} AI ${totalCalls === 1 ? "call" : "calls"} · ${fmtTokens(totalTokens)} tokens · est. ${fmtUsd(estCostUsd)}`
             : "No usage data yet. Once the family uses an AI feature it'll show up here."}
         </p>
       </header>
@@ -154,7 +203,14 @@ export function AdminAIUsage({ onClose }) {
                   <div className="bar-track">
                     <div className="bar-fill" style={{ width: `${(row.n / maxUserN) * 100}%` }} />
                   </div>
-                  <div className="n">{row.n}</div>
+                  <div className="n">
+                    {row.n}
+                    {row.tokens > 0 && (
+                      <span style={{ color: "var(--ink-3)", fontWeight: 400, marginLeft: 8 }}>
+                        {fmtTokens(row.tokens)} tok
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

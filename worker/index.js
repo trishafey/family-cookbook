@@ -227,12 +227,14 @@ app.get("/api/admin/ai-usage", async (c) => {
     }
   };
 
-  const [featureTotals, userTotals, recentPrompts, recentEvents] = await Promise.all([
+  const [featureTotals, userTotals, recentPrompts, recentEvents, tokenTotals, imageCallRow] = await Promise.all([
     safe(`SELECT feature, COUNT(*) AS n
             FROM ai_events
            GROUP BY feature
            ORDER BY n DESC`),
-    safe(`SELECT user_email, COUNT(*) AS n
+    safe(`SELECT user_email,
+                 COUNT(*) AS n,
+                 COALESCE(SUM(CAST(json_extract(meta, '$.usage.total_tokens') AS INTEGER)), 0) AS tokens
             FROM ai_events
            GROUP BY user_email
            ORDER BY n DESC`),
@@ -249,9 +251,22 @@ app.get("/api/admin/ai-usage", async (c) => {
             FROM ai_events
            ORDER BY created_at DESC
            LIMIT 50`),
+    // Per-model token sums for the cost estimate. Image gen
+    // (gpt-image-1) is priced per call, not per token, so we
+    // count those separately below.
+    safe(`SELECT json_extract(meta, '$.model') AS model,
+                 SUM(CAST(json_extract(meta, '$.usage.prompt_tokens') AS INTEGER)) AS prompt_tokens,
+                 SUM(CAST(json_extract(meta, '$.usage.completion_tokens') AS INTEGER)) AS completion_tokens,
+                 COUNT(*) AS calls
+            FROM ai_events
+           WHERE json_extract(meta, '$.usage.total_tokens') IS NOT NULL
+           GROUP BY model`),
+    safe(`SELECT COUNT(*) AS n FROM ai_events WHERE feature = 'hero-image'`),
   ]);
 
-  return c.json({ featureTotals, userTotals, recentPrompts, recentEvents });
+  const imageCalls = imageCallRow[0]?.n || 0;
+
+  return c.json({ featureTotals, userTotals, recentPrompts, recentEvents, tokenTotals, imageCalls });
 });
 
 // Create a new recipe. The draft from the AddRecipe form has the full
