@@ -221,17 +221,6 @@ const LANG_NAME = { en: "English", pl: "Polish" };
 async function translateAndStore(env, recipeId, recipe, fromLang, toLang) {
   if (!env.OPENAI_API_KEY || fromLang === toLang) return;
 
-  // Daily cap reuses the same table as extraction.
-  const today = new Date().toISOString().slice(0, 10);
-  const row = await env.DB.prepare("SELECT cost_cents FROM ai_usage WHERE date = ?").bind(today).first();
-  if ((row?.cost_cents || 0) >= AI_DAILY_CAP_CENTS) {
-    console.warn("translate skipped: daily cap reached");
-    return;
-  }
-  await env.DB.prepare(
-    "INSERT INTO ai_usage (date, cost_cents) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET cost_cents = cost_cents + excluded.cost_cents"
-  ).bind(today, AI_COST_PER_CALL_CENTS).run();
-
   // Strip down the input so the model only sees what it needs to translate.
   const input = {
     title: recipe.title || "",
@@ -544,12 +533,12 @@ app.delete("/api/admin/recipes/:id", async (c) => {
 // ─── AI: paste-text → recipe draft ───
 // Sends the user's pasted text to OpenAI with a strict json_schema
 // response format matching the cookbook's recipe shape, so the model
-// can't hallucinate extra keys or skip required ones. Gated behind
-// a Workers KV-free daily-spend cap (stored in D1 ai_usage table) so
-// a runaway loop can't drain the OpenAI account.
-
-const AI_DAILY_CAP_CENTS = 100;         // $1/day. Bump in code when the family wants more.
-const AI_COST_PER_CALL_CENTS = 1;       // Coarse: real cost is ~0.06¢; we round up so the cap doubles as a call-rate limit.
+// can't hallucinate extra keys or skip required ones.
+//
+// The OpenAI account has its own hard billing limit, so we don't
+// duplicate that with a local cap. The ai_usage table is left in
+// place (writes were removed) in case we want to re-introduce
+// tracking later.
 const AI_OPENAI_MODEL = "gpt-4o-mini";
 
 const AI_EXTRACT_SYSTEM_PROMPT = `You are a recipe extraction assistant for a family cookbook. The user will paste text containing a recipe — could be an email from a relative, a blog post copy-paste, a screenshot transcript, or freeform notes. Extract the recipe into structured JSON matching the provided schema.
@@ -678,17 +667,6 @@ const AI_RECIPE_SCHEMA = {
   },
 };
 
-async function aiCapCheckAndIncrement(c, costCents = AI_COST_PER_CALL_CENTS) {
-  const today = new Date().toISOString().slice(0, 10);
-  const row = await c.env.DB.prepare("SELECT cost_cents FROM ai_usage WHERE date = ?").bind(today).first();
-  if ((row?.cost_cents || 0) >= AI_DAILY_CAP_CENTS) {
-    return { ok: false, error: "Daily AI spend cap reached. Try again tomorrow." };
-  }
-  await c.env.DB.prepare(
-    "INSERT INTO ai_usage (date, cost_cents) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET cost_cents = cost_cents + excluded.cost_cents"
-  ).bind(today, costCents).run();
-  return { ok: true };
-}
 
 app.post("/api/admin/ai/extract-text", async (c) => {
   const email = authedEmail(c);
@@ -702,9 +680,6 @@ app.post("/api/admin/ai/extract-text", async (c) => {
   const text = (body?.text || "").trim();
   if (!text) return c.json({ error: "no text provided" }, 400);
   if (text.length > 30000) return c.json({ error: "text too long (max 30000 chars)" }, 413);
-
-  const cap = await aiCapCheckAndIncrement(c);
-  if (!cap.ok) return c.json({ error: cap.error }, 429);
 
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -810,9 +785,6 @@ app.post("/api/admin/ai/extract-url", async (c) => {
   } catch {
     return c.json({ error: "That doesn't look like a valid http(s) URL." }, 400);
   }
-
-  const cap = await aiCapCheckAndIncrement(c);
-  if (!cap.ok) return c.json({ error: cap.error }, 429);
 
   // Fetch the page. Some sites 403 the default Workers user agent, so
   // we pretend to be a normal browser. 15-second timeout in case the
@@ -922,9 +894,6 @@ app.post("/api/admin/ai/extract-image", async (c) => {
     if (!f.type.startsWith("image/")) return c.json({ error: `'${f.name || "file"}' isn't an image.` }, 415);
     if (f.size > MAX_BYTES_PER_FILE) return c.json({ error: `'${f.name || "file"}' is over 8 MB.` }, 413);
   }
-
-  const cap = await aiCapCheckAndIncrement(c);
-  if (!cap.ok) return c.json({ error: cap.error }, 429);
 
   // For each upload: read bytes once, R2-tee in parallel, base64 for
   // the vision call. R2 failure is a soft fail per-file — the
@@ -1104,9 +1073,6 @@ app.post("/api/admin/ai/pairings", async (c) => {
     return c.json({ ...recipe.pairings, cached: true });
   }
 
-  const cap = await aiCapCheckAndIncrement(c);
-  if (!cap.ok) return c.json({ error: cap.error }, 429);
-
   // Build a compact catalogue of other recipes for the AI to pick
   // from. We only send the fields the AI needs to judge a pairing —
   // ingredients/steps aren't necessary and would bloat the prompt.
@@ -1246,9 +1212,6 @@ app.post("/api/admin/ai/help", async (c) => {
   const turns = Array.isArray(body?.turns) ? body.turns.slice(-12) : [];
   if (!turns.length) return c.json({ error: "no question" }, 400);
 
-  const cap = await aiCapCheckAndIncrement(c);
-  if (!cap.ok) return c.json({ error: cap.error }, 429);
-
   // Compact context for the model — full ingredient list (with the
   // cook's current scaled qty, so suggestions match what's actually
   // in front of them), step titles for orientation, plus live
@@ -1334,9 +1297,6 @@ app.post("/api/admin/ai/adjust", async (c) => {
   const recipe = body?.recipe;
   const prompt = (body?.prompt || "").trim();
   if (!recipe?.title || !prompt) return c.json({ error: "missing recipe or prompt" }, 400);
-
-  const cap = await aiCapCheckAndIncrement(c);
-  if (!cap.ok) return c.json({ error: cap.error }, 429);
 
   const context = {
     title:    recipe.title,
@@ -1426,9 +1386,6 @@ app.post("/api/admin/ai/nutrition", async (c) => {
   const ingredients = Array.isArray(body?.ingredients) ? body.ingredients : [];
   if (!ingredients.length) return c.json({ error: "no ingredients provided" }, 400);
 
-  const cap = await aiCapCheckAndIncrement(c);
-  if (!cap.ok) return c.json({ error: cap.error }, 429);
-
   const lines = ingredients.map(i => `${i.qty ?? ""} ${i.unit ?? ""} ${i.item}`.trim());
 
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -1504,9 +1461,6 @@ app.post("/api/admin/ai/hero-image", async (c) => {
   const title = (body?.title || "").trim();
   const course = (body?.course || "").trim();
   if (!title) return c.json({ error: "missing title" }, 400);
-
-  const cap = await aiCapCheckAndIncrement(c, 5);
-  if (!cap.ok) return c.json({ error: cap.error }, 429);
 
   const prompt = buildHeroImagePrompt(title, course);
 
