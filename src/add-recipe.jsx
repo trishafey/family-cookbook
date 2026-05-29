@@ -125,8 +125,8 @@ function IngredientsEditor({ ingredients, onChange }) {
 
   return (
     <div>
-      {sections.map((sec) => (
-        <div key={sec.name} className="form-section" style={{ marginBottom: 14 }}>
+      {sections.map((sec, sectionIdx) => (
+        <div key={sectionIdx} className="form-section" style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
             <input
               type="text"
@@ -143,8 +143,8 @@ function IngredientsEditor({ ingredients, onChange }) {
           </div>
           {sec.items.map((i) => (
             <div key={i._idx} style={{ display: "grid", gridTemplateColumns: "70px 80px 1fr 24px", gap: 6, marginBottom: 6 }}>
-              <input type="number" step="0.25" value={i.qty} placeholder={t("qtyPh")}
-                onChange={(e) => update(i._idx, { qty: +e.target.value })} />
+              <input type="number" step="0.25" value={i.qty || ""} placeholder={t("qtyPh")}
+                onChange={(e) => update(i._idx, { qty: e.target.value === "" ? 0 : +e.target.value })} />
               <input value={i.unit} placeholder={t("unitPh")}
                 onChange={(e) => update(i._idx, { unit: e.target.value })} />
               <input value={i.item} placeholder={t("ingredientPh")}
@@ -246,8 +246,8 @@ function StepsEditor({ steps, onChange }) {
 
   return (
     <div>
-      {sections.map((sec) => (
-        <div key={sec.name || "__no_section"} className="form-section" style={{ marginBottom: 14 }}>
+      {sections.map((sec, sectionIdx) => (
+        <div key={sectionIdx} className="form-section" style={{ marginBottom: 14 }}>
           {sec.name && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
               <input
@@ -640,14 +640,14 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           <div className="input-row">
             <label>{t("prepCookMin")}</label>
             <div style={{ display: "flex", gap: 8 }}>
-              <input type="number" value={draft.prep} onChange={(e) => setDraft({ ...draft, prep: +e.target.value })} placeholder={t("prepPh")} style={{ width: 120 }} />
-              <input type="number" value={draft.cook} onChange={(e) => setDraft({ ...draft, cook: +e.target.value })} placeholder={t("cookPh")} style={{ width: 120 }} />
+              <input type="number" value={draft.prep || ""} onChange={(e) => setDraft({ ...draft, prep: e.target.value === "" ? 0 : +e.target.value })} placeholder={t("prepPh")} style={{ width: 120 }} />
+              <input type="number" value={draft.cook || ""} onChange={(e) => setDraft({ ...draft, cook: e.target.value === "" ? 0 : +e.target.value })} placeholder={t("cookPh")} style={{ width: 120 }} />
             </div>
           </div>
           <div className="input-row">
             <label>{t("servingsDefaultLbl")}</label>
             <div>
-              <input type="number" value={draft.servingsDefault} onChange={(e) => setDraft({ ...draft, servingsDefault: +e.target.value })} style={{ width: 100 }} />
+              <input type="number" value={draft.servingsDefault || ""} onChange={(e) => setDraft({ ...draft, servingsDefault: e.target.value === "" ? 0 : +e.target.value })} style={{ width: 100 }} />
             </div>
           </div>
 
@@ -680,10 +680,10 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   {label}
                   <input
                     type="number"
-                    value={draft.nutrition?.[key] ?? 0}
+                    value={draft.nutrition?.[key] || ""}
                     onChange={(e) => setDraft({
                       ...draft,
-                      nutrition: { ...(draft.nutrition || {}), [key]: +e.target.value }
+                      nutrition: { ...(draft.nutrition || {}), [key]: e.target.value === "" ? 0 : +e.target.value }
                     })}
                     style={{ width: "100%", marginTop: 2 }}
                   />
