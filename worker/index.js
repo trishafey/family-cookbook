@@ -173,6 +173,18 @@ function logAiEvent(c, feature, recipeId, meta, ok = true) {
   );
 }
 
+// Pull model name + token usage out of an OpenAI response so the
+// meta blob can answer "how much did this call cost?" later. Safe
+// against missing fields (gpt-image-1 doesn't return chat-style
+// usage; truncated/error responses may omit it entirely).
+function aiTokens(result) {
+  if (!result) return {};
+  const out = {};
+  if (result.model) out.model = result.model;
+  if (result.usage) out.usage = result.usage;
+  return out;
+}
+
 // JS uses this to check sign-in status. With Accept: application/json,
 // Access returns a 401 JSON body when unauthenticated (instead of a
 // 302 to login), so fetch sees a clean failure.
@@ -808,6 +820,7 @@ app.post("/api/admin/ai/extract-text", async (c) => {
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
 
   logAiEvent(c, "extract-text", null, {
+    ...aiTokens(result),
     textLen: text.length,
     title: parsed?.title || null,
   });
@@ -958,6 +971,7 @@ The user is pulling a recipe from a webpage. The text below was scraped from the
   parsed.sourceUrl = url.toString();
 
   logAiEvent(c, "extract-url", null, {
+    ...aiTokens(result),
     hostname: url.hostname,
     title: parsed?.title || null,
     usedJsonLd: cleaned.startsWith("RECIPE_JSON_LD:"),
@@ -1086,6 +1100,7 @@ The user has photographed a cookbook page, recipe card, or handwritten note. The
   }
 
   logAiEvent(c, "extract-image", null, {
+    ...aiTokens(result),
     photoCount: sourcePhotos.length,
     title: parsed?.title || null,
   });
@@ -1298,6 +1313,7 @@ Quality bar: a thoughtful family cook should look at these and immediately under
     .run();
 
   logAiEvent(c, "pairings", recipeId, {
+    ...aiTokens(result),
     fromBookCount: parsed.fromBook?.length || 0,
     suggestionsCount: parsed.suggestions?.length || 0,
     keptPins: keepFromBook.length + keepSuggestions.length,
@@ -1373,6 +1389,7 @@ app.post("/api/admin/ai/help", async (c) => {
   if (!answer) return c.json({ error: "OpenAI returned no content." }, 502);
   const lastUserTurn = [...turns].reverse().find(t => t.role === "user");
   logAiEvent(c, "help", recipe?.id || null, {
+    ...aiTokens(result),
     turnCount: turns.length,
     prompt: (lastUserTurn?.text || "").slice(0, 200),
     fromCookMode: !!body?.cookState,
@@ -1470,6 +1487,7 @@ Interpret loosely: "halve it" â†’ set to half current servings (or weight). "Dou
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
   logAiEvent(c, "adjust", recipe?.id || null, {
+    ...aiTokens(result),
     prompt: prompt.slice(0, 200),
     actionKind: parsed?.action?.kind || "none",
     actionValue: parsed?.action?.value ?? null,
@@ -1595,6 +1613,7 @@ Each chip has:
     .run();
 
   logAiEvent(c, "adjust-chips", recipeId, {
+    ...aiTokens(result),
     chipCount: parsed?.chips?.length || 0,
     force,
   });
@@ -1752,6 +1771,7 @@ Only return tweaks that come from what the family ACTUALLY said. Don't invent. I
     .run();
 
   logAiEvent(c, "family-says", recipeId, {
+    ...aiTokens(result),
     commentCount: allComments.length,
     tweakCount: parsed?.tweaks?.length || 0,
     force,
@@ -1870,6 +1890,7 @@ The greeting field is one short sentence framing the new draft for the cook ("He
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
   logAiEvent(c, "lab-iterate", null, {
+    ...aiTokens(result),
     prompt: prompt.slice(0, 200),
     hasPrevious: !!previousDraft,
     historyTurns: history.length,
@@ -1950,6 +1971,7 @@ Don't suggest things the cook already tried. Use the tasting notes as evidence â
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
   logAiEvent(c, "lab-suggest", null, {
+    ...aiTokens(result),
     draftTitle: latestDraft?.title || null,
     tastingNoteCount: tastingNotes.length,
     suggestionCount: parsed?.suggestions?.length || 0,
@@ -2012,6 +2034,7 @@ Don't invent new ingredients or steps the cook never tested. If the tasting note
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
   logAiEvent(c, "lab-promote", null, {
+    ...aiTokens(result),
     inputTitle: latestDraft?.title || null,
     outputTitle: parsed?.draft?.title || null,
     iterationCount,
@@ -2160,6 +2183,7 @@ If the recipe is already in good shape, return an empty proposals array. Better 
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
 
   logAiEvent(c, "polish-recipe", recipe?.id || null, {
+    ...aiTokens(result),
     title: recipe.title,
     proposalCount: parsed?.proposals?.length || 0,
   });
@@ -2211,6 +2235,7 @@ app.post("/api/admin/ai/nutrition", async (c) => {
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
   logAiEvent(c, "nutrition", body?.recipeId || null, {
+    ...aiTokens(result),
     title,
     servings,
     ingredientCount: ingredients.length,
@@ -2324,6 +2349,7 @@ app.post("/api/admin/ai/hero-image", async (c) => {
   });
 
   logAiEvent(c, "hero-image", body?.recipeId || null, {
+    ...aiTokens(result),
     title,
     course,
     hasIngredients: Array.isArray(body?.ingredients) && body.ingredients.length > 0,
