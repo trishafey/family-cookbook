@@ -2,7 +2,7 @@
 // AI extraction is mocked: paste text, hit "extract", a stub parses into fields.
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Icon, signInUrl } from "./helpers.jsx";
+import { Icon, logEvent, signInUrl } from "./helpers.jsx";
 import { Modal } from "./ui.jsx";
 import { FLAGS } from "./config/flags.js";
 import { COURSES, OCCASIONS, DIETS, ORIGINS, RECIPES as SEED_RECIPES } from "./data.js";
@@ -529,6 +529,10 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
   const [dragHover, setDragHover] = useState(false);
   const [draft, setDraft] = useState(initialRecipe);
 
+  // Tracks which path populated the form, for analytics. Stays null
+  // when the cook types it all in by hand → logged as "manual" on save.
+  const [addMethod, setAddMethod] = useState(null);
+
   useEffect(() => () => {
     pendingImages.forEach(p => URL.revokeObjectURL(p.preview));
   }, []);
@@ -643,6 +647,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
         throw new Error(error || `Extraction failed (${res.status})`);
       }
       applyExtraction(await res.json());
+      setAddMethod("paste-text");
     } catch (err) {
       alert(err.message || "Could not extract this recipe. Try the manual form instead.");
     } finally {
@@ -666,6 +671,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
         throw new Error(error || `Extraction failed (${res.status})`);
       }
       applyExtraction(await res.json());
+      setAddMethod("paste-url");
     } catch (err) {
       alert(err.message || "Could not fetch that page. Try copy-paste mode instead.");
     } finally {
@@ -726,6 +732,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
       pendingImages.forEach(p => URL.revokeObjectURL(p.preview));
       setPendingImages([]);
       applyExtraction(parsed);
+      setAddMethod("paste-image");
     } catch (err) {
       alert(err.message || "Could not read those photos. Try clearer shots, or use the manual form.");
     } finally {
@@ -843,6 +850,8 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     setSaving(true);
     try {
       await onSave(out);
+      // Log only when this is a fresh add, not an edit of an existing recipe.
+      if (!initialRecipe) logEvent("add-recipe", out.id, { method: addMethod || "manual" });
       onClose();
     } catch (err) {
       setSaveError(err.message || "Save failed");
