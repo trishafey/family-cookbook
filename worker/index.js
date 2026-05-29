@@ -1228,6 +1228,173 @@ Quality bar: a thoughtful family cook should look at these and immediately under
   return c.json({ ...parsed, cached: false });
 });
 
+// ─── AI: Need help — multi-turn cook-side assistant ───
+// Used by the in-page "Need help?" panel and by cook mode. The
+// caller sends the recipe, the live cook-state (current step,
+// scaled servings, any adjustments already applied) and a
+// conversation history. The model replies with a single
+// assistant turn — short, practical, written in a warm cook
+// voice. No structured output: it's free-form prose.
+app.post("/api/admin/ai/help", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI API key not configured." }, 500);
+
+  const body = await c.req.json().catch(() => ({}));
+  const recipe = body?.recipe;
+  if (!recipe?.title) return c.json({ error: "missing recipe" }, 400);
+  const turns = Array.isArray(body?.turns) ? body.turns.slice(-12) : [];
+  if (!turns.length) return c.json({ error: "no question" }, 400);
+
+  const cap = await aiCapCheckAndIncrement(c);
+  if (!cap.ok) return c.json({ error: cap.error }, 429);
+
+  // Compact context for the model — full ingredient list (with the
+  // cook's current scaled qty, so suggestions match what's actually
+  // in front of them), step titles for orientation, plus live
+  // cook-state hints if present.
+  const context = {
+    title:    recipe.title,
+    subtitle: recipe.subtitle || "",
+    cuisine:  recipe.cuisine,
+    course:   recipe.course,
+    servings: body?.servings ?? recipe.servingsDefault,
+    weight:   body?.weight ?? null,
+    ingredients: (recipe.ingredients || []).map(i => `${i.qty ?? ""} ${i.unit ?? ""} ${i.item}`.trim()),
+    steps:    (recipe.steps || []).map((s, i) => `${i + 1}. ${s.t || s.d?.slice(0, 60)}`),
+    currentStep: body?.currentStep
+      ? `Cook is currently on step "${body.currentStep.t}" — ${body.currentStep.d}`
+      : null,
+    appliedAdjustments: Array.isArray(body?.appliedAdjustments) && body.appliedAdjustments.length
+      ? body.appliedAdjustments.map(a => a.summary || a.prompt).filter(Boolean)
+      : null,
+  };
+
+  const messages = [
+    {
+      role: "system",
+      content: `You are the kitchen-side AI helper inside a family cookbook. The cook is mid-recipe and needs a practical answer fast. Reply in 2-4 short paragraphs, plain prose, written like a thoughtful family cook giving real advice — not a list of caveats. Reference the recipe's actual ingredients and the cook's current step or servings when it helps. If the cook hasn't told you which ingredient/step they mean, ask ONE focused clarifying question first. Never invent ingredients that aren't in the recipe.`,
+    },
+    {
+      role: "user",
+      content: `RECIPE CONTEXT:\n${JSON.stringify(context, null, 2)}`,
+    },
+    ...turns.map(t => ({
+      role: t.role === "ai" ? "assistant" : "user",
+      content: t.text,
+    })),
+  ];
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({ model: AI_OPENAI_MODEL, messages }),
+  });
+  if (!openaiRes.ok) {
+    console.error("OpenAI help error", openaiRes.status, await openaiRes.text());
+    return c.json({ error: `OpenAI returned ${openaiRes.status}.` }, 502);
+  }
+  const result = await openaiRes.json();
+  const answer = result?.choices?.[0]?.message?.content;
+  if (!answer) return c.json({ error: "OpenAI returned no content." }, 502);
+  return c.json({ answer });
+});
+
+// ─── AI: Adjust with AI — free-text recipe tweaks ───
+// The cook types something like "halve it" or "make it dairy-free"
+// or "I only have 1 lb of beef". The model returns a short prose
+// summary plus an optional structured action the client applies
+// (setServings / setWeight / setCalTarget). Chips on the client
+// still apply their own concrete adjustments — this endpoint
+// powers the free-text path.
+const AI_ADJUST_SCHEMA = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    action: {
+      type: ["object", "null"],
+      properties: {
+        kind:  { type: "string", enum: ["setServings", "setWeight", "setCalTarget", "none"] },
+        value: { type: ["number", "null"] },
+      },
+      required: ["kind", "value"],
+      additionalProperties: false,
+    },
+  },
+  required: ["summary", "action"],
+  additionalProperties: false,
+};
+
+app.post("/api/admin/ai/adjust", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI API key not configured." }, 500);
+
+  const body = await c.req.json().catch(() => ({}));
+  const recipe = body?.recipe;
+  const prompt = (body?.prompt || "").trim();
+  if (!recipe?.title || !prompt) return c.json({ error: "missing recipe or prompt" }, 400);
+
+  const cap = await aiCapCheckAndIncrement(c);
+  if (!cap.ok) return c.json({ error: cap.error }, 429);
+
+  const context = {
+    title:    recipe.title,
+    cuisine:  recipe.cuisine,
+    diet:     recipe.diet || [],
+    nutrition: recipe.nutrition || null,
+    scaleBy:  recipe.scaleBy || "servings",
+    servings: body?.servings ?? recipe.servingsDefault,
+    weight:   body?.weight ?? null,
+    weightUnit: recipe.weightUnit || "lb",
+    cookMinsPerLb: recipe.cookMinsPerLb || null,
+    ingredients: (recipe.ingredients || []).map(i => `${i.qty ?? ""} ${i.unit ?? ""} ${i.item}`.trim()),
+  };
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `You adapt family-cookbook recipes on the fly. Given a recipe and a free-text request, return:
+1. summary — 1-3 sentences, written like a cook giving real advice. Explain what to change and why.
+2. action — exactly one structured change the app should auto-apply, OR { kind: "none", value: null } if the request is purely advice (substitutions, technique tips, etc.).
+
+Valid actions:
+  • setServings (only if recipe.scaleBy is "servings") — integer servings
+  • setWeight (only if recipe.scaleBy is "weight") — number in the recipe's weightUnit
+  • setCalTarget — integer target calories per serving
+  • none — for advice-only answers
+
+Interpret loosely: "halve it" → set to half current servings (or weight). "Double it" → 2x. "I only have 1.5 lb" → setWeight 1.5. "Lower cals by 30%" → setCalTarget 70% of recipe.nutrition.cal.`,
+        },
+        {
+          role: "user",
+          content: `RECIPE:\n${JSON.stringify(context, null, 2)}\n\nCOOK SAID: ${prompt}`,
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "adjust", strict: true, schema: AI_ADJUST_SCHEMA },
+      },
+    }),
+  });
+  if (!openaiRes.ok) {
+    console.error("OpenAI adjust error", openaiRes.status, await openaiRes.text());
+    return c.json({ error: `OpenAI returned ${openaiRes.status}.` }, 502);
+  }
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return c.json({ error: "OpenAI returned no content." }, 502);
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+  return c.json(parsed);
+});
+
 app.post("/api/admin/uploads", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
