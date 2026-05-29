@@ -2984,6 +2984,17 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .admin-ai-usage .admin-ai-table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  /* Without min-width: 0 the wrap inherits its content's intrinsic
+     width (the table's min-width on mobile) and never clips → no
+     scroll. Force it to stay within the grid column. */
+  min-width: 0;
+  max-width: 100%;
+}
+/* Grid items default to min-width: auto, which would let the wrap's
+   inner table push the section wider than the viewport. Constrain. */
+.admin-ai-usage section,
+.admin-ai-usage > div > div {
+  min-width: 0;
 }
 .admin-ai-usage .admin-ai-table th {
   text-align: left; padding: 8px 12px;
