@@ -444,6 +444,7 @@ function App() {
           finishTime={finishTime}
           setFinishTime={setFinishTime}
           onClose={() => setCookState(null)}
+          authEmail={authEmail}
         />
       )}
 

@@ -233,6 +233,13 @@ const S = {
   heroPhotoLbl:   { en: "Hero photo",         pl: "Główne zdjęcie" },
   uploadPhoto:    { en: "Upload photo",       pl: "Wgraj zdjęcie" },
   aiGenerateFromTitle: { en: "AI-generate from title", pl: "Wygeneruj z tytułu (AI)" },
+  aiGenerateHint:      { en: "Generate a hero photo from the title in the family-cookbook style", pl: "Wygeneruj zdjęcie z tytułu w stylu rodzinnej książki kucharskiej" },
+  aiGenerateNeedsTitle:{ en: "Add a title first so the AI knows what to draw.", pl: "Najpierw dodaj tytuł, żeby AI wiedziało, co narysować." },
+  generating:          { en: "Generating…",            pl: "Generuję…" },
+  estimateWithAI:      { en: "Estimate with AI",       pl: "Oszacuj z AI" },
+  estimating:          { en: "Estimating…",            pl: "Szacuję…" },
+  estimateNutritionHint:{ en: "Rough per-serving estimate based on the ingredient list", pl: "Przybliżone oszacowanie na porcję na podstawie listy składników" },
+  nutritionNeedsIngredients: { en: "Add some ingredients first.", pl: "Najpierw dodaj składniki." },
 
   // Mode tabs
   pasteAndAi:     { en: "Type it in",         pl: "Wpisz przepis" },

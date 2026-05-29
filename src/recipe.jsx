@@ -13,9 +13,11 @@ import { FLAGS } from "./config/flags.js";
 // ─────────────────────────────────────────────────────────────
 // Shared: AI Adjust box
 // ─────────────────────────────────────────────────────────────
-// Each "chip" is a one-tap pre-filled prompt that triggers a real
-// in-app adjustment. Free-text prompts are routed by a tiny
-// heuristic parser for the demo; real impl would call Claude.
+// Chips are canned, one-tap prompts that apply a deterministic
+// local change (setServings, setWeight, etc.) — no AI call needed.
+// Free-text prompts go through /api/admin/ai/adjust, which returns
+// a written summary plus an optional structured action the client
+// applies via applyAction below.
 
 function makeChips(recipe, currentServings, currentWeight) {
   const chips = [];
@@ -91,12 +93,16 @@ function makeChips(recipe, currentServings, currentWeight) {
   return chips;
 }
 
-function AIAdjustBox({ recipe, scaler, applied, setApplied }) {
+function AIAdjustBox({ recipe, scaler, applied, setApplied, authEmail }) {
   const [text, setText] = useState("");
   const [running, setRunning] = useState(false);
+  const [error, setError] = useState(null);
 
   const chips = makeChips(recipe, scaler.servings, scaler.weight);
 
+  // Chips still apply their own concrete change locally — they're
+  // canned, predictable, and don't need the AI. Only free-text
+  // prompts go through the model.
   const triggerChip = (chip) => {
     setText(chip.prompt);
     setRunning(true);
@@ -108,40 +114,49 @@ function AIAdjustBox({ recipe, scaler, applied, setApplied }) {
     }, 600);
   };
 
-  const triggerFree = () => {
+  // Apply a structured action returned by the worker. Each branch
+  // matches one of the AI_ADJUST_SCHEMA action kinds.
+  const applyAction = (action) => {
+    if (!action || action.kind === "none" || action.value == null) return;
+    if (action.kind === "setServings") scaler.setServings(Math.max(1, Math.round(action.value)));
+    else if (action.kind === "setWeight") scaler.setWeight(action.value);
+    else if (action.kind === "setCalTarget") scaler.setCalTarget?.(Math.max(0, Math.round(action.value)));
+  };
+
+  const triggerFree = async () => {
     if (!text.trim()) return;
+    if (!authEmail) {
+      setError("Sign in to use Adjust with AI.");
+      return;
+    }
+    const prompt = text;
     setRunning(true);
-    setTimeout(() => {
-      // Tiny heuristic parser for the demo
-      const lower = text.toLowerCase();
-      let summary = "AI couldn't auto-apply that one — review the original recipe and adjust manually.";
-      const lbMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:lb|pound)/);
-      const servMatch = lower.match(/(\d+)\s*serving/);
-      if (lbMatch && recipe.scaleBy === "weight") {
-        const w = parseFloat(lbMatch[1]);
-        scaler.setWeight(w);
-        summary = `Scaled to ${w} lb — cook time now ${Math.round(w * recipe.cookMinsPerLb)} min at 500°F`;
-      } else if (servMatch && recipe.scaleBy !== "weight") {
-        const n = parseInt(servMatch[1]);
-        scaler.setServings(n);
-        summary = `Scaled to ${n} servings — ingredients adjusted proportionally`;
-      } else if (lower.includes("gluten")) {
-        summary = "Suggested swaps: GF flour blend (1:1), gluten-free pasta. Sauce and seasoning are already GF.";
-      } else if (lower.includes("dairy")) {
-        summary = "Use vegan butter and a dairy-free cheese (Violife or Kite Hill).";
-      } else if (lower.match(/half|halve/)) {
-        if (recipe.scaleBy === "weight") scaler.setWeight(scaler.weight / 2);
-        else scaler.setServings(Math.round(scaler.servings / 2));
-        summary = "Halved everything.";
-      } else if (lower.match(/double/)) {
-        if (recipe.scaleBy === "weight") scaler.setWeight(scaler.weight * 2);
-        else scaler.setServings(scaler.servings * 2);
-        summary = "Doubled the recipe.";
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/ai/adjust", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          recipe,
+          prompt,
+          servings: scaler.servings,
+          weight: scaler.weight,
+        }),
+      });
+      if (!res.ok) {
+        const { error: msg } = await res.json().catch(() => ({}));
+        throw new Error(msg || `Adjust failed (${res.status})`);
       }
-      setApplied([{ summary, prompt: text }, ...applied]);
-      setRunning(false);
+      const { summary, action } = await res.json();
+      applyAction(action);
+      setApplied([{ summary, prompt }, ...applied]);
       setText("");
-    }, 800);
+    } catch (err) {
+      setError(err.message || "Could not reach the kitchen AI.");
+    } finally {
+      setRunning(false);
+    }
   };
 
   return (
@@ -165,15 +180,19 @@ function AIAdjustBox({ recipe, scaler, applied, setApplied }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) triggerFree(); }}
+          disabled={!authEmail}
         />
         <div className="actions">
           <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
-            {running ? "Adjusting…" : "⌘⏎ to apply"}
+            {running ? "Adjusting…" : (authEmail ? "⌘⏎ to apply" : "Sign in to use the AI")}
           </span>
-          <button className="btn primary sm" onClick={triggerFree} disabled={!text.trim() || running}>
+          <button className="btn primary sm" onClick={triggerFree} disabled={!text.trim() || running || !authEmail}>
             <Icon name="sparkle" size={11} /> Apply
           </button>
         </div>
+        {error && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#933" }}>{error}</div>
+        )}
       </div>
       {applied.length > 0 && (
         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -925,14 +944,14 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="recipe-body">
         <aside className="ingredients-panel">
           <IngredientsCard recipe={recipe} finalIngs={finalIngs} scaler={scaler} onShop={() => onShop([{ recipe, ings: finalIngs }])}>
-            {FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />}
+            {FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} authEmail={authEmail} />}
           </IngredientsCard>
         </aside>
 
         <div>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
-          {FLAGS.needHelp && <NeedHelp recipe={recipe} />}
+          {FLAGS.needHelp && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
 
@@ -1012,14 +1031,14 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="recipe-body">
         <aside className="ingredients-panel">
           <IngredientsCard recipe={recipe} finalIngs={finalIngs} scaler={scaler} onShop={() => onShop([{ recipe, ings: finalIngs }])}>
-            {FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />}
+            {FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} authEmail={authEmail} />}
           </IngredientsCard>
         </aside>
 
         <div>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
-          {FLAGS.needHelp && <NeedHelp recipe={recipe} />}
+          {FLAGS.needHelp && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
 
@@ -1097,14 +1116,14 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="binder-body">
         <aside>
           <IngredientsCard recipe={recipe} finalIngs={finalIngs} scaler={scaler} onShop={() => onShop([{ recipe, ings: finalIngs }])}>
-            {FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} />}
+            {FLAGS.adjust && <AIAdjustBox recipe={recipe} scaler={scaler} applied={applied} setApplied={setApplied} authEmail={authEmail} />}
           </IngredientsCard>
         </aside>
         <div>
           <h3 style={{ marginBottom: 14, fontStyle: "italic" }}>How to make it</h3>
           <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
-          {FLAGS.needHelp && <NeedHelp recipe={recipe} />}
+          {FLAGS.needHelp && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
 

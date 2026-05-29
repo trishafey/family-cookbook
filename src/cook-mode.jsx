@@ -7,7 +7,7 @@ import { NeedHelp } from "./need-help.jsx";
 import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 
-export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClose }) {
+export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClose, authEmail }) {
   const { t, tPrecision } = useLang();
   const [idx, setIdx] = useStorage(`cookmode:${recipe.id}:idx`, 0);
   // Per-step start-time overrides, stored as ISO strings. Editing a
@@ -197,6 +197,7 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
                 recipe={recipe}
                 currentStep={cur}
                 defaultOpen={true}
+                authEmail={authEmail}
               />
             </div>
           )}
