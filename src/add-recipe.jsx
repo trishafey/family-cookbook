@@ -354,9 +354,14 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     tips: [],
     comments: [],
     // Original snapshots when the recipe was extracted from photos.
-    // We keep every page so a future "view the original" reveal can
-    // surface grandma's handwriting alongside the parsed text.
+    // We keep every page so the recipe page can offer a "view the
+    // original" reveal — useful for handwritten cards from family.
     sourcePhotos: [],
+    // When on, the recipe page shows a small reveal icon over the
+    // hero photo. The cook flips this in the editor; defaults to true
+    // immediately after an image extraction (the act of uploading
+    // implies intent to show).
+    showSourcePhotos: false,
   });
 
   useEffect(() => {
@@ -408,11 +413,12 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
       total:           (parsed.prep || 0) + (parsed.cook || 0),
       // URL extraction tucks the source URL onto the response so it
       // populates the Source link field — saves the cook from copying
-      // it manually. Image extraction tucks an R2 photo URL onto
-      // .photo so the snapshot doubles as the hero image.
+      // it manually. Image extraction tucks the R2 URLs onto
+      // sourcePhotos (NOT .photo — the hero stays whatever the cook
+      // picks via Upload Photo) and toggles the reveal on by default.
       link: parsed.sourceUrl ? { url: parsed.sourceUrl, label: "" } : fresh.link,
-      photo: parsed.photo || fresh.photo,
       sourcePhotos: parsed.sourcePhotos || fresh.sourcePhotos,
+      showSourcePhotos: parsed.showSourcePhotos ?? fresh.showSourcePhotos,
     });
     setMode("manual");
   };
@@ -936,6 +942,57 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               </div>
             </div>
           </div>
+
+          {/* "Original recipe card images" — only appears once the
+              recipe has source photos attached. Mirrors the overnight
+              toggle pattern: a checkbox flips whether the reveal icon
+              shows on the recipe page, and a thumbnail strip lets the
+              cook drop pages they don't want kept. */}
+          {draft.sourcePhotos?.length > 0 && (
+            <div className="input-row">
+              <label>{t("originalRecipeImages")}</label>
+              <div className="overnight-toggle">
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                  {draft.sourcePhotos.map((url, i) => (
+                    <div key={url} style={{ position: "relative", width: 80 }}>
+                      <div style={{
+                        width: 80, height: 80,
+                        backgroundImage: `url(${url})`,
+                        backgroundSize: "cover", backgroundPosition: "center",
+                        border: "1px solid var(--rule)", borderRadius: 4,
+                      }} />
+                      <button
+                        type="button"
+                        onClick={() => setDraft({
+                          ...draft,
+                          sourcePhotos: draft.sourcePhotos.filter((_, j) => j !== i),
+                        })}
+                        style={{
+                          position: "absolute", top: -8, right: -8,
+                          width: 22, height: 22, borderRadius: "50%",
+                          border: "1px solid var(--rule)", background: "var(--paper)",
+                          cursor: "pointer", padding: 0, lineHeight: 1, fontSize: 14,
+                        }}
+                        aria-label={t("removePage")}
+                      >×</button>
+                      <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4, textAlign: "center" }}>
+                        {t("pageN").replace("{n}", i + 1)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <label className="check-line">
+                  <input
+                    type="checkbox"
+                    checked={!!draft.showSourcePhotos}
+                    onChange={(e) => setDraft({ ...draft, showSourcePhotos: e.target.checked })}
+                  />
+                  <span>{t("showOnRecipePage")}</span>
+                </label>
+                <div className="hint">{t("originalImagesHint")}</div>
+              </div>
+            </div>
+          )}
 
           <div style={{ marginTop: 32, display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button className="btn" onClick={onClose} disabled={saving}>{t("cancel")}</button>
