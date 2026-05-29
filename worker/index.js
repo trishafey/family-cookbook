@@ -678,7 +678,7 @@ const AI_RECIPE_SCHEMA = {
   },
 };
 
-async function aiCapCheckAndIncrement(c) {
+async function aiCapCheckAndIncrement(c, costCents = AI_COST_PER_CALL_CENTS) {
   const today = new Date().toISOString().slice(0, 10);
   const row = await c.env.DB.prepare("SELECT cost_cents FROM ai_usage WHERE date = ?").bind(today).first();
   if ((row?.cost_cents || 0) >= AI_DAILY_CAP_CENTS) {
@@ -686,7 +686,7 @@ async function aiCapCheckAndIncrement(c) {
   }
   await c.env.DB.prepare(
     "INSERT INTO ai_usage (date, cost_cents) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET cost_cents = cost_cents + excluded.cost_cents"
-  ).bind(today, AI_COST_PER_CALL_CENTS).run();
+  ).bind(today, costCents).run();
   return { ok: true };
 }
 
@@ -1393,6 +1393,151 @@ Interpret loosely: "halve it" → set to half current servings (or weight). "Dou
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
   return c.json(parsed);
+});
+
+// ─── AI: Nutrition estimate ───
+// Some extracted recipes come back with zero nutrition (the model
+// gave up on the rough cookbook print). The editor exposes an
+// 'Estimate with AI' button that posts the ingredient list + title
+// + servings here and gets back per-serving rough estimates that
+// pre-fill the form fields.
+const AI_NUTRITION_SCHEMA = {
+  type: "object",
+  properties: {
+    cal:     { type: "number" },
+    protein: { type: "number" },
+    carbs:   { type: "number" },
+    fat:     { type: "number" },
+    fiber:   { type: "number" },
+    sodium:  { type: "number" },
+  },
+  required: ["cal", "protein", "carbs", "fat", "fiber", "sodium"],
+  additionalProperties: false,
+};
+
+app.post("/api/admin/ai/nutrition", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI API key not configured." }, 500);
+
+  const body = await c.req.json().catch(() => ({}));
+  const title = (body?.title || "").trim() || "this dish";
+  const servings = Number(body?.servingsDefault) || 4;
+  const ingredients = Array.isArray(body?.ingredients) ? body.ingredients : [];
+  if (!ingredients.length) return c.json({ error: "no ingredients provided" }, 400);
+
+  const cap = await aiCapCheckAndIncrement(c);
+  if (!cap.ok) return c.json({ error: cap.error }, 429);
+
+  const lines = ingredients.map(i => `${i.qty ?? ""} ${i.unit ?? ""} ${i.item}`.trim());
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: "You are a nutrition estimator. Given an ingredient list and a serving count, return rough per-serving nutrition: calories (cal), protein/carbs/fat/fiber in grams, sodium in milligrams. Round to whole numbers. Be conservative and realistic — these are family-cookbook estimates, not lab measurements.",
+        },
+        {
+          role: "user",
+          content: `DISH: ${title}\nMAKES ${servings} servings\n\nINGREDIENTS:\n${lines.join("\n")}\n\nEstimate per-serving nutrition.`,
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "nutrition", strict: true, schema: AI_NUTRITION_SCHEMA },
+      },
+    }),
+  });
+  if (!openaiRes.ok) {
+    console.error("OpenAI nutrition error", openaiRes.status, await openaiRes.text());
+    return c.json({ error: `OpenAI returned ${openaiRes.status}.` }, 502);
+  }
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return c.json({ error: "OpenAI returned no content." }, 502);
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+  return c.json(parsed);
+});
+
+// ─── AI: Hero image ───
+// Generates a single photoreal hero image from the recipe's title
+// in the family-cookbook style (warm natural light, rustic wooden
+// table, neutral ceramics, no text/watermarks). Uses OpenAI's
+// gpt-image-1 — ~4¢ per image — so we charge the cap 5¢ to keep
+// usage in check (≈ 20 generations per $1/day cap).
+//
+// Routes to one of four prompt templates based on course + title
+// heuristics:
+//   • Dessert → dessert template
+//   • Soup/sauce/gravy/broth/jus/stock keywords → soup template
+//   • Butter/jam/aioli/relish/condiment keywords → condiment
+//   • everything else → default editorial template
+function buildHeroImagePrompt(title, course) {
+  const NEG = "No text, no labels, no watermarks, no AI artifacts, no oversaturated colors, no excessive garnish, no modern restaurant fine-dining plating, no unrealistic ingredients, no plastic containers, no stock photo look, no cartoon appearance.";
+  const t = (title || "").toLowerCase();
+  const SOUP = /soup|sauce|gravy|broth|jus|stock|chili|stew|bisque|chowder/;
+  const COND = /butter|jam|preserve|chutney|relish|aioli|salsa|crema|hummus|pesto|spread|compote|curd|marmalade/;
+  if (course === "Dessert") {
+    return `Professional editorial food photography of ${title}, rustic homemade dessert presented in a ceramic baking dish with a serving portion visible nearby. Warm natural window light, cozy family gathering aesthetic, farmhouse table, neutral ceramics, slightly zoomed out composition, realistic textures, homemade appearance, high-end cookbook photography, photorealistic, highly detailed, no text. ${NEG}`;
+  }
+  if (COND.test(t)) {
+    return `Professional editorial food photography of ${title}, served in a small ceramic ramekin on a rustic wooden table. The bowl should appear relatively small within the frame, with plenty of surrounding negative space and a few relevant ingredients nearby. Warm natural light, cozy farmhouse aesthetic, neutral ceramics, homemade appearance, photorealistic cookbook photography, highly detailed, no text. ${NEG}`;
+  }
+  if (SOUP.test(t)) {
+    return `Professional editorial food photography of ${title}, served in a small ceramic bowl on a rustic wooden table. Slightly zoomed out composition with ingredients subtly visible in the scene. Warm natural light, cozy farmhouse aesthetic, homemade appearance, neutral ceramics, shallow depth of field, cookbook photography, photorealistic, highly detailed, no text. ${NEG}`;
+  }
+  return `Professional editorial food photography of ${title}, styled for a premium family cookbook. Rustic wooden table, warm natural window light, soft shadows, neutral ceramic dishware, cozy farmhouse aesthetic, realistic textures, authentic homemade appearance, inviting and comforting. Slightly zoomed out composition showing the plated dish plus a few relevant ingredients and serving elements around it. Shallow depth of field, high-end food magazine quality, warm earth tones, natural colors, no artificial garnish, no restaurant plating tweezers, no text, no watermarks. Focus on the food looking homemade, traditional, and delicious. Photorealistic, highly detailed, 4k food photography. ${NEG}`;
+}
+
+app.post("/api/admin/ai/hero-image", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI API key not configured." }, 500);
+
+  const body = await c.req.json().catch(() => ({}));
+  const title = (body?.title || "").trim();
+  const course = (body?.course || "").trim();
+  if (!title) return c.json({ error: "missing title" }, 400);
+
+  const cap = await aiCapCheckAndIncrement(c, 5);
+  if (!cap.ok) return c.json({ error: cap.error }, 429);
+
+  const prompt = buildHeroImagePrompt(title, course);
+
+  const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: "gpt-image-1",
+      prompt,
+      n: 1,
+      size: "1024x1024",
+    }),
+  });
+  if (!openaiRes.ok) {
+    console.error("OpenAI image error", openaiRes.status, await openaiRes.text());
+    return c.json({ error: `OpenAI returned ${openaiRes.status}.` }, 502);
+  }
+  const result = await openaiRes.json();
+  const b64 = result?.data?.[0]?.b64_json;
+  if (!b64) return c.json({ error: "OpenAI returned no image." }, 502);
+
+  // Decode base64 to raw bytes and store in R2 next to user uploads.
+  // We share the /api/images/:key serving path so the photo URL
+  // looks identical to a uploaded photo from the user's POV.
+  const bytes = Uint8Array.from(atob(b64), ch => ch.charCodeAt(0));
+  const key = `ai-${crypto.randomUUID()}.png`;
+  await c.env.IMAGES.put(key, bytes, {
+    httpMetadata: { contentType: "image/png" },
+  });
+
+  return c.json({ url: `/api/images/${key}`, key, prompt });
 });
 
 app.post("/api/admin/uploads", async (c) => {
