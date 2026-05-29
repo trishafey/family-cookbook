@@ -224,16 +224,77 @@ export function draftToRecipe(draft, status = "experiment") {
 }
 
 // ─────────────────────────────────────────────────────────────
+// TastingNoteEditor — small inline editor attached to AI draft
+// turns. The cook types what they thought after making it; the
+// note follows the chat into subsequent lab-iterate / lab-suggest /
+// lab-promote calls so the AI can lean on real tasting feedback.
+// ─────────────────────────────────────────────────────────────
+function TastingNoteEditor({ value, onSave, disabled }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(value);
+  useEffect(() => { setText(value); }, [value]);
+
+  if (!value && !editing) {
+    return (
+      <button
+        type="button"
+        className="lab-tasting add"
+        onClick={() => setEditing(true)}
+        disabled={disabled}
+        title={disabled ? "Sign in to add tasting notes" : "Add a tasting note"}
+      >
+        <Icon name="plus" size={10} /> Tasting note
+      </button>
+    );
+  }
+  if (editing) {
+    return (
+      <div className="lab-tasting editing">
+        <textarea
+          autoFocus
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={2}
+          placeholder="How did it turn out? Too sweet? Crumb was tight? Family loved it?"
+        />
+        <div className="actions">
+          <button className="btn ghost sm" onClick={() => { setEditing(false); setText(value); }}>Cancel</button>
+          <button className="btn primary sm" onClick={() => { onSave(text.trim()); setEditing(false); }}>Save</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="lab-tasting saved" onClick={() => !disabled && setEditing(true)}>
+      <div className="head">
+        <Icon name="bookmark" size={10} /> <span>Tasting note</span>
+      </div>
+      <div className="note">{value}</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // ExperimentationLab — the page
 // ─────────────────────────────────────────────────────────────
-export function ExperimentationLab({ onClose, onPromote, allRecipes }) {
+export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }) {
   const [experiments, setExperiments] = useStorage("lab:experiments", []);
   const [activeId, setActiveId] = useState(null);
-  const [chat, setChat] = useState([]); // { role: "you"|"ai", text, draft?, photos? }
+  // Chat turn shape:
+  //   { role: "you"|"ai", text, draft?, photos?,
+  //     diff?: string,        // AI-only: one-line "what changed"
+  //     greeting?: string,    // AI-only: one-line framing
+  //     tastingNote?: string, // appended after the cook tries it
+  //   }
+  const [chat, setChat] = useState([]);
   const [text, setText] = useState("");
   const [thinking, setThinking] = useState(false);
-  const [attachments, setAttachments] = useState([]); // [{url, name}]
+  const [attachments, setAttachments] = useState([]);
   const [attachMenu, setAttachMenu] = useState(false);
+  const [sendError, setSendError] = useState(null);
+  const [suggestions, setSuggestions] = useState(null);   // [{label, prompt, why}, ...] | null
+  const [suggesting, setSuggesting] = useState(false);
+  const [polishing, setPolishing] = useState(false);
   const bodyRef = useRef(null);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -256,28 +317,165 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes }) {
     setText("");
   };
 
-  const send = (q) => {
+  // Pull the most recent draft out of the chat — used as the
+  // `previousDraft` for lab-iterate so the next AI turn iterates
+  // instead of starting from scratch.
+  const previousDraftFromChat = (turns) => {
+    for (let i = turns.length - 1; i >= 0; i--) if (turns[i].draft) return turns[i].draft;
+    return null;
+  };
+
+  const send = async (q) => {
     const txt = (q ?? text).trim();
     const hasPhotos = attachments.length > 0;
     if (!txt && !hasPhotos) return;
+
+    setSendError(null);
+    setSuggestions(null);
+
+    // Photo-driven prompts still fall through to the local fake
+    // for now — the real photo→AI path needs an R2 upload pass that
+    // we'll wire up in a follow-up. Text-only iteration calls the
+    // worker.
     const youTurn = { role: "you", text: txt || "(here's what's in my fridge)", photos: attachments };
     const nextChat = [...chat, youTurn];
     setChat(nextChat);
     setText("");
     setAttachments([]);
     setThinking(true);
-    setTimeout(() => {
-      // If photos were attached, generate a "based on your fridge" draft
-      const draft = hasPhotos
-        ? generateFridgeDraft(attachments.length, txt)
-        : generateExperimentDraft(txt);
-      const greeting = hasPhotos
-        ? `Looking at the ${attachments.length === 1 ? "photo" : `${attachments.length} photos`}, here's what I'd make with what you've got. Tell me what to swap or build around.`
-        : `Here's a first pass at "${draft.title}". Tell me what to change and I'll iterate.`;
-      const aiTurn = { role: "ai", text: greeting, draft };
-      setChat([...nextChat, aiTurn]);
+
+    if (hasPhotos) {
+      setTimeout(() => {
+        const draft = generateFridgeDraft(attachments.length, txt);
+        const aiTurn = {
+          role: "ai",
+          text: `Looking at the ${attachments.length === 1 ? "photo" : `${attachments.length} photos`}, here's what I'd make with what you've got. Tell me what to swap or build around.`,
+          draft,
+          diff: "Initial draft",
+          greeting: "Photo iteration — text follow-ups go through the AI.",
+        };
+        setChat([...nextChat, aiTurn]);
+        setThinking(false);
+      }, 1100);
+      return;
+    }
+
+    if (!authEmail) {
+      setSendError("Sign in to iterate with the AI.");
       setThinking(false);
-    }, 1100);
+      // Roll back the "you" turn so the cook can retry without
+      // re-typing.
+      setChat(chat);
+      setText(txt);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/admin/ai/lab-iterate", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          prompt: txt,
+          previousDraft: previousDraftFromChat(chat),
+          history: chat,
+        }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `Lab iteration failed (${res.status})`);
+      }
+      const { draft, diff, greeting } = await res.json();
+      const aiTurn = { role: "ai", text: greeting, draft, diff, greeting };
+      setChat([...nextChat, aiTurn]);
+    } catch (err) {
+      setSendError(err.message || "Could not reach the kitchen AI.");
+      setChat(chat);
+      setText(txt);
+    } finally {
+      setThinking(false);
+    }
+  };
+
+  // Add a tasting note to an AI turn at index `i`. Persists on
+  // the chat array so it shows up in subsequent lab-iterate calls
+  // (the cook's tasting notes are part of the iteration context).
+  const setTastingNote = (i, note) => {
+    setChat(prev => prev.map((t, idx) => idx === i ? { ...t, tastingNote: note } : t));
+  };
+
+  // Collect tasting notes alongside the draft they belong to, for
+  // the lab-suggest / lab-promote endpoints. Most recent last.
+  const tastingNotesForAI = () => chat
+    .filter(t => t.role === "ai" && t.draft && t.tastingNote)
+    .map(t => ({ draftTitle: t.draft.title, note: t.tastingNote }));
+
+  const suggestNext = async () => {
+    if (!authEmail) {
+      setSendError("Sign in to ask for suggestions.");
+      return;
+    }
+    if (!latestDraft) return;
+    setSuggesting(true);
+    setSendError(null);
+    try {
+      const res = await fetch("/api/admin/ai/lab-suggest", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          latestDraft,
+          tastingNotes: tastingNotesForAI(),
+        }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `Suggest failed (${res.status})`);
+      }
+      const { suggestions: list } = await res.json();
+      setSuggestions(list || []);
+    } catch (err) {
+      setSendError(err.message || "Could not reach the kitchen AI.");
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
+  // Polish the latest draft for the cookbook. Drops the polished
+  // draft into the chat as a new AI turn the cook can review
+  // before clicking Promote.
+  const polishForCookbook = async () => {
+    if (!authEmail) {
+      setSendError("Sign in to polish the draft.");
+      return;
+    }
+    if (!latestDraft) return;
+    setPolishing(true);
+    setSendError(null);
+    try {
+      const iterationCount = chat.filter(t => t.role === "ai" && t.draft).length;
+      const res = await fetch("/api/admin/ai/lab-promote", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          latestDraft,
+          tastingNotes: tastingNotesForAI(),
+          iterationCount,
+        }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `Polish failed (${res.status})`);
+      }
+      const { draft, diff, greeting } = await res.json();
+      const aiTurn = { role: "ai", text: greeting, draft, diff, greeting, polished: true };
+      setChat(prev => [...prev, aiTurn]);
+    } catch (err) {
+      setSendError(err.message || "Could not polish the draft.");
+    } finally {
+      setPolishing(false);
+    }
   };
 
   const handleFiles = (files) => {
@@ -411,7 +609,23 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes }) {
             {active && <h3>{active.title}</h3>}
           </div>
           {latestDraft && (
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                className="btn ghost sm"
+                onClick={suggestNext}
+                disabled={suggesting || !authEmail}
+                title="Ask the AI what to try next"
+              >
+                <Icon name="sparkle" size={11} /> {suggesting ? "Thinking…" : "What to try next"}
+              </button>
+              <button
+                className="btn ghost sm"
+                onClick={polishForCookbook}
+                disabled={polishing || !authEmail}
+                title="Polish this draft for the cookbook — distils tasting notes into final tips"
+              >
+                <Icon name="sparkle" size={11} /> {polishing ? "Polishing…" : "Polish with AI"}
+              </button>
               <button className="btn sm" onClick={() => saveAsExperiment(latestDraft)}>
                 <Icon name="bookmark" size={12} /> {active ? "Save edits" : "Save as experiment"}
               </button>
@@ -423,6 +637,38 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes }) {
             </div>
           )}
         </div>
+        {/* Inline error band — surfaces failed AI calls without
+            pushing the chat around. */}
+        {sendError && (
+          <div className="lab-error" style={{ padding: "8px 16px", fontSize: 12, color: "#933" }}>
+            {sendError}
+          </div>
+        )}
+        {/* Suggestions row — appears under the header after What-to-
+            try-next fires. Each chip is a one-tap iterate prompt. */}
+        {suggestions && suggestions.length > 0 && (
+          <div className="lab-suggestions">
+            <div className="head">
+              <span className="label">What to try next</span>
+              <button className="dismiss" onClick={() => setSuggestions(null)} aria-label="Dismiss suggestions">
+                <Icon name="x" size={11} />
+              </button>
+            </div>
+            <div className="cards">
+              {suggestions.map((s, i) => (
+                <button
+                  key={i}
+                  className="card"
+                  onClick={() => { setSuggestions(null); send(s.prompt); }}
+                  title={s.why}
+                >
+                  <div className="label"><Icon name="sparkle" size={10} /> {s.label}</div>
+                  <div className="why">{s.why}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="lab-chat-body" ref={bodyRef}>
           {chat.length === 0 && (
@@ -436,7 +682,22 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes }) {
               {t.role === "ai" && <div className="av">A</div>}
               {t.draft ? (
                 <div className="bubble recipe">
+                  {/* Diff pill — one-line "what changed vs the previous
+                      draft". Lets the cook scan iteration history at a
+                      glance without re-reading the whole recipe. */}
+                  {t.diff && (
+                    <div className={`lab-diff ${t.polished ? "polished" : ""}`}>
+                      <Icon name={t.polished ? "check" : "sparkle"} size={9} />
+                      <span>{t.polished ? "Polished for the cookbook" : t.diff}</span>
+                    </div>
+                  )}
                   <LabRecipeCard draft={t.draft} />
+                  {t.greeting && <div className="lab-greeting">{t.greeting}</div>}
+                  <TastingNoteEditor
+                    value={t.tastingNote || ""}
+                    onSave={(note) => setTastingNote(i, note)}
+                    disabled={!authEmail}
+                  />
                 </div>
               ) : (
                 <div>

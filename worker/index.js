@@ -1508,6 +1508,249 @@ Only return tweaks that come from what the family ACTUALLY said. Don't invent. I
   return c.json({ ...parsed, cached: false });
 });
 
+// ─── AI: Lab — shared draft + iteration schemas ───
+// The Lab uses a slimmer recipe shape than the cookbook (no
+// nutrition, no diet tags, no photo) because iterations are about
+// the food — the cookbook fields get filled in at Promote time.
+const AI_LAB_DRAFT_SCHEMA = {
+  type: "object",
+  properties: {
+    title:    { type: "string" },
+    blurb:    { type: "string" },
+    time:     { type: "number" },
+    servings: { type: "number" },
+    ingredients: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          qty:  { type: "number" },
+          unit: { type: "string" },
+          item: { type: "string" },
+        },
+        required: ["qty", "unit", "item"],
+        additionalProperties: false,
+      },
+    },
+    steps: { type: "array", items: { type: "string" } },
+    tips:  { type: "array", items: { type: "string" } },
+  },
+  required: ["title", "blurb", "time", "servings", "ingredients", "steps", "tips"],
+  additionalProperties: false,
+};
+
+const AI_LAB_ITERATE_SCHEMA = {
+  type: "object",
+  properties: {
+    draft:    AI_LAB_DRAFT_SCHEMA,
+    // One short line listing what changed vs the previous draft.
+    // Rendered as a "What changed" pill above the new draft so
+    // cooks can scan iteration history at a glance.
+    diff:     { type: "string" },
+    // One-sentence framing the cook sees next to the new draft.
+    greeting: { type: "string" },
+  },
+  required: ["draft", "diff", "greeting"],
+  additionalProperties: false,
+};
+
+// ─── AI: Lab iterate — produce or revise a draft ───
+app.post("/api/admin/ai/lab-iterate", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI API key not configured." }, 500);
+
+  const body = await c.req.json().catch(() => ({}));
+  const prompt = (body?.prompt || "").trim();
+  if (!prompt) return c.json({ error: "missing prompt" }, 400);
+  const previousDraft = body?.previousDraft || null;
+  const history = Array.isArray(body?.history)
+    ? body.history.slice(-8).map(t => ({
+        role: t.role === "ai" ? "assistant" : "user",
+        text: (t.text || "").slice(0, 300),
+        tastingNote: t.tastingNote || null,
+      }))
+    : [];
+
+  const messages = [
+    {
+      role: "system",
+      content: `You are the kitchen experimentation AI for a family cookbook's "Lab". The cook is iterating on a dish — your job is to produce a recipe draft that incorporates what they just asked for. Voice: warm, opinionated family cook. Don't apologise, don't add caveats, don't list every assumption. Just write the recipe.
+
+When a previous draft is provided, treat your output as the NEXT iteration — change what the cook asked to change, leave the rest stable. Don't quietly rewrite steps that weren't touched.
+
+The diff field is ONE short clause listing the changes made vs the previous draft, comma-separated ("halved sugar, added cardamom, swapped milk for buttermilk"). If there's no previous draft, diff is "Initial draft".
+
+The greeting field is one short sentence framing the new draft for the cook ("Here's the lighter version — want me to push it further?", "First pass at the brioche. Tell me what to change.").`,
+    },
+    ...(previousDraft ? [{
+      role: "user",
+      content: `PREVIOUS DRAFT:\n${JSON.stringify(previousDraft, null, 2)}`,
+    }] : []),
+    ...history.map(t => ({
+      role: t.role,
+      content: t.tastingNote
+        ? `${t.text}\n\n[tasting note: ${t.tastingNote}]`
+        : t.text,
+    })),
+    { role: "user", content: prompt },
+  ];
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages,
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "lab_iterate", strict: true, schema: AI_LAB_ITERATE_SCHEMA },
+      },
+    }),
+  });
+  if (!openaiRes.ok) {
+    console.error("OpenAI lab-iterate error", openaiRes.status, await openaiRes.text());
+    return c.json({ error: `OpenAI returned ${openaiRes.status}.` }, 502);
+  }
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return c.json({ error: "OpenAI returned no content." }, 502);
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+  return c.json(parsed);
+});
+
+// ─── AI: Lab suggest — "what to try next" ───
+const AI_LAB_SUGGEST_SCHEMA = {
+  type: "object",
+  properties: {
+    suggestions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          label:  { type: "string" },
+          prompt: { type: "string" },
+          why:    { type: "string" },
+        },
+        required: ["label", "prompt", "why"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["suggestions"],
+  additionalProperties: false,
+};
+
+app.post("/api/admin/ai/lab-suggest", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI API key not configured." }, 500);
+
+  const body = await c.req.json().catch(() => ({}));
+  const latestDraft = body?.latestDraft;
+  if (!latestDraft) return c.json({ error: "missing latestDraft" }, 400);
+  const tastingNotes = Array.isArray(body?.tastingNotes)
+    ? body.tastingNotes.filter(n => n?.note).slice(-6)
+    : [];
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `Given a draft recipe and a small history of tasting notes from earlier iterations, propose 2-3 concrete next things the cook could try. Each suggestion has:
+  • label — 3-5 words, button-shaped ("Brown the butter", "Swap milk for buttermilk")
+  • prompt — the full request the cook would type back ("Brown the butter before adding it — see how it changes the crumb")
+  • why — one sentence pointing at what in the recipe or tasting notes makes this worth trying
+
+Don't suggest things the cook already tried. Use the tasting notes as evidence — if a previous iteration was 'too sweet', a sugar reduction is fair game; if 'crumb was tight', go for hydration or leavening.`,
+        },
+        {
+          role: "user",
+          content: `LATEST DRAFT:\n${JSON.stringify(latestDraft, null, 2)}\n\nTASTING NOTES (most recent last):\n${JSON.stringify(tastingNotes, null, 2)}`,
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "lab_suggest", strict: true, schema: AI_LAB_SUGGEST_SCHEMA },
+      },
+    }),
+  });
+  if (!openaiRes.ok) {
+    console.error("OpenAI lab-suggest error", openaiRes.status, await openaiRes.text());
+    return c.json({ error: `OpenAI returned ${openaiRes.status}.` }, 502);
+  }
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return c.json({ error: "OpenAI returned no content." }, 502);
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+  return c.json(parsed);
+});
+
+// ─── AI: Lab promote — polish the draft for the cookbook ───
+app.post("/api/admin/ai/lab-promote", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI API key not configured." }, 500);
+
+  const body = await c.req.json().catch(() => ({}));
+  const latestDraft = body?.latestDraft;
+  if (!latestDraft) return c.json({ error: "missing latestDraft" }, 400);
+  const tastingNotes = Array.isArray(body?.tastingNotes)
+    ? body.tastingNotes.filter(n => n?.note).slice(-8)
+    : [];
+  const iterationCount = Number(body?.iterationCount) || 1;
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `You are polishing a Lab draft for the family cookbook. The cook has iterated on this dish ${iterationCount > 1 ? `${iterationCount} times` : "once"} and has tasting notes you should respect. Produce a polished version of the draft suitable for the cookbook:
+  • title — concise, characterful (no AI-speak, no 'with a twist')
+  • blurb — one sentence that captures the soul of the dish
+  • steps — tightened, action verbs upfront; remove redundancy; keep cook-facing voice
+  • tips — distil hard-won knowledge from the tasting notes ("frozen blueberries don't bleed"; "let it rest the full 20 min, not 15"). Drop fluffy ones.
+  • ingredients — final amounts. Round sensibly.
+  • diff — list what you polished (one short clause)
+  • greeting — one sentence telling the cook the polished draft is ready for them to review.
+
+Don't invent new ingredients or steps the cook never tested. If the tasting notes flag something unresolved, leave it as a tip ("The cardamom version was bolder — try 1/4 tsp next time.").`,
+        },
+        {
+          role: "user",
+          content: `LATEST DRAFT:\n${JSON.stringify(latestDraft, null, 2)}\n\nTASTING NOTES (most recent last):\n${JSON.stringify(tastingNotes, null, 2)}`,
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "lab_iterate", strict: true, schema: AI_LAB_ITERATE_SCHEMA },
+      },
+    }),
+  });
+  if (!openaiRes.ok) {
+    console.error("OpenAI lab-promote error", openaiRes.status, await openaiRes.text());
+    return c.json({ error: `OpenAI returned ${openaiRes.status}.` }, 502);
+  }
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return c.json({ error: "OpenAI returned no content." }, 502);
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+  return c.json(parsed);
+});
+
 // ─── AI: Nutrition estimate ───
 // Some extracted recipes come back with zero nutrition (the model
 // gave up on the rough cookbook print). The editor exposes an

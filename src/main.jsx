@@ -381,6 +381,7 @@ function App() {
           onClose={backToBrowse}
           onPromote={onSaveRecipe}
           allRecipes={recipes}
+          authEmail={authEmail}
         />
       )}
       {view === "meal" && (
