@@ -1,7 +1,17 @@
 // ui.jsx — small shared UI bits
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "./helpers.jsx";
+
+// Renders children into a body-level <div class="print-only">. The
+// global print stylesheet hides #root and shows .print-only nodes,
+// which gives us a clean simplified print layout without fighting
+// any of the on-screen styles.
+export function PrintOnly({ children }) {
+  if (typeof document === "undefined") return null;
+  return createPortal(<div className="print-only">{children}</div>, document.body);
+}
 
 export function Modal({ open, onClose, title, subtitle, children, footer, size }) {
   useEffect(() => {

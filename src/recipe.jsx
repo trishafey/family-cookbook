@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Icon, fmtDuration, fmtTime, formatQty, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage } from "./helpers.jsx";
 import { convertIngredient } from "./units.js";
 import { useLang } from "./i18n.js";
-import { TimeOfDayInput } from "./ui.jsx";
+import { TimeOfDayInput, PrintOnly } from "./ui.jsx";
 import { NeedHelp } from "./need-help.jsx";
 import { PairingsSection } from "./pairings.jsx";
 import { FLAGS } from "./config/flags.js";
@@ -1231,6 +1231,82 @@ export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, 
       {variant === "magazine" && <RecipeMagazine {...variantProps} />}
       {variant === "binder" && <RecipeBinder {...variantProps} />}
       {(!variant || variant === "editorial") && <RecipeEditorial {...variantProps} />}
+
+      {/* Simplified print layout — only rendered in the print
+          stylesheet (the rest of the app is hidden via #root). */}
+      <PrintOnly>
+        <RecipePrintView recipe={recipe} ings={finalIngs} servings={scaler.servings} />
+      </PrintOnly>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// RecipePrintView — what shows up on paper. Small photo, two
+// columns (ingredients + steps), tips list at the bottom.
+// Scaled to the cook's current servings so the printed list
+// matches whatever they set on screen.
+// ─────────────────────────────────────────────────────────────
+function RecipePrintView({ recipe, ings, servings }) {
+  const grouped = (ings || []).reduce((acc, ing) => {
+    const k = ing.grp || "Ingredients";
+    if (k === "Serve") return acc;
+    (acc[k] = acc[k] || []).push(ing);
+    return acc;
+  }, {});
+  return (
+    <div className="print-recipe">
+      <div className="print-header">
+        <div className="print-text">
+          <h1>{recipe.title}</h1>
+          {recipe.subtitle && <p className="sub">{recipe.subtitle}</p>}
+          <div className="meta">
+            {recipe.scaleBy !== "weight" && <span>Serves {servings}</span>}
+            <span>{fmtDuration(recipe.total)}</span>
+            {recipe.author && <span>{recipe.author}</span>}
+            {recipe.cuisine && <span>{recipe.cuisine}</span>}
+          </div>
+        </div>
+        {recipe.photo && (
+          <div className="print-photo" style={{ backgroundImage: `url(${recipe.photo})` }} />
+        )}
+      </div>
+      <div className="print-columns">
+        <div className="print-col print-ingredients">
+          <h2>Ingredients</h2>
+          {Object.entries(grouped).map(([grp, items]) => (
+            <div className="print-group" key={grp}>
+              {Object.keys(grouped).length > 1 && <h3>{grp}</h3>}
+              <ul>
+                {items.map((i, idx) => (
+                  <li key={idx}>
+                    <span className="qty">{formatQty(i.qty)} {i.unit}</span> {i.item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <div className="print-col print-steps">
+          <h2>Steps</h2>
+          <ol>
+            {(recipe.steps || []).map((s, i) => (
+              <li key={i}>
+                {s.t && <strong>{s.t}. </strong>}
+                {s.d}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+      {recipe.tips?.length > 0 && (
+        <div className="print-tips">
+          <h2>Tips</h2>
+          <ul>
+            {recipe.tips.map((tip, i) => <li key={i}>{tip}</li>)}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

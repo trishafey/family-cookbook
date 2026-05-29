@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useStorage, buildShoppingList, formatQty, Icon } from "./helpers.jsx";
-import { Modal } from "./ui.jsx";
+import { Modal, PrintOnly } from "./ui.jsx";
 import { useLang } from "./i18n.js";
 
 export function ShoppingList({ open, onClose, payload }) {
@@ -105,6 +105,33 @@ export function ShoppingList({ open, onClose, payload }) {
           </div>
         )}
       </div>
+      {/* Simplified print layout — portal'd next to #root so the
+          print stylesheet can hide everything else. */}
+      {open && (
+        <PrintOnly>
+          <div className="print-shop">
+            <h1>{t("shoppingList")}</h1>
+            <p className="sub">{payload?.map(p => p.recipe.title).join(" + ")}</p>
+            {Object.entries(buckets).map(([grp, items]) => (
+              <div className="print-group" key={grp}>
+                <h2>{grp}</h2>
+                <ul>
+                  {items.map((i, idx) => {
+                    const k = `${i.item}|${i.unit}`;
+                    const isHave = !!have[k];
+                    return (
+                      <li key={idx} className={isHave ? "have" : ""}>
+                        <span className="checkbox">{isHave ? "☑" : "☐"}</span>
+                        <span className="qty">{formatQty(i.qty)} {i.unit}</span> {i.item}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </PrintOnly>
+      )}
     </Modal>
   );
 }

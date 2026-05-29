@@ -596,7 +596,11 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           <h2>{editing ? draft?.title || t("editRecipeTitle") : t("addRecipeToCookbook")}</h2>
         </div>
         <div className="rhs">
-          {editing && initialRecipe && SEED_RECIPES.some(r => r.id === initialRecipe.id) && (
+          {/* Reset-to-original is hidden behind an owner-email gate
+              for now — only Patricia sees it. Useful for recovering
+              from edit bugs (e.g. the old PL-edit-clobber); not
+              something everyone in the family should reach for. */}
+          {editing && initialRecipe && authEmail === "patricia.fejdasz@gmail.com" && SEED_RECIPES.some(r => r.id === initialRecipe.id) && (
             <button
               className="btn ghost"
               onClick={async () => {

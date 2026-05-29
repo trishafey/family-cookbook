@@ -2453,15 +2453,56 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .featured .small .photo { flex: 1; min-height: 180px; }
 .featured .small .body { padding: 14px 16px; }
 
-/* Print styles */
+/* ─── Print ───
+   .print-only lives at the document body level (rendered via a
+   portal in ui.jsx → PrintOnly). On screen it's hidden; in print
+   we hide #root entirely and let the print-only block fill the
+   page. That way the print layout doesn't have to fight any of
+   the on-screen styles. */
+.print-only { display: none; }
 @media print {
-  body { background: white; }
-  .nav, .recipe-actions, .nav-actions, .meal-tray, .tweaks-panel, .ai-sparkle { display: none !important; }
-  .recipe-hero { grid-template-columns: 1fr; gap: 16px; }
-  .recipe-body { grid-template-columns: 1fr; gap: 24px; }
-  .ingredients-panel { position: static; }
+  @page { margin: 0.6in; }
+  html, body { background: white !important; color: #111 !important; margin: 0; }
+  body > #root { display: none !important; }
+  body > .print-only { display: block !important; }
   * { box-shadow: none !important; }
+  a { color: inherit; text-decoration: none; }
 }
+
+/* Print recipe layout — small photo + two columns + tips */
+.print-only .print-recipe { font-family: Georgia, "Times New Roman", serif; color: #111; line-height: 1.45; font-size: 11pt; }
+.print-only .print-recipe h1 { font-size: 22pt; margin: 0 0 4pt; line-height: 1.15; }
+.print-only .print-recipe h2 { font-size: 13pt; margin: 12pt 0 6pt; padding-bottom: 3pt; border-bottom: 1px solid #888; }
+.print-only .print-recipe h3 { font-size: 11pt; margin: 8pt 0 4pt; font-style: italic; color: #444; font-weight: normal; }
+.print-only .print-header { display: flex; gap: 16pt; align-items: flex-start; margin-bottom: 14pt; }
+.print-only .print-header .print-text { flex: 1; }
+.print-only .print-header .sub { font-style: italic; color: #444; margin: 0 0 6pt; font-size: 11pt; }
+.print-only .print-header .meta { color: #555; font-size: 10pt; }
+.print-only .print-header .meta span:not(:last-child)::after { content: " · "; }
+.print-only .print-photo {
+  width: 1.6in; height: 1.6in; flex: 0 0 auto;
+  background-size: cover; background-position: center;
+  border: 1px solid #ccc;
+}
+.print-only .print-columns { display: grid; grid-template-columns: 1fr 1.6fr; gap: 18pt; }
+.print-only .print-col ul, .print-only .print-col ol { margin: 0; padding-left: 16pt; }
+.print-only .print-col li { margin-bottom: 5pt; page-break-inside: avoid; }
+.print-only .print-ingredients .qty { font-family: "SF Mono", "Menlo", monospace; font-size: 10pt; color: #333; }
+.print-only .print-steps li { padding-left: 4pt; }
+.print-only .print-tips { margin-top: 14pt; }
+.print-only .print-tips ul { padding-left: 16pt; }
+.print-only .print-tips li { margin-bottom: 4pt; page-break-inside: avoid; }
+
+/* Print shopping list layout — single column, groups stacked */
+.print-only .print-shop { font-family: Georgia, "Times New Roman", serif; color: #111; font-size: 11pt; line-height: 1.5; }
+.print-only .print-shop h1 { font-size: 20pt; margin: 0 0 4pt; }
+.print-only .print-shop .sub { font-style: italic; color: #555; margin: 0 0 14pt; }
+.print-only .print-shop h2 { font-size: 12pt; margin: 14pt 0 4pt; padding-bottom: 2pt; border-bottom: 1px solid #888; }
+.print-only .print-shop ul { list-style: none; padding: 0; margin: 0; }
+.print-only .print-shop li { margin: 3pt 0; page-break-inside: avoid; display: flex; gap: 6pt; align-items: baseline; }
+.print-only .print-shop .checkbox { font-size: 13pt; line-height: 1; }
+.print-only .print-shop .qty { font-family: "SF Mono", "Menlo", monospace; font-size: 10pt; color: #333; min-width: 60pt; }
+.print-only .print-shop li.have { color: #999; text-decoration: line-through; }
 
 /* ─────────────────────────────────────────────────────────────────────
    RESPONSIVE — tablet (≤960) and mobile (≤640)
