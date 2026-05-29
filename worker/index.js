@@ -145,6 +145,34 @@ function authedEmail(c) {
   return c.req.header("cf-access-authenticated-user-email") || null;
 }
 
+// ─── AI usage analytics ───
+// One row per AI call written into ai_events. Best-effort: we use
+// c.executionCtx.waitUntil so the insert doesn't block the
+// response and a DB failure never breaks the AI surface for the
+// cook. Each endpoint logs its feature name + a small JSON
+// `meta` payload tuned to the questions we want to ask later
+// (which features are most popular; what prompts people are
+// typing; whether they attach photos; what action the model
+// returned).
+//
+// PII note: `user_email` is logged because the family cookbook
+// is family-scoped (≤ 5 users). If this ever broadens past
+// family, swap to a hashed identifier.
+function logAiEvent(c, feature, recipeId, meta, ok = true) {
+  const email = authedEmail(c);
+  if (!email) return;
+  const created = new Date().toISOString();
+  const metaStr = meta ? JSON.stringify(meta) : null;
+  c.executionCtx.waitUntil(
+    c.env.DB.prepare(
+      "INSERT INTO ai_events (created_at, user_email, feature, recipe_id, ok, meta) VALUES (?, ?, ?, ?, ?, ?)"
+    )
+      .bind(created, email, feature, recipeId || null, ok ? 1 : 0, metaStr)
+      .run()
+      .catch((err) => console.error("ai_events insert failed", err))
+  );
+}
+
 // JS uses this to check sign-in status. With Accept: application/json,
 // Access returns a 401 JSON body when unauthenticated (instead of a
 // 302 to login), so fetch sees a clean failure.
@@ -767,6 +795,10 @@ app.post("/api/admin/ai/extract-text", async (c) => {
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
 
+  logAiEvent(c, "extract-text", null, {
+    textLen: text.length,
+    title: parsed?.title || null,
+  });
   return c.json(parsed);
 });
 
@@ -913,6 +945,11 @@ The user is pulling a recipe from a webpage. The text below was scraped from the
   // want.
   parsed.sourceUrl = url.toString();
 
+  logAiEvent(c, "extract-url", null, {
+    hostname: url.hostname,
+    title: parsed?.title || null,
+    usedJsonLd: cleaned.startsWith("RECIPE_JSON_LD:"),
+  });
   return c.json(parsed);
 });
 
@@ -1036,6 +1073,10 @@ The user has photographed a cookbook page, recipe card, or handwritten note. The
     parsed.showSourcePhotos = true;
   }
 
+  logAiEvent(c, "extract-image", null, {
+    photoCount: sourcePhotos.length,
+    title: parsed?.title || null,
+  });
   return c.json(parsed);
 });
 
@@ -1244,6 +1285,11 @@ Quality bar: a thoughtful family cook should look at these and immediately under
     .bind(updatedBlob, recipeId)
     .run();
 
+  logAiEvent(c, "pairings", recipeId, {
+    fromBookCount: parsed.fromBook?.length || 0,
+    suggestionsCount: parsed.suggestions?.length || 0,
+    keptPins: keepFromBook.length + keepSuggestions.length,
+  });
   return c.json({ ...parsed, cached: false });
 });
 
@@ -1313,6 +1359,12 @@ app.post("/api/admin/ai/help", async (c) => {
   const result = await openaiRes.json();
   const answer = result?.choices?.[0]?.message?.content;
   if (!answer) return c.json({ error: "OpenAI returned no content." }, 502);
+  const lastUserTurn = [...turns].reverse().find(t => t.role === "user");
+  logAiEvent(c, "help", recipe?.id || null, {
+    turnCount: turns.length,
+    prompt: (lastUserTurn?.text || "").slice(0, 200),
+    fromCookMode: !!body?.cookState,
+  });
   return c.json({ answer });
 });
 
@@ -1405,7 +1457,136 @@ Interpret loosely: "halve it" → set to half current servings (or weight). "Dou
   let parsed;
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+  logAiEvent(c, "adjust", recipe?.id || null, {
+    prompt: prompt.slice(0, 200),
+    actionKind: parsed?.action?.kind || "none",
+    actionValue: parsed?.action?.value ?? null,
+  });
   return c.json(parsed);
+});
+
+// ─── AI: Adjust chips — recipe-specific suggestions ───
+// Until Phase 2 of Adjust (full per-user variants) ships, the
+// chips are content-aware suggestions: each chip is a relevant
+// tweak the cook might try ("Make it dairy-free" for a cream
+// pasta; "Add chipotle for depth" for a chili) with a one-
+// sentence cooking tip the cook applies as a "Family says"-style
+// note. Generic chips (scaling, calorie target) stay on the
+// client where they apply locally with no AI needed.
+//
+// Cached on recipe.aiAdjustChips so every visitor after the
+// first gets the cached set. Regenerate with ?force.
+const AI_ADJUST_CHIPS_SCHEMA = {
+  type: "object",
+  properties: {
+    chips: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          // 3-5 word button text. Imperative, no full stop.
+          label:   { type: "string" },
+          // 1-sentence prompt the cook would type. Phase 2 will
+          // feed this back to the rewrite endpoint.
+          prompt:  { type: "string" },
+          // 1-2 sentences of concrete cooking guidance — exact
+          // substitution, technique, ratio. Shown to the cook as
+          // a 'tip' in the applied list when the chip is clicked.
+          summary: { type: "string" },
+        },
+        required: ["label", "prompt", "summary"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["chips"],
+  additionalProperties: false,
+};
+
+app.post("/api/admin/ai/adjust-chips", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI API key not configured." }, 500);
+
+  const body = await c.req.json().catch(() => ({}));
+  const recipeId = (body?.recipeId || "").trim();
+  const force = !!body?.force;
+  if (!recipeId) return c.json({ error: "missing recipeId" }, 400);
+
+  const row = await c.env.DB.prepare("SELECT blob FROM recipes WHERE id = ?").bind(recipeId).first();
+  if (!row) return c.json({ error: "recipe not found" }, 404);
+  const recipe = JSON.parse(row.blob);
+
+  if (recipe.aiAdjustChips && !force) {
+    return c.json({ ...recipe.aiAdjustChips, cached: true });
+  }
+
+  // Compact context — title, blurb, course, cuisine, diet tags
+  // already applied, ingredient item names, step titles. We omit
+  // qty/unit because the chips are about content changes (swap,
+  // technique) not scaling.
+  const context = {
+    title:    recipe.title,
+    subtitle: recipe.subtitle,
+    course:   recipe.course,
+    cuisine:  recipe.cuisine,
+    diet:     recipe.diet || [],
+    ingredients: (recipe.ingredients || []).map(i => i.item).filter(Boolean),
+    steps:    (recipe.steps || []).map(s => s.t || (s.d || "").slice(0, 80)).filter(Boolean),
+    tips:     recipe.tips || [],
+  };
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `You propose 4-6 relevant adjustments for a specific recipe. Each chip is a tweak the cook might realistically want to try, grounded in what this dish actually contains and how it's cooked.
+
+Selection rules:
+  • Tailor to the dish. A roast chicken can be spatchcocked or wet-brined; a pasta can be made gluten-free; a chocolate cake can lose the dairy. Skip suggestions that don't apply (no "make it gluten-free" for a roast that's already GF).
+  • If recipe.diet already lists "Gluten-free" or "Dairy-free", don't suggest making it so — the cook already did.
+  • Avoid scaling chips ("Make for 8 servings"). Those are handled separately on the client. Focus on content changes: ingredient swaps, technique shifts, flavour pushes, dietary adaptations.
+  • Mix easy wins (one swap) with bolder pushes (technique change, new accent).
+
+Each chip has:
+  • label — 3-5 imperative words, no full stop ("Make it gluten-free", "Add miso depth", "Spatchcock the bird")
+  • prompt — one sentence the cook would type to request this change
+  • summary — 1-2 sentences of concrete cooking guidance: what to swap to, how much, what shifts as a consequence (cook time, texture). Written like a family cook giving advice.`,
+        },
+        { role: "user", content: JSON.stringify(context, null, 2) },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "adjust_chips", strict: true, schema: AI_ADJUST_CHIPS_SCHEMA },
+      },
+    }),
+  });
+  if (!openaiRes.ok) {
+    console.error("OpenAI adjust-chips error", openaiRes.status, await openaiRes.text());
+    return c.json({ error: `OpenAI returned ${openaiRes.status}.` }, 502);
+  }
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return c.json({ error: "OpenAI returned no content." }, 502);
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+
+  parsed.generatedAt = new Date().toISOString();
+  const updatedBlob = JSON.stringify({ ...recipe, aiAdjustChips: parsed });
+  await c.env.DB.prepare("UPDATE recipes SET blob = ? WHERE id = ?")
+    .bind(updatedBlob, recipeId)
+    .run();
+
+  logAiEvent(c, "adjust-chips", recipeId, {
+    chipCount: parsed?.chips?.length || 0,
+    force,
+  });
+  return c.json({ ...parsed, cached: false });
 });
 
 // ─── AI: Family says — synthesise comments into a summary + tweaks ───
@@ -1558,6 +1739,11 @@ Only return tweaks that come from what the family ACTUALLY said. Don't invent. I
     .bind(updatedBlob, recipeId)
     .run();
 
+  logAiEvent(c, "family-says", recipeId, {
+    commentCount: allComments.length,
+    tweakCount: parsed?.tweaks?.length || 0,
+    force,
+  });
   return c.json({ ...parsed, cached: false });
 });
 
@@ -1671,6 +1857,13 @@ The greeting field is one short sentence framing the new draft for the cook ("He
   let parsed;
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+  logAiEvent(c, "lab-iterate", null, {
+    prompt: prompt.slice(0, 200),
+    hasPrevious: !!previousDraft,
+    historyTurns: history.length,
+    diff: (parsed?.diff || "").slice(0, 120),
+    title: parsed?.draft?.title || null,
+  });
   return c.json(parsed);
 });
 
@@ -1744,6 +1937,11 @@ Don't suggest things the cook already tried. Use the tasting notes as evidence �
   let parsed;
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+  logAiEvent(c, "lab-suggest", null, {
+    draftTitle: latestDraft?.title || null,
+    tastingNoteCount: tastingNotes.length,
+    suggestionCount: parsed?.suggestions?.length || 0,
+  });
   return c.json(parsed);
 });
 
@@ -1801,6 +1999,12 @@ Don't invent new ingredients or steps the cook never tested. If the tasting note
   let parsed;
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+  logAiEvent(c, "lab-promote", null, {
+    inputTitle: latestDraft?.title || null,
+    outputTitle: parsed?.draft?.title || null,
+    iterationCount,
+    tastingNoteCount: tastingNotes.length,
+  });
   return c.json(parsed);
 });
 
@@ -1868,6 +2072,12 @@ app.post("/api/admin/ai/nutrition", async (c) => {
   let parsed;
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+  logAiEvent(c, "nutrition", body?.recipeId || null, {
+    title,
+    servings,
+    ingredientCount: ingredients.length,
+    cal: parsed?.cal ?? null,
+  });
   return c.json(parsed);
 });
 
@@ -1975,6 +2185,13 @@ app.post("/api/admin/ai/hero-image", async (c) => {
     httpMetadata: { contentType: "image/png" },
   });
 
+  logAiEvent(c, "hero-image", body?.recipeId || null, {
+    title,
+    course,
+    hasIngredients: Array.isArray(body?.ingredients) && body.ingredients.length > 0,
+    hasSteps: Array.isArray(body?.steps) && body.steps.length > 0,
+    key,
+  });
   return c.json({ url: `/api/images/${key}`, key, prompt });
 });
 
