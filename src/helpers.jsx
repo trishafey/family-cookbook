@@ -216,6 +216,33 @@ export function useStorage(key, initial) {
   return [v, setV];
 }
 
+// Apply a per-language translation overlay on top of a canonical recipe.
+// Quantities, units, sections, precision, mins, etc. stay canonical so
+// scaling and scheduling keep working — only the user-authored text
+// fields (title / subtitle / ingredient items / step titles+descriptions
+// / tips) flip to the requested language. Falls through to the canonical
+// fields whenever a translation hasn't landed yet.
+export function localizeRecipe(r, lang) {
+  if (!r || !lang || lang === "en") return r;
+  const tr = r.translations?.[lang];
+  if (!tr) return r;
+  return {
+    ...r,
+    title:    tr.title    || r.title,
+    subtitle: tr.subtitle || r.subtitle,
+    tips:     tr.tips     || r.tips,
+    ingredients: (r.ingredients || []).map((ing, i) => ({
+      ...ing,
+      item: tr.ingredients?.[i]?.item || ing.item,
+    })),
+    steps: (r.steps || []).map((step, i) => ({
+      ...step,
+      t: tr.steps?.[i]?.t || step.t,
+      d: tr.steps?.[i]?.d || step.d,
+    })),
+  };
+}
+
 // Backfill defaults for fields the UI assumes exist. Older user-added
 // recipes can be missing arrays or nested objects; rendering crashes
 // rather than degrading without this.
