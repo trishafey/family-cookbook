@@ -263,11 +263,7 @@ function StepsEditor({ steps, onChange }) {
             </div>
           )}
           {sec.items.map((s) => (
-            <div
-              key={s._idx}
-              className="step-row"
-              style={{ display: "grid", gridTemplateColumns: "24px 1fr 150px 120px 24px", gap: 6, marginBottom: 6, alignItems: "start" }}
-            >
+            <div key={s._idx} className="step-row">
               <div className="reorder-stack">
                 <button type="button" onClick={() => moveStep(s._idx, -1)} disabled={s._idx === 0} aria-label={t("moveUp")} title={t("moveUp")}>
                   <Icon name="chevU" size={12} />
@@ -276,19 +272,22 @@ function StepsEditor({ steps, onChange }) {
                   <Icon name="chevD" size={12} />
                 </button>
               </div>
-              <textarea
-                value={s.d}
-                placeholder={t("stepPlaceholder")}
-                style={{ minHeight: 60 }}
-                onChange={(e) => update(s._idx, { d: e.target.value, t: e.target.value.split(/[.:]/)[0].slice(0, 60) })}
-              />
-              <HoursMinutes value={s.mins} onChange={(v) => update(s._idx, { mins: v })} />
-              <select value={s.precision || "easy"} onChange={(e) => update(s._idx, { precision: e.target.value })}>
-                {["easy","medium","careful","watch","patient"].map(p => <option key={p}>{p}</option>)}
-              </select>
-              <button type="button" className="btn ghost icon-only" onClick={() => remove(s._idx)}>
-                <Icon name="x" size={12} />
-              </button>
+              <div className="step-fields">
+                <textarea
+                  value={s.d}
+                  placeholder={t("stepPlaceholder")}
+                  onChange={(e) => update(s._idx, { d: e.target.value, t: e.target.value.split(/[.:]/)[0].slice(0, 60) })}
+                />
+                <div className="step-meta">
+                  <HoursMinutes value={s.mins} onChange={(v) => update(s._idx, { mins: v })} />
+                  <select value={s.precision || "easy"} onChange={(e) => update(s._idx, { precision: e.target.value })}>
+                    {["easy","medium","careful","watch","patient"].map(p => <option key={p}>{p}</option>)}
+                  </select>
+                  <button type="button" className="btn ghost icon-only step-remove" onClick={() => remove(s._idx)} aria-label={t("remove")}>
+                    <Icon name="x" size={12} />
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
           <button type="button" className="btn ghost sm" onClick={() => addStepTo(sec.name)}>

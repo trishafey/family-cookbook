@@ -605,7 +605,33 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 
 /* Step reorder controls on AddRecipe */
-.step-row { transition: background 0.1s ease; }
+.step-row {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: start;
+  transition: background 0.1s ease;
+}
+.step-fields { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.step-fields textarea { width: 100%; min-height: 72px; }
+.step-meta {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+}
+.step-meta select { min-width: 130px; flex: 1 1 130px; }
+.step-meta .step-remove { margin-left: auto; }
+
+@media (max-width: 640px) {
+  .step-row { gap: 6px; margin-bottom: 14px; }
+  .step-fields textarea { min-height: 96px; font-size: 15px; }
+  .step-meta { gap: 6px; }
+  .step-meta > * { min-height: 38px; }
+  .step-meta select { flex: 1 1 100%; min-width: 0; }
+  /* Time inputs sit on their own row above the precision select so
+     nothing crushes below ~44px. */
+  .step-meta > div:first-child { flex: 1 1 auto; }
+}
+
 .reorder-stack {
   display: flex; flex-direction: column; gap: 2px;
   padding-top: 4px;
