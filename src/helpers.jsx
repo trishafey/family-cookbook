@@ -455,6 +455,10 @@ export const Icon = ({ name, size = 16 }) => {
     paperclip: <path d="M21 11.5 12.5 20a5.5 5.5 0 0 1-7.78-7.78L13 4a3.5 3.5 0 0 1 4.95 4.95l-8.49 8.49a1.5 1.5 0 1 1-2.12-2.12L14.5 8.2" />,
     file:      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z M14 3v6h6" />,
     image:     <path d="M4 4h16v16H4z M4 16l5-5 5 5 3-3 3 3 M14 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />,
+    // Pin: classic location/thumbtack glyph. Used on pairing
+    // suggestion tiles so a cook can lock a favourite in place
+    // before regenerating.
+    pin:       <><path d="M12 21V14" /><path d="M8 4h8l-1.5 6a3 3 0 0 1-2 2H11.5a3 3 0 0 1-2-2L8 4Z" /></>,
     // Origin tags: heirloom recipes passed down (tomato), recipes
     // adopted from outside the family (sprout — new growth into the
     // canon), and Lab experiments (beaker).

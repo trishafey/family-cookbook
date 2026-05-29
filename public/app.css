@@ -1444,6 +1444,39 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .pairing-tile.suggestion .photo {
   display: grid; place-items: center;
 }
+/* Pin: top-right of the suggestion tile photo. Idle state is a
+   pale outline; pinned state fills with the warm accent so it
+   reads as "locked in" from across the page. */
+.pairing-tile .pairing-pin {
+  position: absolute; top: 10px; right: 10px;
+  width: 26px; height: 26px; border-radius: 999px;
+  display: inline-grid; place-items: center;
+  background: rgba(253, 252, 250, 0.85);
+  color: var(--ink-3);
+  border: 1px solid var(--rule);
+  cursor: pointer; padding: 0;
+  transition: transform .15s ease, background-color .15s ease, color .15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.pairing-tile .pairing-pin svg { pointer-events: none; }
+.pairing-tile .pairing-pin.on  { color: var(--paper); background: var(--accent); border-color: var(--accent); }
+.pairing-tile .pairing-pin:hover { transform: scale(1.08); }
+.pairing-tile.suggestion.pinned { box-shadow: 0 0 0 2px var(--accent), 0 8px 16px rgba(0,0,0,.06); }
+
+/* PairingRecipeModal body — a wide hero photo on top of a compact
+   prose block so the modal feels like a tasting card. */
+.pairing-modal-body { display: flex; flex-direction: column; gap: 16px; }
+.pairing-modal-body .hero {
+  width: 100%; aspect-ratio: 16/9; border-radius: 6px;
+  background-size: cover; background-position: center;
+}
+.pairing-modal-body .prose { font-family: var(--serif); font-size: 15px; line-height: 1.55; color: var(--ink); }
+.pairing-modal-body .meta-row {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+  border-top: 1px solid var(--rule); padding-top: 12px; margin-top: 12px;
+}
+.pairing-modal-body .meta-row strong { color: var(--ink); font-weight: 500; }
 .pairing-tile.suggestion .photo .suggestion-mark {
   font-family: var(--serif);
   font-size: 80px;

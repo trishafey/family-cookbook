@@ -1031,6 +1031,14 @@ app.post("/api/admin/ai/pairings", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const recipeId = (body?.recipeId || "").trim();
   const force = !!body?.force;
+  // Pinned suggestions the caller wants preserved across a
+  // regenerate. We trust the client's copy verbatim (it's just the
+  // same JSON we returned last time, plus a pinned flag), strip out
+  // anything that doesn't look like a suggestion, and cap at 3 so a
+  // misbehaving client can't fill the whole response with junk.
+  const keepSuggestions = Array.isArray(body?.keepSuggestions)
+    ? body.keepSuggestions.filter(s => s && typeof s.title === "string").slice(0, 3)
+    : [];
   if (!recipeId) return c.json({ error: "missing recipeId" }, 400);
 
   const row = await c.env.DB.prepare("SELECT blob FROM recipes WHERE id = ?").bind(recipeId).first();
@@ -1092,13 +1100,21 @@ app.post("/api/admin/ai/pairings", async (c) => {
 
 1. fromBook: up to 4 RECIPE IDs (taken EXACTLY from the catalogue's "id" field — do not invent ids) that would complement the target as sides, sauces, drinks, or desserts. Prefer Sides for mains, and lighter items for rich dishes. Leave empty if nothing in the catalogue fits well.
 
-2. suggestions: 2-3 NEW pairing ideas not already in the cookbook — sauces, sides, garnishes, drinks, or simple desserts that would round out the meal. Each must include realistic ingredients (qty + unit + item), 3-5 concise plain-text steps, a kind from the allowed enum, a one-sentence blurb that explains why it pairs, an approximate total time in minutes, and a photoTone hex colour that visually fits the dish (e.g. "#b04a2a" for tomato-forward, "#6e7a3a" for herby).
+2. suggestions: ${Math.max(1, 3 - keepSuggestions.length)} NEW pairing ideas not already in the cookbook — sauces, sides, garnishes, drinks, or simple desserts that would round out the meal. Each must include realistic ingredients (qty + unit + item), 3-5 concise plain-text steps, a kind from the allowed enum, a one-sentence blurb that explains why it pairs, an approximate total time in minutes, and a photoTone hex colour that visually fits the dish (e.g. "#b04a2a" for tomato-forward, "#6e7a3a" for herby).${
+            keepSuggestions.length
+              ? ` IMPORTANT: the cook has already pinned ${keepSuggestions.length} suggestion(s) — listed under PINNED below — that will be kept verbatim alongside your output. Generate fresh ideas that are NOT duplicates of or close variations on the pinned ones.`
+              : ""
+          }
 
 Quality bar: a thoughtful family cook should look at these and immediately understand why each pairing makes sense.`,
         },
         {
           role: "user",
-          content: `TARGET RECIPE:\n${JSON.stringify(target, null, 2)}\n\nCATALOGUE OF OTHER COOKBOOK RECIPES:\n${JSON.stringify(catalogue, null, 2)}`,
+          content: `TARGET RECIPE:\n${JSON.stringify(target, null, 2)}\n\nCATALOGUE OF OTHER COOKBOOK RECIPES:\n${JSON.stringify(catalogue, null, 2)}${
+            keepSuggestions.length
+              ? `\n\nPINNED SUGGESTIONS (already in the response — do not repeat):\n${JSON.stringify(keepSuggestions.map(s => ({ title: s.title, kind: s.kind, blurb: s.blurb })), null, 2)}`
+              : ""
+          }`,
         },
       ],
       response_format: {
@@ -1127,6 +1143,15 @@ Quality bar: a thoughtful family cook should look at these and immediately under
   // schema can't enforce membership).
   const validIds = new Set(catalogue.map(r => r.id));
   parsed.fromBook = (parsed.fromBook || []).filter(id => validIds.has(id));
+
+  // Pinned suggestions come first so the order stays stable
+  // across regenerates (the cook's pinned tiles don't shuffle).
+  if (keepSuggestions.length) {
+    parsed.suggestions = [
+      ...keepSuggestions,
+      ...(parsed.suggestions || []),
+    ].slice(0, 5);
+  }
 
   // Persist on the recipe blob so subsequent visitors get the
   // cached copy without another AI call.

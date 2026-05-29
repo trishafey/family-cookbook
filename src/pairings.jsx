@@ -489,7 +489,7 @@ export function pairingsFor(recipeId) {
 // ─────────────────────────────────────────────────────────────
 // PairingsSection — bottom of recipe page
 // ─────────────────────────────────────────────────────────────
-export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, onSaveToLab, authEmail }) {
+export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, onSaveToLab, onBuildMealWith, authEmail }) {
   // Pairings come from two layers, in priority order:
   //  1. recipe.pairings — AI-generated and cached on the recipe blob
   //     by /api/admin/ai/pairings. Persisted server-side so every
@@ -508,18 +508,37 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
   const suggestions = FLAGS.pairings ? source.suggestions : [];
 
   const [activeSugg, setActiveSugg] = useState(null);
+  const [activeBookPair, setActiveBookPair] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState(null);
+
+  // Toggle the pinned flag on an AI suggestion at index i. Pinned
+  // suggestions survive Regenerate — the worker is told to keep
+  // them as-is and only generate enough fresh ones to fill the rest
+  // of the slots.
+  const togglePin = (i) => {
+    if (!cached) return;
+    const next = (cached.suggestions || []).map((s, idx) => idx === i ? { ...s, pinned: !s.pinned } : s);
+    onSaveRecipe?.({
+      ...recipe,
+      pairings: { ...cached, suggestions: next },
+    });
+  };
 
   const generate = async (force = false) => {
     setGenerating(true);
     setGenError(null);
     try {
+      // Pinned suggestions get sent to the worker so they're kept
+      // verbatim alongside whatever the AI generates next.
+      const keepSuggestions = cached
+        ? (cached.suggestions || []).filter(s => s.pinned)
+        : [];
       const res = await fetch("/api/admin/ai/pairings", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ recipeId: recipe.id, force }),
+        body: JSON.stringify({ recipeId: recipe.id, force, keepSuggestions }),
       });
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({}));
@@ -595,7 +614,7 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
 
       <div className="pairings-grid">
         {pairedRecipes.map(r => (
-          <div key={r.id} className="pairing-tile from-book" onClick={() => openRecipe(r)}>
+          <div key={r.id} className="pairing-tile from-book" onClick={() => setActiveBookPair(r)}>
             <div className="photo" style={{ backgroundImage: `url(${r.photoCard || r.photo})` }}>
               <div className="ribbon">In the cookbook</div>
             </div>
@@ -612,9 +631,20 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
         ))}
 
         {suggestions.map((s, i) => (
-          <div key={i} className="pairing-tile suggestion" onClick={() => setActiveSugg(s)}>
+          <div key={i} className={`pairing-tile suggestion ${s.pinned ? "pinned" : ""}`} onClick={() => setActiveSugg(s)}>
             <div className="photo" style={{ background: `linear-gradient(135deg, ${s.photoTone}, ${s.photoTone}cc)` }}>
               <div className="ribbon ai"><Icon name="sparkle" size={9} /> New suggestion</div>
+              {cached && authEmail && (
+                <button
+                  type="button"
+                  className={`pairing-pin ${s.pinned ? "on" : "off"}`}
+                  onClick={(e) => { e.stopPropagation(); togglePin(i); }}
+                  aria-label={s.pinned ? "Unpin suggestion" : "Pin suggestion (keep on regenerate)"}
+                  title={s.pinned ? "Pinned — will be kept on regenerate" : "Pin — keep on regenerate"}
+                >
+                  <Icon name="pin" size={11} />
+                </button>
+              )}
               <div className="suggestion-mark">{s.title.split(" ").slice(0, 1).map(w => w[0]).join("")}</div>
             </div>
             <div className="body">
@@ -636,6 +666,14 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
         onClose={() => setActiveSugg(null)}
         onSaveRecipe={onSaveRecipe}
         onSaveToLab={onSaveToLab}
+      />
+
+      <PairingRecipeModal
+        pair={activeBookPair}
+        forRecipe={recipe}
+        onClose={() => setActiveBookPair(null)}
+        onOpenRecipe={(r) => { setActiveBookPair(null); openRecipe(r); }}
+        onBuildMeal={onBuildMealWith ? (r) => { setActiveBookPair(null); onBuildMealWith(r); } : null}
       />
     </>
   );
@@ -785,6 +823,62 @@ function PairingSuggestionModal({ suggestion, forRecipe, onClose, onSaveRecipe, 
               <li key={idx} style={{ padding: "5px 0", fontFamily: "var(--serif)", fontSize: 14.5, lineHeight: 1.5, color: "var(--ink-2)" }}>{s}</li>
             ))}
           </ol>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// PairingRecipeModal — preview an IN-BOOK pairing without leaving
+// the parent recipe. From here the cook can either jump to the
+// full recipe page or stage both this recipe and the parent as a
+// meal (handing off to BuildAMeal).
+// ─────────────────────────────────────────────────────────────
+function PairingRecipeModal({ pair, forRecipe, onClose, onOpenRecipe, onBuildMeal }) {
+  if (!pair) return null;
+  return (
+    <Modal
+      open={!!pair}
+      onClose={onClose}
+      title={pair.title}
+      subtitle={
+        <>
+          <span style={{ color: "var(--accent-2)" }}>In the cookbook</span>
+          {" · "}{pair.course} · by {pair.author} · pairs with {forRecipe.title}
+        </>
+      }
+      size="lg"
+      footer={
+        <>
+          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+            Open the full recipe, or build a meal pairing both together.
+          </span>
+          <div style={{ display: "flex", gap: 8 }}>
+            {onBuildMeal && (
+              <button className="btn ghost" onClick={() => onBuildMeal(pair)}>
+                <Icon name="bowl" size={12} /> Build meal
+              </button>
+            )}
+            <button className="btn primary" onClick={() => onOpenRecipe(pair)}>
+              <Icon name="chevR" size={12} /> View full recipe
+            </button>
+          </div>
+        </>
+      }
+    >
+      <div className="pairing-modal-body">
+        <div className="hero" style={{ backgroundImage: `url(${pair.photoCard || pair.photo})` }} />
+        <div className="prose">
+          <p style={{ fontStyle: "italic", color: "var(--ink-2)", marginTop: 0 }}>
+            {pair.subtitle}
+          </p>
+          <div className="meta-row">
+            <span><strong>Course:</strong> {pair.course}</span>
+            <span><strong>Cuisine:</strong> {pair.cuisine}</span>
+            <span><strong>Total:</strong> {fmtDuration(pair.total)}</span>
+            <span><strong>Serves:</strong> {pair.servingsDefault}</span>
+          </div>
         </div>
       </div>
     </Modal>

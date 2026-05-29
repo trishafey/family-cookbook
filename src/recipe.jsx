@@ -871,8 +871,8 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
                           applied, setApplied, showNutrition, setShowNutrition,
                           doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                           onCookMode, onShop, comments, addComment, deleteComment,
-                          allRecipes, onSaveRecipe, openRecipe,
-                          authEmail, onEditRecipe, onDeleteRecipe }) {
+                          allRecipes, onSaveRecipe, openRecipe, onSaveToLab,
+                          authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith }) {
   const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <>
@@ -936,7 +936,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
         </div>
       </div>
 
-      <PairingsSection recipe={recipe} allRecipes={allRecipes} openRecipe={openRecipe} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
+      <PairingsSection recipe={recipe} allRecipes={allRecipes} openRecipe={openRecipe} onSaveRecipe={onSaveRecipe} onSaveToLab={onSaveToLab} onBuildMealWith={onBuildMealWith} authEmail={authEmail} />
       <div className="section-break">
         <span className="label">From the family</span>
       </div>
@@ -955,8 +955,8 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
                          applied, setApplied, showNutrition, setShowNutrition,
                          doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                          onCookMode, onShop, comments, addComment, deleteComment,
-                         allRecipes, onSaveRecipe, openRecipe,
-                         authEmail, onEditRecipe, onDeleteRecipe }) {
+                         allRecipes, onSaveRecipe, openRecipe, onSaveToLab,
+                         authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith }) {
   const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <>
@@ -1023,7 +1023,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
         </div>
       </div>
 
-      <PairingsSection recipe={recipe} allRecipes={allRecipes} openRecipe={openRecipe} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
+      <PairingsSection recipe={recipe} allRecipes={allRecipes} openRecipe={openRecipe} onSaveRecipe={onSaveRecipe} onSaveToLab={onSaveToLab} onBuildMealWith={onBuildMealWith} authEmail={authEmail} />
       <div className="section-break">
         <span className="label">From the family</span>
       </div>
@@ -1120,7 +1120,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
 // ─────────────────────────────────────────────────────────────
 // Top-level Recipe detail — holds all state, picks the variant
 // ─────────────────────────────────────────────────────────────
-export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, deleteComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, onEditRecipe, onDeleteRecipe }) {
+export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, deleteComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith }) {
   const { t } = useLang();
   // Scaling state
   const [servings, setServings] = useState(recipe.servingsDefault);
@@ -1219,7 +1219,7 @@ export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, 
     onCookMode, onShop, comments, addComment, deleteComment,
     allRecipes, onSaveRecipe, onSaveToLab,
     openRecipe: onOpenRecipe || ((r) => {}),
-    authEmail, onEditRecipe, onDeleteRecipe,
+    authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith,
   };
 
   return (

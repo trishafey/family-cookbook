@@ -93,6 +93,17 @@ function App() {
   const toggleSelect = (r) => {
     setSelection(s => s.includes(r.id) ? s.filter(x => x !== r.id) : [...s, r.id]);
   };
+  // Build-a-meal entry point used by the pairings modal. Stages the
+  // currently-open recipe plus the chosen pairing as a meal and
+  // jumps straight to the meal-builder view.
+  const buildMealWith = (currentRecipe, pairedRecipe) => {
+    setSelection(s => {
+      const merged = new Set([...s, currentRecipe.id, pairedRecipe.id]);
+      return [...merged];
+    });
+    setView("meal");
+    setRecipeId(null);
+  };
 
   // ─── Favorites (per signed-in user, stored in D1) ───
   const { favorites, toggleFavorite } = useFavorites(authEmail);
@@ -329,6 +340,7 @@ function App() {
           authEmail={authEmail}
           onEditRecipe={onEditRecipe}
           onDeleteRecipe={onDeleteRecipe}
+          onBuildMealWith={(paired) => buildMealWith(recipe, paired)}
         />
         </ErrorBoundary>
       )}
