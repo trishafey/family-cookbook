@@ -1355,6 +1355,159 @@ Interpret loosely: "halve it" → set to half current servings (or weight). "Dou
   return c.json(parsed);
 });
 
+// ─── AI: Family says — synthesise comments into a summary + tweaks ───
+// Reads the recipe's tips + curated seed comments + live D1
+// comments, hands them to the model, gets back a short prose
+// synthesis ("Family says...") plus 0-4 concrete tweaks the cook
+// can apply. Cached on recipe.familySays so every visitor after
+// the first sees the result without a fresh AI call. Regenerate
+// with ?force.
+//
+// Tweaks use the same action shape as /ai/adjust — setServings /
+// setWeight / setCalTarget for things the app can actually apply,
+// or { kind: "none", value: null } for advice-only tweaks the
+// cook should just keep in mind ("rest 20 min not 15", "use
+// frozen blueberries"). The client renders both as one-tap chips.
+const AI_FAMILY_SAYS_SCHEMA = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    tweaks: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          label:   { type: "string" },
+          summary: { type: "string" },
+          action: {
+            type: ["object", "null"],
+            properties: {
+              kind:  { type: "string", enum: ["setServings", "setWeight", "setCalTarget", "none"] },
+              value: { type: ["number", "null"] },
+            },
+            required: ["kind", "value"],
+            additionalProperties: false,
+          },
+        },
+        required: ["label", "summary", "action"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["summary", "tweaks"],
+  additionalProperties: false,
+};
+
+app.post("/api/admin/ai/family-says", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI API key not configured." }, 500);
+
+  const body = await c.req.json().catch(() => ({}));
+  const recipeId = (body?.recipeId || "").trim();
+  const force = !!body?.force;
+  if (!recipeId) return c.json({ error: "missing recipeId" }, 400);
+
+  const row = await c.env.DB.prepare("SELECT blob FROM recipes WHERE id = ?").bind(recipeId).first();
+  if (!row) return c.json({ error: "recipe not found" }, 404);
+  const recipe = JSON.parse(row.blob);
+
+  if (recipe.familySays && !force) {
+    return c.json({ ...recipe.familySays, cached: true });
+  }
+
+  // Pull the live comments out of D1 directly so the summary
+  // includes whatever the family has posted since the recipe was
+  // last edited.
+  const liveRows = await c.env.DB.prepare(
+    "SELECT author, body, rating, created_at FROM comments WHERE recipe_id = ? ORDER BY created_at ASC"
+  ).bind(recipeId).all();
+  const liveComments = (liveRows.results || []).map(r => ({
+    name: r.author,
+    text: r.body,
+    rating: r.rating,
+  }));
+
+  // Combine three sources the family has used to comment on this
+  // recipe: the cook's tips, the seed/curated comments in the
+  // blob, and the live D1 comments. The model treats them all as
+  // 'what the family says'.
+  const allComments = [
+    ...(recipe.tips || []).map(t => ({ name: "tip", text: t })),
+    ...(recipe.comments || []).map(c => ({ name: c.name, text: c.text })),
+    ...liveComments,
+  ].filter(c => c.text);
+
+  if (allComments.length === 0) {
+    return c.json({ error: "no notes or comments to summarise" }, 422);
+  }
+
+  const target = {
+    title:    recipe.title,
+    course:   recipe.course,
+    scaleBy:  recipe.scaleBy || "servings",
+    servings: recipe.servingsDefault,
+    weight:   recipe.defaultWeight || null,
+    weightUnit: recipe.weightUnit || "lb",
+    nutrition: recipe.nutrition || null,
+  };
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `You synthesise what a family has learned about a recipe across their tips and comments. Return two things:
+
+1. summary — 2-4 sentences, plain prose, written like a warm family cook reading the room. Reference what specific people say if it's distinctive ("Mom pulls at 125°F, not 130"). Highlight consensus where it exists, and gentle disagreement where it doesn't. No bullet points.
+
+2. tweaks — 0-4 concrete adjustments the family consistently makes. Each has:
+     • label — 3-5 word button text ("Pull at 125°F", "Half the sugar", "Frozen blueberries")
+     • summary — one sentence explaining what to do and why the family loves it
+     • action — exactly one structured change, or { kind: "none", value: null } for advice-only tweaks (substitutions, technique, ingredient swaps).
+
+   Valid actions:
+     • setServings (only if recipe.scaleBy is "servings")
+     • setWeight (only if recipe.scaleBy is "weight")
+     • setCalTarget — integer target calories per serving
+     • none — for advice-only
+
+Only return tweaks that come from what the family ACTUALLY said. Don't invent. If the comments don't suggest anything actionable, return an empty tweaks array.`,
+        },
+        {
+          role: "user",
+          content: `RECIPE:\n${JSON.stringify(target, null, 2)}\n\nFAMILY NOTES + COMMENTS:\n${JSON.stringify(allComments, null, 2)}`,
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "family_says", strict: true, schema: AI_FAMILY_SAYS_SCHEMA },
+      },
+    }),
+  });
+  if (!openaiRes.ok) {
+    console.error("OpenAI family-says error", openaiRes.status, await openaiRes.text());
+    return c.json({ error: `OpenAI returned ${openaiRes.status}.` }, 502);
+  }
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return c.json({ error: "OpenAI returned no content." }, 502);
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+
+  parsed.generatedAt = new Date().toISOString();
+  const updatedBlob = JSON.stringify({ ...recipe, familySays: parsed });
+  await c.env.DB.prepare("UPDATE recipes SET blob = ? WHERE id = ?")
+    .bind(updatedBlob, recipeId)
+    .run();
+
+  return c.json({ ...parsed, cached: false });
+});
+
 // ─── AI: Nutrition estimate ───
 // Some extracted recipes come back with zero nutrition (the model
 // gave up on the rough cookbook print). The editor exposes an
