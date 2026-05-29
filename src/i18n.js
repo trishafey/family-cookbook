@@ -257,6 +257,15 @@ const S = {
   pageN:          { en: "Page {n}",           pl: "Strona {n}" },
   removePage:     { en: "Remove page",        pl: "Usuń stronę" },
   extractRecipeN: { en: "Extract recipe ({n})", pl: "Wyciągnij przepis ({n})" },
+  originalRecipeImages: { en: "Original recipe card images", pl: "Oryginalne zdjęcia przepisu" },
+  showOnRecipePage:    { en: "Show on the recipe page",      pl: "Pokaż na stronie przepisu" },
+  originalImagesHint:  {
+    en: "Adds a small button to the hero photo. Tap to see the originals — handy for handwritten cards from family.",
+    pl: "Dodaje mały przycisk na zdjęciu głównym. Kliknij, aby zobaczyć oryginały — przydatne dla odręcznych kart od rodziny.",
+  },
+  viewOriginal:        { en: "View original",  pl: "Oryginał" },
+  viewOriginalRecipe:  { en: "View the original recipe images", pl: "Zobacz oryginalne zdjęcia przepisu" },
+  tapToClose:          { en: "Tap anywhere to close", pl: "Kliknij gdziekolwiek, aby zamknąć" },
   multiPagePhotoHelper: {
     en: "Add up to 6 photos — front + back of a recipe card, or both pages of a cookbook spread. Drag-and-drop works on desktop. You'll review every field before saving.",
     pl: "Dodaj do 6 zdjęć — przód i tył karty z przepisem albo obie strony rozkładówki książki. Na komputerze możesz upuszczać pliki na pole. Sprawdzisz każde pole przed zapisem.",

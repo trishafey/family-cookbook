@@ -957,13 +957,15 @@ The user has photographed a cookbook page, recipe card, or handwritten note. The
   try { parsed = JSON.parse(content); }
   catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
 
-  // First snapshot becomes the hero photo. The full list rides
-  // along on sourcePhotos so the recipe blob keeps every original
-  // — useful for a future "view the original" reveal on a
-  // handwritten card from grandma.
+  // The snapshots stay attached to the recipe as sourcePhotos so the
+  // family can flip on "show the original" on the recipe page. We do
+  // NOT promote one of them to .photo — the hero stays whatever the
+  // cook picks via the regular Upload Photo control. Default
+  // showSourcePhotos to true so the reveal lights up automatically;
+  // the cook can flip it off in the editor.
   if (sourcePhotos.length) {
-    parsed.photo = sourcePhotos[0];
     parsed.sourcePhotos = sourcePhotos;
+    parsed.showSourcePhotos = true;
   }
 
   return c.json(parsed);

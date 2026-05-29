@@ -742,6 +742,125 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
 // ─────────────────────────────────────────────────────────────
 // Variant: EDITORIAL (default) — refined, more whitespace, white cards
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Source-photo reveal: when a recipe has originals attached (e.g.
+// snapshots of grandma's handwritten card) AND the cook flipped
+// "Show on the recipe page" on, we render a small corner button
+// over the hero. Tapping opens a Polaroid-style overlay so the
+// family can see the original handwriting alongside the parsed
+// recipe.
+// ─────────────────────────────────────────────────────────────
+function SourcePhotosReveal({ recipe, tone = "dark" }) {
+  const { t } = useLang();
+  const [open, setOpen] = useState(false);
+  if (!recipe.showSourcePhotos || !recipe.sourcePhotos?.length) return null;
+
+  // tone controls the corner-button colour. Light works on dark
+  // hero photos, dark works on the all-paper binder variant.
+  const buttonBg = tone === "light" ? "rgba(0,0,0,0.55)" : "var(--paper)";
+  const buttonFg = tone === "light" ? "#fff" : "var(--ink)";
+  const buttonBorder = tone === "light" ? "rgba(255,255,255,0.4)" : "var(--rule)";
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title={t("viewOriginalRecipe")}
+        aria-label={t("viewOriginalRecipe")}
+        style={{
+          position: "absolute", bottom: 12, right: 12,
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "8px 12px",
+          background: buttonBg, color: buttonFg,
+          border: `1px solid ${buttonBorder}`,
+          borderRadius: 999,
+          fontFamily: "var(--serif)", fontSize: 13, fontStyle: "italic",
+          cursor: "pointer",
+          backdropFilter: "blur(4px)",
+          WebkitBackdropFilter: "blur(4px)",
+        }}
+      >
+        <Icon name="camera" size={13} /> {t("viewOriginal")}
+      </button>
+
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(0,0,0,0.78)",
+            display: "flex", flexDirection: "column",
+            padding: 24, overflow: "auto",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#fff", marginBottom: 24 }}>
+            <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 18 }}>
+              {t("originalRecipeImages")} — {recipe.title}
+            </div>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setOpen(false); }}
+              style={{
+                background: "transparent", color: "#fff",
+                border: "1px solid rgba(255,255,255,0.4)", borderRadius: 999,
+                padding: "6px 14px", cursor: "pointer", fontFamily: "var(--serif)", fontSize: 14,
+              }}
+            >
+              {t("close")} ×
+            </button>
+          </div>
+
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              display: "flex", flexWrap: "wrap", gap: 32,
+              justifyContent: "center", alignItems: "flex-start",
+              maxWidth: 1100, margin: "0 auto", width: "100%",
+            }}
+          >
+            {recipe.sourcePhotos.map((url, i) => {
+              // Slight alternating tilt for a Polaroid-stack feel.
+              const tilts = [-2.5, 1.8, -1.2, 2.6, -1.9, 1.4];
+              const rot = tilts[i % tilts.length];
+              return (
+                <figure
+                  key={url}
+                  style={{
+                    background: "#fdfaf3",
+                    padding: "14px 14px 44px",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.45), 0 2px 4px rgba(0,0,0,0.3)",
+                    transform: `rotate(${rot}deg)`,
+                    margin: 0,
+                    maxWidth: 320,
+                  }}
+                >
+                  <img
+                    src={url}
+                    alt={t("pageN").replace("{n}", i + 1)}
+                    style={{ display: "block", width: "100%", height: "auto", maxHeight: 380, objectFit: "cover" }}
+                  />
+                  <figcaption style={{
+                    marginTop: 12, textAlign: "center",
+                    fontFamily: "var(--serif)", fontStyle: "italic",
+                    color: "#5a4a32", fontSize: 14,
+                  }}>
+                    {t("pageN").replace("{n}", i + 1)}
+                  </figcaption>
+                </figure>
+              );
+            })}
+          </div>
+
+          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.6)", marginTop: 24, fontSize: 12, fontFamily: "var(--serif)", fontStyle: "italic" }}>
+            {t("tapToClose")}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
                           applied, setApplied, showNutrition, setShowNutrition,
                           doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
@@ -753,7 +872,10 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
     <>
       {/* HERO */}
       <div className="recipe-hero">
-        <div className="photo" style={{ backgroundImage: `url(${recipe.photo})` }} />
+        <div style={{ position: "relative" }}>
+          <div className="photo" style={{ backgroundImage: `url(${recipe.photo})` }} />
+          <SourcePhotosReveal recipe={recipe} tone="light" />
+        </div>
         <div className="meta">
           <div className="eyebrow" style={{ color: "var(--accent)" }}>
             {tCourse(recipe.course)} · {recipe.cuisine}
@@ -837,6 +959,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
     <>
       {/* Full-bleed hero */}
       <div className="recipe-magazine-hero" style={{ backgroundImage: `url(${recipe.photo})` }}>
+        <SourcePhotosReveal recipe={recipe} tone="light" />
         <div className="meta">
           <div>
             <div className="eyebrow">{tCourse(recipe.course).toUpperCase()} · {recipe.cuisine.toUpperCase()}</div>
@@ -920,7 +1043,10 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
   const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <div className="recipe-binder">
-      <div className="photo-binder" style={{ backgroundImage: `url(${recipe.photo})` }} />
+      <div style={{ position: "relative" }}>
+        <div className="photo-binder" style={{ backgroundImage: `url(${recipe.photo})` }} />
+        <SourcePhotosReveal recipe={recipe} tone="light" />
+      </div>
       <div className="eyebrow" style={{ color: "var(--accent)" }}>
         From the kitchen of <strong style={{ fontWeight: 500, fontStyle: "italic" }}>{recipe.author}</strong>
       </div>
