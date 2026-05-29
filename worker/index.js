@@ -971,6 +971,174 @@ The user has photographed a cookbook page, recipe card, or handwritten note. The
   return c.json(parsed);
 });
 
+// ─── AI: pairings — "Goes great with…" ───
+// Given a recipe, ask the model for two things in one call:
+//   1. fromBook — up to 4 IDs from the cookbook the AI thinks would
+//      pair well as sides/desserts/sauces. We pass the cookbook
+//      catalogue in the user message so the AI picks from real IDs.
+//   2. suggestions — 2-3 NEW companion recipes the family doesn't
+//      have yet (a sauce, a side, a drink). Same shape as the
+//      hand-curated PAIRINGS entries in pairings.jsx, so the React
+//      side renders them with the existing tiles.
+// The result is cached on the recipe blob as recipe.pairings so the
+// AI call happens once per recipe — subsequent visitors get the
+// stored copy for free. Regenerate with ?force=1.
+const AI_PAIRINGS_SCHEMA = {
+  type: "object",
+  properties: {
+    fromBook: { type: "array", items: { type: "string" } },
+    suggestions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          title:      { type: "string" },
+          kind:       { type: "string", enum: ["Side", "Sauce", "Drink", "Dessert", "Topping", "Garnish", "Snack"] },
+          blurb:      { type: "string" },
+          time:       { type: "number" },
+          ingredients: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                qty:  { type: "number" },
+                unit: { type: "string" },
+                item: { type: "string" },
+              },
+              required: ["qty", "unit", "item"],
+              additionalProperties: false,
+            },
+          },
+          steps:      { type: "array", items: { type: "string" } },
+          photoTone:  { type: "string" },
+        },
+        required: ["title", "kind", "blurb", "time", "ingredients", "steps", "photoTone"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["fromBook", "suggestions"],
+  additionalProperties: false,
+};
+
+app.post("/api/admin/ai/pairings", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!c.env.OPENAI_API_KEY) {
+    return c.json({ error: "OpenAI API key is not configured on this Worker." }, 500);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const recipeId = (body?.recipeId || "").trim();
+  const force = !!body?.force;
+  if (!recipeId) return c.json({ error: "missing recipeId" }, 400);
+
+  const row = await c.env.DB.prepare("SELECT blob FROM recipes WHERE id = ?").bind(recipeId).first();
+  if (!row) return c.json({ error: "recipe not found" }, 404);
+  const recipe = JSON.parse(row.blob);
+
+  // If pairings are already cached and the caller didn't force, hand
+  // back the cached copy — no AI call, no cap hit. Family members
+  // visiting after the first generation get instant pairings.
+  if (recipe.pairings && !force) {
+    return c.json({ ...recipe.pairings, cached: true });
+  }
+
+  const cap = await aiCapCheckAndIncrement(c);
+  if (!cap.ok) return c.json({ error: cap.error }, 429);
+
+  // Build a compact catalogue of other recipes for the AI to pick
+  // from. We only send the fields the AI needs to judge a pairing —
+  // ingredients/steps aren't necessary and would bloat the prompt.
+  const catalogueRows = await c.env.DB.prepare(
+    "SELECT blob FROM recipes WHERE id != ?"
+  ).bind(recipeId).all();
+  const catalogue = catalogueRows.results.map(r => {
+    const b = JSON.parse(r.blob);
+    return {
+      id: b.id,
+      title: b.title,
+      course: b.course,
+      cuisine: b.cuisine,
+      subtitle: b.subtitle || "",
+    };
+  });
+
+  // Trim the target down to what the model needs to reason about
+  // pairings — full ingredient list (so it can avoid duplicating
+  // flavours) plus identity / mood fields.
+  const target = {
+    title:    recipe.title,
+    subtitle: recipe.subtitle || "",
+    course:   recipe.course,
+    cuisine:  recipe.cuisine,
+    occasion: recipe.occasion,
+    diet:     recipe.diet || [],
+    ingredients: (recipe.ingredients || []).map(i => `${i.qty || ""} ${i.unit || ""} ${i.item}`.trim()),
+  };
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${c.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `You suggest food pairings for a family cookbook. Given a target recipe and a catalogue of other recipes in the same cookbook, return two lists:
+
+1. fromBook: up to 4 RECIPE IDs (taken EXACTLY from the catalogue's "id" field — do not invent ids) that would complement the target as sides, sauces, drinks, or desserts. Prefer Sides for mains, and lighter items for rich dishes. Leave empty if nothing in the catalogue fits well.
+
+2. suggestions: 2-3 NEW pairing ideas not already in the cookbook — sauces, sides, garnishes, drinks, or simple desserts that would round out the meal. Each must include realistic ingredients (qty + unit + item), 3-5 concise plain-text steps, a kind from the allowed enum, a one-sentence blurb that explains why it pairs, an approximate total time in minutes, and a photoTone hex colour that visually fits the dish (e.g. "#b04a2a" for tomato-forward, "#6e7a3a" for herby).
+
+Quality bar: a thoughtful family cook should look at these and immediately understand why each pairing makes sense.`,
+        },
+        {
+          role: "user",
+          content: `TARGET RECIPE:\n${JSON.stringify(target, null, 2)}\n\nCATALOGUE OF OTHER COOKBOOK RECIPES:\n${JSON.stringify(catalogue, null, 2)}`,
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "pairings", strict: true, schema: AI_PAIRINGS_SCHEMA },
+      },
+    }),
+  });
+
+  if (!openaiRes.ok) {
+    const detail = await openaiRes.text();
+    console.error("OpenAI pairings error", openaiRes.status, detail);
+    return c.json({ error: `OpenAI returned ${openaiRes.status}.` }, 502);
+  }
+
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return c.json({ error: "OpenAI returned no content." }, 502);
+
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+
+  // Guard against the model hallucinating ids that aren't in the
+  // catalogue (rare with strict schema + clear instructions, but the
+  // schema can't enforce membership).
+  const validIds = new Set(catalogue.map(r => r.id));
+  parsed.fromBook = (parsed.fromBook || []).filter(id => validIds.has(id));
+
+  // Persist on the recipe blob so subsequent visitors get the
+  // cached copy without another AI call.
+  parsed.generatedAt = new Date().toISOString();
+  const updatedBlob = JSON.stringify({ ...recipe, pairings: parsed });
+  await c.env.DB.prepare("UPDATE recipes SET blob = ? WHERE id = ?")
+    .bind(updatedBlob, recipeId)
+    .run();
+
+  return c.json({ ...parsed, cached: false });
+});
+
 app.post("/api/admin/uploads", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);

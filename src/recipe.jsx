@@ -936,7 +936,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
         </div>
       </div>
 
-      <PairingsSection recipe={recipe} allRecipes={allRecipes} openRecipe={openRecipe} onSaveRecipe={onSaveRecipe} />
+      <PairingsSection recipe={recipe} allRecipes={allRecipes} openRecipe={openRecipe} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
       <div className="section-break">
         <span className="label">From the family</span>
       </div>
@@ -1023,7 +1023,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
         </div>
       </div>
 
-      <PairingsSection recipe={recipe} allRecipes={allRecipes} openRecipe={openRecipe} onSaveRecipe={onSaveRecipe} />
+      <PairingsSection recipe={recipe} allRecipes={allRecipes} openRecipe={openRecipe} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
       <div className="section-break">
         <span className="label">From the family</span>
       </div>
