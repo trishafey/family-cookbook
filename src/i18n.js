@@ -254,6 +254,13 @@ const S = {
   },
   uploadImage:    { en: "Upload an image",    pl: "Wgraj zdjęcie" },
   takePhoto:      { en: "Take photo",         pl: "Zrób zdjęcie" },
+  pageN:          { en: "Page {n}",           pl: "Strona {n}" },
+  removePage:     { en: "Remove page",        pl: "Usuń stronę" },
+  extractRecipeN: { en: "Extract recipe ({n})", pl: "Wyciągnij przepis ({n})" },
+  multiPagePhotoHelper: {
+    en: "Add up to 6 photos — front + back of a recipe card, or both pages of a cookbook spread. You'll review every field before saving.",
+    pl: "Dodaj do 6 zdjęć — przód i tył karty z przepisem albo obie strony rozkładówki książki. Sprawdzisz każde pole przed zapisem.",
+  },
   pasteUrlHere:   { en: "Paste a recipe URL", pl: "Wklej link do przepisu" },
   fetchAndParse:  { en: "Fetch & parse",      pl: "Pobierz i przetwórz" },
   fetchUrlHelper: {
