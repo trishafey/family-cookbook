@@ -1057,7 +1057,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
       </div>
       <div>
         <CooksNotes recipe={recipe} defaultOpen={true} scaler={scaler} applied={applied} setApplied={setApplied} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
-        <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={false} />
+        <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={true} />
       </div>
     </>
   );
@@ -1149,7 +1149,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <span className="label">From the family</span>
       </div>
       <CooksNotes recipe={recipe} defaultOpen={true} scaler={scaler} applied={applied} setApplied={setApplied} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
-      <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={false} />
+      <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={true} />
     </>
   );
 }
@@ -1239,7 +1239,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <span className="label">Margin notes</span>
       </div>
       <CooksNotes recipe={recipe} defaultOpen={true} scaler={scaler} applied={applied} setApplied={setApplied} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
-      <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={false} />
+      <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={true} />
     </div>
   );
 }

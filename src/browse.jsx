@@ -80,7 +80,7 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
 
 }
 
-export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab }) {
+export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab, simpleMode }) {
   const { t, tCourse, tOccasion, tDiet, lang } = useLang();
 
   // Active filter chips
@@ -123,11 +123,13 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
         </h1>
         <div style={{ marginTop: 24, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
           <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> {t("addRecipe")}</button>
-          <button className="btn" onClick={openMealBuilder}><Icon name="bowl" /> {t("buildMeal")}</button>
-          {FLAGS.lab && (
-          <button className="btn" onClick={openLab} style={{ borderColor: "rgba(110,122,58,.4)", color: "var(--accent-2)" }}>
-            <Icon name="sparkle" /> {t("kitchenExp")}
-          </button>
+          {!simpleMode && (
+            <button className="btn" onClick={openMealBuilder}><Icon name="bowl" /> {t("buildMeal")}</button>
+          )}
+          {!simpleMode && FLAGS.lab && (
+            <button className="btn" onClick={openLab} style={{ borderColor: "rgba(110,122,58,.4)", color: "var(--accent-2)" }}>
+              <Icon name="sparkle" /> {t("kitchenExp")}
+            </button>
           )}
         </div>
       </header>
@@ -160,10 +162,6 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
           <span className="label">{t("browseByCourse")}</span>
           {COURSES.map((c) =>
         <button key={c} className="filter-pill" onClick={() => setFilters((f) => ({ ...f, courses: [c] }))}>{tCourse(c)}</button>
-        )}
-          <span className="label" style={{ marginLeft: 16 }}>{t("occasion")}</span>
-          {OCCASIONS.map((o) =>
-        <button key={o} className="filter-pill" onClick={() => setFilters((f) => ({ ...f, occasions: [o] }))}>{tOccasion(o)}</button>
         )}
           <button className="btn ghost sm" style={{ marginLeft: "auto" }} onClick={openFilters}>
             <Icon name="filter" size={13} /> {t("filters")}

@@ -345,6 +345,7 @@ function App() {
           openAddRecipe={() => setView("add")}
           openMealBuilder={() => setView("meal")}
           openLab={() => setView("lab")}
+          simpleMode={simpleMode}
         />
       )}
       {view === "recipe" && recipe && (
