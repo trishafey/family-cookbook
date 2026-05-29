@@ -3024,3 +3024,41 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .admin-ai-usage .admin-ai-table th,
   .admin-ai-usage .admin-ai-table td { padding: 6px 8px; }
 }
+
+/* ─── Simplified view ───
+   Stripped-down accessibility-first mode for less-technical
+   cooks (especially older family members). Toggled from the
+   avatar menu. The body.simple-mode class is added by main.jsx;
+   surfaces that aren't conditionally unmounted in JSX still get
+   hidden via the rules below, and typography is bumped for
+   easier reading.
+
+   The print stylesheet was a useful guide for what to keep
+   visible (photo, ingredients, steps, tips) and what to drop
+   (chrome, filter UI, dynamic AI surfaces).
+   --------------------------------------------------- */
+body.simple-mode .card .tags { display: none; }
+body.simple-mode .card .title { font-size: 19px; line-height: 1.3; }
+body.simple-mode .card .sub { font-size: 14px; }
+
+/* Recipe page typography bump — larger, more readable. */
+body.simple-mode .ingredients ul li,
+body.simple-mode .ingredients-card li,
+body.simple-mode .steps li,
+body.simple-mode .steps-list li {
+  font-size: 18px;
+  line-height: 1.6;
+}
+body.simple-mode .recipe-page h1,
+body.simple-mode .recipe-binder h1,
+body.simple-mode .recipe-magazine h1 { font-size: 36px; }
+
+/* Hide the tweaks panel handle — switching recipe variants is
+   power-user territory that simple mode shouldn't expose. The
+   panel still works for anyone who finds it, but it's invisible. */
+body.simple-mode .tweaks-toggle { display: none; }
+
+/* Floating shopping selection tray — lives in main.jsx and
+   assumes the user is in build-a-meal mode, which is hidden in
+   simple view. */
+body.simple-mode .meal-tray { display: none; }

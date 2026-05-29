@@ -11,6 +11,8 @@ const S = {
   buildMeal:    { en: "Build a meal",     pl: "Złóż posiłek" },
   signIn:       { en: "Sign in",          pl: "Zaloguj się" },
   signOut:      { en: "Sign out",         pl: "Wyloguj się" },
+  simpleModeOff:{ en: "Switch to simple view", pl: "Przełącz na widok uproszczony" },
+  simpleModeOn: { en: "Switch to full view",   pl: "Przełącz na widok pełny" },
   filters:      { en: "Filters",          pl: "Filtry" },
   accountMenu:  { en: "Account menu",     pl: "Menu konta" },
   switchToPL:   { en: "Switch to Polish", pl: "Przełącz na polski" },
