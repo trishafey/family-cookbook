@@ -455,6 +455,12 @@ export const Icon = ({ name, size = 16 }) => {
     paperclip: <path d="M21 11.5 12.5 20a5.5 5.5 0 0 1-7.78-7.78L13 4a3.5 3.5 0 0 1 4.95 4.95l-8.49 8.49a1.5 1.5 0 1 1-2.12-2.12L14.5 8.2" />,
     file:      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z M14 3v6h6" />,
     image:     <path d="M4 4h16v16H4z M4 16l5-5 5 5 3-3 3 3 M14 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />,
+    // Origin tags: heirloom recipes passed down (tomato), recipes
+    // adopted from outside the family (sprout — new growth into the
+    // canon), and Lab experiments (beaker).
+    tomato:    <><circle cx="12" cy="14" r="6.5" /><path d="M9 8.5C9 8.5 7.5 7 6 7M15 8.5C15 8.5 16.5 7 18 7M12 8V5" /></>,
+    sprout:    <><path d="M12 21V11" /><path d="M12 11C9 11 6.5 8.5 6.5 5.5 9.5 5.5 12 8 12 11Z" /><path d="M12 11c3 0 5.5-2.5 5.5-5.5C14.5 5.5 12 8 12 11Z" /></>,
+    beaker:    <><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2.2h12.4A1.5 1.5 0 0 0 19.5 19L14 9V3" /><path d="M7.5 14h9" /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"

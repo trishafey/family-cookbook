@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Icon, signInUrl } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
-import { COURSES, OCCASIONS, DIETS } from "./data.js";
+import { COURSES, OCCASIONS, DIETS, ORIGINS } from "./data.js";
 import { COUNTRIES } from "./countries.js";
 import { useLang } from "./i18n.js";
 
@@ -303,7 +303,7 @@ function StepsEditor({ steps, onChange }) {
 }
 
 export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe = null, usedCuisines = [], usedAuthors = [] }) {
-  const { t, tCourse, tOccasion, tDiet, tDifficulty } = useLang();
+  const { t, tCourse, tOccasion, tDiet, tDifficulty, tOrigin } = useLang();
   const editing = Boolean(initialRecipe);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -339,6 +339,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     course: "Dinner",
     diet: [],
     occasion: "Family style",
+    origin: null,
     photo: "https://images.unsplash.com/photo-1547573854-74d2a71d0826?w=1200&q=80",
     photoTone: "#8a6a3a",
     favorite: false,
@@ -747,6 +748,31 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               <select value={draft.occasion} onChange={(e) => setDraft({ ...draft, occasion: e.target.value })}>
                 {OCCASIONS.map(o => <option key={o} value={o}>{tOccasion(o)}</option>)}
               </select>
+            </div>
+          </div>
+          {/* Origin: heirloom / new to the family / lab experiment.
+              Optional — un-selecting clears the field so the badge
+              doesn't render on the recipe page. */}
+          <div className="input-row">
+            <label>{t("originLbl")}</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className={`btn sm ${!draft.origin ? "primary" : "ghost"}`}
+                onClick={() => setDraft({ ...draft, origin: null })}
+              >
+                {t("noneLabel")}
+              </button>
+              {ORIGINS.map(o => (
+                <button
+                  key={o}
+                  type="button"
+                  className={`btn sm ${draft.origin === o ? "primary" : "ghost"}`}
+                  onClick={() => setDraft({ ...draft, origin: o })}
+                >
+                  <Icon name={o === "heirloom" ? "tomato" : o === "newToFamily" ? "sprout" : "beaker"} size={12} /> {tOrigin(o)}
+                </button>
+              ))}
             </div>
           </div>
           <div className="input-row">

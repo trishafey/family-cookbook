@@ -54,6 +54,11 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
         <div className="title">{recipe.title}</div>
         <div className="sub">{recipe.subtitle}</div>
         <div className="tags">
+          {recipe.origin && (
+            <span className="recipe-tag origin" data-origin={recipe.origin} style={{ fontSize: 10, padding: "3px 8px" }}>
+              <Icon name={recipe.origin === "heirloom" ? "tomato" : recipe.origin === "newToFamily" ? "sprout" : "beaker"} size={10} />
+            </span>
+          )}
           {recipe.diet.slice(0, 2).map((d) => <Pill key={d} kind="olive">{tDiet(d)}</Pill>)}
           <Pill kind="slate">{recipe.cuisine}</Pill>
         </div>
