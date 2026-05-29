@@ -316,6 +316,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
   const initialMode = editing ? "manual" : (FLAGS.extractText ? "ai" : "manual");
   const [mode, setMode] = useState(initialMode); // ai | manual | photo | url
   const [aiText, setAiText] = useState("");
+  const [aiUrl, setAiUrl] = useState("");
   const [extracting, setExtracting] = useState(false);
   const [draft, setDraft] = useState(initialRecipe);
 
@@ -362,11 +363,44 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     }
   }, []);
 
-  // Real AI extraction. POSTs the pasted text to the Worker, which
-  // proxies to OpenAI with a strict JSON schema matching the recipe
-  // shape. The response is merged into a fresh draft (so all the
-  // optional fields the form expects are populated) and the user lands
-  // in the manual view to review and tweak before saving.
+  // Merge an extraction response (from /api/admin/ai/extract-text or
+  // /api/admin/ai/extract-url) into a fresh draft, then drop the user
+  // into the manual review view so they can tweak before saving.
+  const applyExtraction = (parsed) => {
+    const fresh = newDraft();
+    const ings = (parsed.ingredients?.length ? parsed.ingredients : fresh.ingredients)
+      .map(i => ({ ...i, grp: i.grp || "Ingredients" }));
+    const steps = parsed.steps?.length ? parsed.steps : fresh.steps;
+    setDraft({
+      ...fresh,
+      title:           parsed.title           || fresh.title,
+      subtitle:        parsed.subtitle        || "",
+      author:          parsed.author          || "",
+      cuisine:         parsed.cuisine         || "",
+      course:          parsed.course          || fresh.course,
+      occasion:        parsed.occasion        || fresh.occasion,
+      diet:            parsed.diet            || [],
+      prep:            parsed.prep            ?? 0,
+      cook:            parsed.cook            ?? 0,
+      servingsDefault: parsed.servingsDefault || fresh.servingsDefault,
+      difficulty:      parsed.difficulty      || fresh.difficulty,
+      ingredients:     ings,
+      steps,
+      tips:            parsed.tips            || [],
+      nutrition: {
+        ...fresh.nutrition,
+        ...(parsed.nutrition || {}),
+      },
+      total:           (parsed.prep || 0) + (parsed.cook || 0),
+      // URL extraction tucks the source URL onto the response so it
+      // populates the Source link field — saves the cook from copying
+      // it manually.
+      link: parsed.sourceUrl ? { url: parsed.sourceUrl, label: "" } : fresh.link,
+    });
+    setMode("manual");
+  };
+
+  // Real AI extraction from pasted text.
   const runAI = async () => {
     if (!aiText.trim()) return;
     setExtracting(true);
@@ -381,36 +415,32 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
         const { error } = await res.json().catch(() => ({}));
         throw new Error(error || `Extraction failed (${res.status})`);
       }
-      const parsed = await res.json();
-      const fresh = newDraft();
-      const ings = (parsed.ingredients?.length ? parsed.ingredients : fresh.ingredients)
-        .map(i => ({ ...i, grp: i.grp || "Ingredients" }));
-      const steps = parsed.steps?.length ? parsed.steps : fresh.steps;
-      setDraft({
-        ...fresh,
-        title:           parsed.title           || fresh.title,
-        subtitle:        parsed.subtitle        || "",
-        author:          parsed.author          || "",
-        cuisine:         parsed.cuisine         || "",
-        course:          parsed.course          || fresh.course,
-        occasion:        parsed.occasion        || fresh.occasion,
-        diet:            parsed.diet            || [],
-        prep:            parsed.prep            ?? 0,
-        cook:            parsed.cook            ?? 0,
-        servingsDefault: parsed.servingsDefault || fresh.servingsDefault,
-        difficulty:      parsed.difficulty      || fresh.difficulty,
-        ingredients:     ings,
-        steps,
-        tips:            parsed.tips            || [],
-        nutrition: {
-          ...fresh.nutrition,
-          ...(parsed.nutrition || {}),
-        },
-        total:           (parsed.prep || 0) + (parsed.cook || 0),
-      });
-      setMode("manual");
+      applyExtraction(await res.json());
     } catch (err) {
       alert(err.message || "Could not extract this recipe. Try the manual form instead.");
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  // Real AI extraction from a URL — Worker fetches and parses the page.
+  const runFromUrl = async () => {
+    if (!aiUrl.trim()) return;
+    setExtracting(true);
+    try {
+      const res = await fetch("/api/admin/ai/extract-url", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ url: aiUrl.trim() }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `Extraction failed (${res.status})`);
+      }
+      applyExtraction(await res.json());
+    } catch (err) {
+      alert(err.message || "Could not fetch that page. Try copy-paste mode instead.");
     } finally {
       setExtracting(false);
     }
@@ -865,11 +895,20 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               <Icon name="sparkle" size={12} /> {t("linkToUrl")}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <input style={{ flex: 1, padding: 10, border: "1px solid var(--rule)", borderRadius: 4, background: "var(--paper)" }} placeholder="https://nytimes.com/cooking/recipes/..." />
-              <button className="btn accent">{t("fetchAndParse")}</button>
+              <input
+                style={{ flex: 1, padding: 10, border: "1px solid var(--rule)", borderRadius: 4, background: "var(--paper)" }}
+                placeholder={t("pasteUrlHere")}
+                value={aiUrl}
+                onChange={(e) => setAiUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") runFromUrl(); }}
+                disabled={extracting}
+              />
+              <button className="btn accent" onClick={runFromUrl} disabled={!aiUrl.trim() || extracting}>
+                {extracting ? t("extracting") : <><Icon name="sparkle" size={13} /> {t("fetchAndParse")}</>}
+              </button>
             </div>
             <div style={{ marginTop: 16, fontSize: 13, color: "var(--ink-3)" }}>
-              We pull title, ingredients, steps, and a hero image. You annotate with family notes before saving.
+              {t("fetchUrlHelper")}
             </div>
           </div>
         </div>

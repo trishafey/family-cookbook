@@ -660,6 +660,155 @@ app.post("/api/admin/ai/extract-text", async (c) => {
   return c.json(parsed);
 });
 
+// ─── AI: paste-URL → recipe draft ───
+// Same model + schema as extract-text. The worker fetches the URL
+// server-side, prefers schema.org/Recipe JSON-LD when the page
+// exposes it (most modern recipe sites do), and falls back to
+// stripped page text otherwise.
+function stripHtmlForRecipe(html) {
+  // First, try to pull schema.org Recipe JSON-LD blocks. Sites that
+  // publish these give us perfectly clean structured data with no
+  // navigation, ads, or comment noise.
+  const jsonLdMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  const recipes = [];
+  for (const m of jsonLdMatches) {
+    try {
+      const raw = JSON.parse(m[1].trim());
+      const candidates = Array.isArray(raw) ? raw : raw["@graph"] ? raw["@graph"] : [raw];
+      for (const item of candidates) {
+        const type = item?.["@type"];
+        if (type === "Recipe" || (Array.isArray(type) && type.includes("Recipe"))) {
+          recipes.push(item);
+        }
+      }
+    } catch { /* malformed JSON-LD; skip */ }
+  }
+  if (recipes.length) return "RECIPE_JSON_LD:\n" + JSON.stringify(recipes, null, 2);
+
+  // Fallback: brutally strip the HTML to text. Remove the structural
+  // chrome first (nav / header / footer / scripts / styles), then drop
+  // remaining tags. Decode the most common HTML entities.
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<nav[\s\S]*?<\/nav>/gi, " ")
+    .replace(/<header[\s\S]*?<\/header>/gi, " ")
+    .replace(/<footer[\s\S]*?<\/footer>/gi, " ")
+    .replace(/<aside[\s\S]*?<\/aside>/gi, " ")
+    .replace(/<form[\s\S]*?<\/form>/gi, " ")
+    .replace(/<svg[\s\S]*?<\/svg>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;|&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+app.post("/api/admin/ai/extract-url", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+
+  if (!c.env.OPENAI_API_KEY) {
+    return c.json({ error: "OpenAI API key is not configured on this Worker." }, 500);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const rawUrl = (body?.url || "").trim();
+  if (!rawUrl) return c.json({ error: "no URL provided" }, 400);
+
+  let url;
+  try {
+    url = new URL(rawUrl);
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error("non-http");
+  } catch {
+    return c.json({ error: "That doesn't look like a valid http(s) URL." }, 400);
+  }
+
+  const cap = await aiCapCheckAndIncrement(c);
+  if (!cap.ok) return c.json({ error: cap.error }, 429);
+
+  // Fetch the page. Some sites 403 the default Workers user agent, so
+  // we pretend to be a normal browser. 15-second timeout in case the
+  // site is slow.
+  let html;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    const resp = await fetch(url.toString(), {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; HeirloomCookbook/1.0; +https://heirloomcookbook.net)",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en;q=0.9",
+      },
+      signal: controller.signal,
+      redirect: "follow",
+    });
+    clearTimeout(timer);
+    if (!resp.ok) {
+      return c.json({ error: `The page returned ${resp.status}. It may be paywalled or blocking automated fetches.` }, 502);
+    }
+    html = await resp.text();
+  } catch (err) {
+    return c.json({ error: `Could not fetch the page: ${err?.message || err}` }, 502);
+  }
+
+  let cleaned = stripHtmlForRecipe(html);
+  if (!cleaned) {
+    return c.json({ error: "Couldn't parse any readable text out of that page." }, 422);
+  }
+  if (cleaned.length > 30000) cleaned = cleaned.slice(0, 30000);
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${c.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: AI_EXTRACT_SYSTEM_PROMPT + `
+
+The user is pulling a recipe from a webpage. The text below was scraped from the page; ignore navigation, ads, comments, related-recipe links, and other unrelated boilerplate. If the text starts with 'RECIPE_JSON_LD:' it is structured schema.org Recipe data — use that directly.`,
+        },
+        { role: "user", content: `Source URL: ${url.toString()}\n\n${cleaned}` },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "recipe", strict: true, schema: AI_RECIPE_SCHEMA },
+      },
+    }),
+  });
+
+  if (!openaiRes.ok) {
+    const detail = await openaiRes.text();
+    console.error("OpenAI URL extract error", openaiRes.status, detail);
+    return c.json({ error: `OpenAI returned ${openaiRes.status}. Try the manual form, or try a different URL.` }, 502);
+  }
+
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return c.json({ error: "OpenAI returned no content." }, 502);
+
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+
+  // Tuck the source URL into the link field so it lands in the form's
+  // "Source link" row automatically — the cook can re-label it if they
+  // want.
+  parsed.sourceUrl = url.toString();
+
+  return c.json(parsed);
+});
+
 app.post("/api/admin/uploads", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
