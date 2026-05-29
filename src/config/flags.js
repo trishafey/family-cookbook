@@ -22,7 +22,7 @@ const on = (key) => overrides.has(key) || overrides.has("all");
 export const FLAGS = {
   extractText:  on("extractText")  || true,   // Add Recipe → paste text → recipe draft
   extractUrl:   on("extractUrl")   || false,  // Add Recipe → URL → recipe draft
-  extractImage: on("extractImage") || false,  // Add Recipe → photo of a recipe card → draft
+  extractImage: on("extractImage") || true,   // Add Recipe → photo of a recipe card → draft
   adjust:       on("adjust")       || false,  // Recipe page → "Adjust with AI" chips + free text
   familySays:   on("familySays")   || false,  // Recipe page → "AI summary · what the family does differently"
   pairings:     on("pairings")     || false,  // Recipe page → AI-generated pairing tiles (curated ones stay)

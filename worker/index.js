@@ -845,6 +845,110 @@ The user is pulling a recipe from a webpage. The text below was scraped from the
   return c.json(parsed);
 });
 
+// ─── AI: photo of a cookbook page → recipe draft ───
+// The cook snaps a picture of a recipe card or cookbook spread and
+// we ask gpt-4o-mini (vision) to read it and return the same JSON
+// shape extract-text returns. We also park the image in R2 and tuck
+// its public URL into the response, so the form pre-fills the hero
+// photo with the snapshot itself — saves the cook from doing a
+// second upload.
+app.post("/api/admin/ai/extract-image", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+
+  if (!c.env.OPENAI_API_KEY) {
+    return c.json({ error: "OpenAI API key is not configured on this Worker." }, 500);
+  }
+
+  const form = await c.req.formData().catch(() => null);
+  const file = form?.get("file");
+  if (!(file instanceof File)) return c.json({ error: "missing 'file' part" }, 400);
+  if (!file.type.startsWith("image/")) return c.json({ error: "file must be an image" }, 415);
+  // Same 10 MB cap the regular photo upload uses.
+  if (file.size > 10 * 1024 * 1024) return c.json({ error: "image too large (max 10 MB)" }, 413);
+
+  const cap = await aiCapCheckAndIncrement(c);
+  if (!cap.ok) return c.json({ error: cap.error }, 429);
+
+  // Read the bytes once: we need them both for the OpenAI data URL
+  // and for the R2 upload.
+  const bytes = new Uint8Array(await file.arrayBuffer());
+
+  // Park a copy in R2 so the snapshot can double as the recipe's
+  // hero photo. If this fails we still try the extraction — losing
+  // the photo URL is a soft failure.
+  const ext = (file.name?.match(/\.[a-z0-9]+$/i)?.[0] || ".jpg").toLowerCase();
+  const key = `${crypto.randomUUID()}${ext}`;
+  let photoUrl = null;
+  try {
+    await c.env.IMAGES.put(key, bytes, {
+      httpMetadata: { contentType: file.type || "application/octet-stream" },
+    });
+    photoUrl = `/api/images/${key}`;
+  } catch (err) {
+    console.error("R2 put failed during extract-image", err);
+  }
+
+  // Base64-encode for OpenAI. btoa() in Workers is limited to
+  // latin-1 strings, so we chunk through a binary string to avoid
+  // blowing the call stack on multi-MB images.
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  const dataUrl = `data:${file.type};base64,${btoa(bin)}`;
+
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${c.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: AI_OPENAI_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: AI_EXTRACT_SYSTEM_PROMPT + `
+
+The user has photographed a cookbook page, recipe card, or handwritten note. Read the visible text — including handwriting — and extract the recipe. If the photo shows multiple recipes, focus on the most prominent one. If it shows none, return an empty title and let the cook fix it manually.`,
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Extract the recipe from this photo." },
+            { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
+          ],
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "recipe", strict: true, schema: AI_RECIPE_SCHEMA },
+      },
+    }),
+  });
+
+  if (!openaiRes.ok) {
+    const detail = await openaiRes.text();
+    console.error("OpenAI image extract error", openaiRes.status, detail);
+    return c.json({ error: `OpenAI returned ${openaiRes.status}. The photo may be hard to read — try a closer or sharper shot, or use the manual form.` }, 502);
+  }
+
+  const result = await openaiRes.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) return c.json({ error: "OpenAI returned no content." }, 502);
+
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch { return c.json({ error: "OpenAI returned malformed JSON." }, 502); }
+
+  // Hand the cook the snapshot as the hero image, so they don't have
+  // to re-upload. If R2 failed we just don't set this.
+  if (photoUrl) parsed.photo = photoUrl;
+
+  return c.json(parsed);
+});
+
 app.post("/api/admin/uploads", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
