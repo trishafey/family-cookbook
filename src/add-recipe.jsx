@@ -321,6 +321,9 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
   // Photo-mode queue. Each entry is { file, preview } where preview is
   // a blob: URL we revoke on removal / unmount so we don't leak.
   const [pendingImages, setPendingImages] = useState([]);
+  // Drag-and-drop on desktop: tracks whether files are hovering over
+  // the drop zone so we can highlight it.
+  const [dragHover, setDragHover] = useState(false);
   const [draft, setDraft] = useState(initialRecipe);
 
   useEffect(() => () => {
@@ -945,7 +948,38 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
 
       {mode === "photo" && (
         <div style={{ maxWidth: 720 }}>
-          <div className="ai-drop" style={{ textAlign: "center", padding: 48 }}>
+          <div
+            className="ai-drop"
+            style={{
+              textAlign: "center",
+              padding: 48,
+              outline: dragHover ? "2px dashed var(--accent, #8a6a3a)" : "none",
+              outlineOffset: -8,
+              background: dragHover ? "var(--paper-2)" : undefined,
+              transition: "background 120ms",
+            }}
+            onDragOver={(e) => {
+              // Only react to file drags, and only if there's room
+              // in the queue. preventDefault is required to mark this
+              // as a valid drop target.
+              if (extracting) return;
+              if (!e.dataTransfer?.types?.includes("Files")) return;
+              e.preventDefault();
+              if (!dragHover) setDragHover(true);
+            }}
+            onDragLeave={(e) => {
+              // The drag-leave event fires for child elements too, so
+              // we only clear the highlight when leaving the wrapper.
+              if (e.currentTarget.contains(e.relatedTarget)) return;
+              setDragHover(false);
+            }}
+            onDrop={(e) => {
+              if (extracting) return;
+              e.preventDefault();
+              setDragHover(false);
+              enqueueImages(e.dataTransfer?.files);
+            }}
+          >
             <Icon name="camera" size={48} />
             <h3 style={{ marginTop: 16 }}>{t("snapPhotoOfCookbook")}</h3>
             <div style={{ color: "var(--ink-3)", marginTop: 8, fontFamily: "var(--serif)" }}>
