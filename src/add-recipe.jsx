@@ -318,7 +318,14 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
   const [aiText, setAiText] = useState("");
   const [aiUrl, setAiUrl] = useState("");
   const [extracting, setExtracting] = useState(false);
+  // Photo-mode queue. Each entry is { file, preview } where preview is
+  // a blob: URL we revoke on removal / unmount so we don't leak.
+  const [pendingImages, setPendingImages] = useState([]);
   const [draft, setDraft] = useState(initialRecipe);
+
+  useEffect(() => () => {
+    pendingImages.forEach(p => URL.revokeObjectURL(p.preview));
+  }, []);
 
   // Manual form initial
   const newDraft = () => ({
@@ -343,6 +350,10 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     steps: [{ t: "", d: "", mins: 0, precision: "easy" }],
     tips: [],
     comments: [],
+    // Original snapshots when the recipe was extracted from photos.
+    // We keep every page so a future "view the original" reveal can
+    // surface grandma's handwriting alongside the parsed text.
+    sourcePhotos: [],
   });
 
   useEffect(() => {
@@ -398,6 +409,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
       // .photo so the snapshot doubles as the hero image.
       link: parsed.sourceUrl ? { url: parsed.sourceUrl, label: "" } : fresh.link,
       photo: parsed.photo || fresh.photo,
+      sourcePhotos: parsed.sourcePhotos || fresh.sourcePhotos,
     });
     setMode("manual");
   };
@@ -448,16 +460,46 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     }
   };
 
-  // Real AI extraction from a photo of a cookbook page / recipe card.
-  // The Worker reads the image, asks gpt-4o-mini (vision) to parse
-  // it, and also parks the image in R2 so it becomes the recipe's
-  // hero photo automatically.
-  const runFromImage = async (file) => {
-    if (!file) return;
+  // Photo-mode queue: cooks can append shots from camera or upload
+  // multiple from camera roll, then send the whole batch to the
+  // Worker. Useful when a recipe spans cookbook pages or a
+  // recipe-card front+back.
+  const MAX_QUEUED_IMAGES = 6;
+  const enqueueImages = (fileList) => {
+    if (!fileList || !fileList.length) return;
+    const incoming = Array.from(fileList).filter(f => f.type.startsWith("image/"));
+    setPendingImages(prev => {
+      const room = MAX_QUEUED_IMAGES - prev.length;
+      if (room <= 0) {
+        alert(`Max ${MAX_QUEUED_IMAGES} photos per recipe — remove one to add more.`);
+        return prev;
+      }
+      if (incoming.length > room) {
+        alert(`Only added the first ${room}: max ${MAX_QUEUED_IMAGES} photos per recipe.`);
+      }
+      const added = incoming.slice(0, room).map(file => ({
+        file,
+        preview: URL.createObjectURL(file),
+      }));
+      return [...prev, ...added];
+    });
+  };
+  const removeQueued = (idx) => {
+    setPendingImages(prev => {
+      URL.revokeObjectURL(prev[idx]?.preview);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  // Sends every queued photo to the Worker in one shot — the vision
+  // model stitches them into a single recipe and we park each
+  // original in R2 so the family can reveal them later.
+  const runFromImages = async () => {
+    if (!pendingImages.length) return;
     setExtracting(true);
     try {
       const body = new FormData();
-      body.append("file", file);
+      for (const p of pendingImages) body.append("file", p.file);
       const res = await fetch("/api/admin/ai/extract-image", {
         method: "POST",
         credentials: "include",
@@ -467,9 +509,12 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
         const { error } = await res.json().catch(() => ({}));
         throw new Error(error || `Extraction failed (${res.status})`);
       }
-      applyExtraction(await res.json());
+      const parsed = await res.json();
+      pendingImages.forEach(p => URL.revokeObjectURL(p.preview));
+      setPendingImages([]);
+      applyExtraction(parsed);
     } catch (err) {
-      alert(err.message || "Could not read that photo. Try a clearer shot, or use the manual form.");
+      alert(err.message || "Could not read those photos. Try clearer shots, or use the manual form.");
     } finally {
       setExtracting(false);
     }
@@ -900,40 +945,84 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
 
       {mode === "photo" && (
         <div style={{ maxWidth: 720 }}>
-          <div className="ai-drop" style={{ textAlign: "center", padding: 64 }}>
+          <div className="ai-drop" style={{ textAlign: "center", padding: 48 }}>
             <Icon name="camera" size={48} />
             <h3 style={{ marginTop: 16 }}>{t("snapPhotoOfCookbook")}</h3>
             <div style={{ color: "var(--ink-3)", marginTop: 8, fontFamily: "var(--serif)" }}>
               {t("takePhotoHelper")}
             </div>
+
+            {pendingImages.length > 0 && (
+              <div style={{ marginTop: 24, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+                {pendingImages.map((p, i) => (
+                  <div key={p.preview} style={{ position: "relative", width: 96 }}>
+                    <div style={{
+                      width: 96, height: 96,
+                      backgroundImage: `url(${p.preview})`,
+                      backgroundSize: "cover", backgroundPosition: "center",
+                      border: "1px solid var(--rule)", borderRadius: 4,
+                    }} />
+                    <button
+                      type="button"
+                      onClick={() => removeQueued(i)}
+                      disabled={extracting}
+                      style={{
+                        position: "absolute", top: -8, right: -8,
+                        width: 22, height: 22, borderRadius: "50%",
+                        border: "1px solid var(--rule)", background: "var(--paper)",
+                        cursor: extracting ? "not-allowed" : "pointer",
+                        padding: 0, lineHeight: 1, fontSize: 14,
+                      }}
+                      aria-label={t("removePage")}
+                    >×</button>
+                    <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>
+                      {t("pageN").replace("{n}", i + 1)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div style={{ marginTop: 24, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-              {/* Two inputs: one with capture="environment" so iOS opens
-                  the rear camera directly, the other a plain file picker
-                  so the cook can pull from camera roll or files. */}
-              <label className="btn primary" style={{ cursor: extracting ? "not-allowed" : "pointer", opacity: extracting ? 0.5 : 1 }}>
-                <Icon name="camera" size={13} /> {extracting ? t("extracting") : t("takePhoto")}
+              {/* Take photo: capture="environment" makes iOS open the
+                  rear camera directly. Each tap appends another shot
+                  to the queue. */}
+              <label className="btn" style={{ cursor: extracting ? "not-allowed" : "pointer", opacity: extracting ? 0.5 : 1 }}>
+                <Icon name="camera" size={13} /> {t("takePhoto")}
                 <input
                   type="file"
                   accept="image/*"
                   capture="environment"
                   disabled={extracting}
                   style={{ display: "none" }}
-                  onChange={(e) => runFromImage(e.target.files?.[0])}
+                  onChange={(e) => { enqueueImages(e.target.files); e.target.value = ""; }}
                 />
               </label>
+              {/* Upload: no capture attr → opens the photo library,
+                  multi-select allowed. */}
               <label className="btn" style={{ cursor: extracting ? "not-allowed" : "pointer", opacity: extracting ? 0.5 : 1 }}>
-                {extracting ? t("extracting") : t("uploadImage")}
+                {t("uploadImage")}
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   disabled={extracting}
                   style={{ display: "none" }}
-                  onChange={(e) => runFromImage(e.target.files?.[0])}
+                  onChange={(e) => { enqueueImages(e.target.files); e.target.value = ""; }}
                 />
               </label>
+              <button
+                className="btn accent"
+                onClick={runFromImages}
+                disabled={!pendingImages.length || extracting}
+              >
+                {extracting
+                  ? t("extracting")
+                  : <><Icon name="sparkle" size={13} /> {t("extractRecipeN").replace("{n}", pendingImages.length || "")}</>}
+              </button>
             </div>
             <div style={{ marginTop: 20, fontSize: 12, color: "var(--ink-3)" }}>
-              <span className="ai-sparkle"><Icon name="sparkle" size={11} /> AI-parsed</span> · You'll review every field before saving.
+              <span className="ai-sparkle"><Icon name="sparkle" size={11} /> AI-parsed</span> · {t("multiPagePhotoHelper")}
             </div>
           </div>
         </div>
