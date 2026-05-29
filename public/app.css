@@ -2940,3 +2940,87 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .nav-actions .btn.sm { padding: 6px 8px; }
   .featured .big .info h2 { font-size: 22px; }
 }
+
+/* ─── Admin · AI usage dashboard ─── */
+.admin-ai-usage .admin-ai-h2 {
+  font-family: var(--serif);
+  font-size: 22px; font-style: italic; font-weight: 500;
+  margin: 0 0 14px;
+}
+.admin-ai-usage .admin-ai-empty {
+  color: var(--ink-3); font-style: italic; font-size: 14px;
+  padding: 12px 0;
+}
+.admin-ai-usage .admin-ai-bars {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.admin-ai-usage .admin-ai-bars .row {
+  display: grid; grid-template-columns: 220px 1fr 40px;
+  align-items: center; gap: 12px;
+  font-size: 13px;
+}
+.admin-ai-usage .admin-ai-bars .label {
+  font-family: var(--mono); font-size: 12px;
+  color: var(--ink-2); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.admin-ai-usage .admin-ai-bars .bar-track {
+  height: 12px; background: rgba(58,90,106,.08);
+  border-radius: 6px; overflow: hidden;
+}
+.admin-ai-usage .admin-ai-bars .bar-fill {
+  height: 100%; background: var(--accent-cool);
+  border-radius: 6px;
+  transition: width .3s ease;
+}
+.admin-ai-usage .admin-ai-bars .n {
+  font-family: var(--mono); font-size: 12px;
+  color: var(--ink-3); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.admin-ai-usage .admin-ai-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.admin-ai-usage .admin-ai-table th {
+  text-align: left; padding: 8px 12px;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 600;
+  border-bottom: 1px solid var(--rule);
+}
+.admin-ai-usage .admin-ai-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0,0,0,.04);
+  vertical-align: top;
+  font-family: var(--serif);
+  color: var(--ink-2);
+}
+.admin-ai-usage .admin-ai-table td.ts {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--ink-3); white-space: nowrap;
+}
+.admin-ai-usage .admin-ai-table td.prompt {
+  max-width: 480px;
+  font-style: italic;
+}
+.admin-ai-usage .admin-ai-table td.meta {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--ink-3);
+  max-width: 380px; word-break: break-word;
+}
+
+@media (max-width: 720px) {
+  .admin-ai-usage .admin-ai-bars .row {
+    grid-template-columns: 1fr 40px;
+  }
+  .admin-ai-usage .admin-ai-bars .label {
+    grid-column: 1 / -1;
+    margin-bottom: -4px;
+  }
+  .admin-ai-usage .admin-ai-bars .bar-track { grid-column: 1; }
+  .admin-ai-usage .admin-ai-table {
+    font-size: 12px;
+  }
+  .admin-ai-usage .admin-ai-table th,
+  .admin-ai-usage .admin-ai-table td { padding: 6px 8px; }
+}

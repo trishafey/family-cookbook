@@ -161,6 +161,59 @@ app.get("/api/admin/login", (c) => {
   return c.redirect(returnTo);
 });
 
+// ─── AI usage analytics ───
+// Powers the small /admin/ai-usage dashboard. Four datasets:
+//   • featureTotals — calls per feature, all-time
+//   • userTotals    — calls per user, all-time
+//   • recentPrompts — last 20 free-text prompts (adjust + lab)
+//   • recentEvents  — last 50 events (any feature)
+//
+// Each block is wrapped in its own try/catch so a missing table
+// (migration not yet applied) returns empty arrays instead of a
+// 500 — the page renders a clean "no data yet" state.
+app.get("/api/admin/ai-usage", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+
+  const safe = async (sql, ...binds) => {
+    try {
+      const stmt = c.env.DB.prepare(sql);
+      const bound = binds.length ? stmt.bind(...binds) : stmt;
+      const { results } = await bound.all();
+      return results || [];
+    } catch (err) {
+      console.error("ai-usage query failed", err);
+      return [];
+    }
+  };
+
+  const [featureTotals, userTotals, recentPrompts, recentEvents] = await Promise.all([
+    safe(`SELECT feature, COUNT(*) AS n
+            FROM ai_events
+           GROUP BY feature
+           ORDER BY n DESC`),
+    safe(`SELECT user_email, COUNT(*) AS n
+            FROM ai_events
+           GROUP BY user_email
+           ORDER BY n DESC`),
+    // Free-text prompts come from adjust + lab-iterate + help.
+    // We pluck the prompt slice out of the meta JSON.
+    safe(`SELECT created_at, user_email, feature,
+                 json_extract(meta, '$.prompt') AS prompt
+            FROM ai_events
+           WHERE feature IN ('adjust', 'lab-iterate', 'help')
+             AND json_extract(meta, '$.prompt') IS NOT NULL
+           ORDER BY created_at DESC
+           LIMIT 20`),
+    safe(`SELECT created_at, user_email, feature, recipe_id, meta
+            FROM ai_events
+           ORDER BY created_at DESC
+           LIMIT 50`),
+  ]);
+
+  return c.json({ featureTotals, userTotals, recentPrompts, recentEvents });
+});
+
 // Create a new recipe. The draft from the AddRecipe form has the full
 // ─── AI: translate recipe to the other language on save ───
 // Fired after a successful POST or PATCH. The handler doesn't await
