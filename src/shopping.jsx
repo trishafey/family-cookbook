@@ -1,7 +1,7 @@
 // Shopping-list modal — supports multiple recipes, check-off, copy/print/export.
 
 import { useState, useMemo } from "react";
-import { useStorage, buildShoppingList, formatQty, Icon } from "./helpers.jsx";
+import { useStorage, buildShoppingList, formatQty, formatIngredientQty, Icon } from "./helpers.jsx";
 import { Modal, PrintOnly } from "./ui.jsx";
 import { useLang } from "./i18n.js";
 
@@ -33,7 +33,7 @@ export function ShoppingList({ open, onClose, payload }) {
       if (!filtered.length) continue;
       out.push(`${grp.toUpperCase()}`);
       for (const i of filtered) {
-        out.push(`  ☐ ${formatQty(i.qty)} ${i.unit} ${i.item}`);
+        out.push(`  ☐ ${formatIngredientQty(i)} ${i.item}`);
       }
       out.push("");
     }
@@ -92,7 +92,7 @@ export function ShoppingList({ open, onClose, payload }) {
                       {isHave && <Icon name="check" size={13} />}
                     </div>
                     <div className="item">{i.item}</div>
-                    <div className="qty">{formatQty(i.qty)} {i.unit}</div>
+                    <div className="qty">{formatIngredientQty(i)}</div>
                   </li>
                 );
               })}
@@ -122,7 +122,7 @@ export function ShoppingList({ open, onClose, payload }) {
                     return (
                       <li key={idx} className={isHave ? "have" : ""}>
                         <span className="checkbox">{isHave ? "☑" : "☐"}</span>
-                        <span className="qty">{formatQty(i.qty)} {i.unit}</span> {i.item}
+                        <span className="qty">{formatIngredientQty(i)}</span> {i.item}
                       </li>
                     );
                   })}
