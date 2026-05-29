@@ -15,6 +15,7 @@ import { BuildAMeal } from "./meal.jsx";
 import { PlanMealModal, MealPlanPage } from "./meal-plan.jsx";
 import { ShoppingList } from "./shopping.jsx";
 import { CookMode } from "./cook-mode.jsx";
+import { AdminAIUsage } from "./admin-ai-usage.jsx";
 
 function App() {
   // ─── View routing ───
@@ -294,7 +295,7 @@ function App() {
               <Icon name="plus" size={13} /> <span className="btn-label">{t("addRecipe")}</span>
             </button>
             {authEmail ? (
-              <AvatarMenu email={authEmail} />
+              <AvatarMenu email={authEmail} onAdminAIUsage={() => setView("admin-ai-usage")} />
             ) : (
               <a className="btn sm sign-in" href={signInUrl()} title={t("signIn")}>
                 <Icon name="chef" size={13} /> <span className="btn-label">{t("signIn")}</span>
@@ -407,6 +408,10 @@ function App() {
         />
       )}
 
+      {view === "admin-ai-usage" && (
+        <AdminAIUsage onClose={backToBrowse} />
+      )}
+
       {/* ───── Floating shopping bar when meal selection has items but you're elsewhere ───── */}
       {selection.length > 0 && view !== "meal" && (
         <div className="meal-tray">
@@ -502,11 +507,18 @@ function App() {
   );
 }
 
-function AvatarMenu({ email }) {
+// Admin-only emails see extra menu entries (currently just the
+// AI usage dashboard). Hard-coded for now — there's no role
+// system, and the family-scoped cookbook makes a single allowlist
+// fine. Add to this array if more admins need access.
+const ADMIN_EMAILS = ["patricia.fejdasz@gmail.com"];
+
+function AvatarMenu({ email, onAdminAIUsage }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const initial = (email[0] || "?").toUpperCase();
   const { t } = useLang();
+  const isAdmin = ADMIN_EMAILS.includes(email);
 
   useEffect(() => {
     if (!open) return;
@@ -523,6 +535,16 @@ function AvatarMenu({ email }) {
       {open && (
         <div className="menu" role="menu">
           <div className="label">{email}</div>
+          {isAdmin && (
+            <button
+              type="button"
+              className="item"
+              onClick={() => { setOpen(false); onAdminAIUsage?.(); }}
+              style={{ background: "none", border: 0, textAlign: "left", width: "100%", cursor: "pointer", font: "inherit", color: "inherit" }}
+            >
+              AI usage
+            </button>
+          )}
           <a className="item" href={SIGN_OUT_URL}>{t("signOut")}</a>
         </div>
       )}
