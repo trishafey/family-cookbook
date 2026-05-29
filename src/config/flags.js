@@ -27,5 +27,5 @@ export const FLAGS = {
   familySays:   on("familySays")   || true,   // Recipe page → "AI summary · what the family does differently"
   pairings:     on("pairings")     || true,   // Recipe page → AI-generated pairing tiles (curated ones stay)
   needHelp:     on("needHelp")     || true,   // Recipe page + cook mode → "Need help cooking?" Q&A
-  lab:          on("lab")          || false,  // The Lab / Kitchen experimentation view
+  lab:          on("lab")          || true,   // The Lab / Kitchen experimentation view
 };
