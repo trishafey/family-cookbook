@@ -869,6 +869,31 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-family: var(--serif); font-size: 15.5px; line-height: 1.5;
   color: var(--ink-2);
 }
+/* Label row holds the eyebrow + Regenerate button on a single line */
+.family-says .label-row {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; margin-bottom: 4px;
+}
+.family-says .label-row .label { margin-bottom: 0; }
+.family-says .regen { font-size: 11px; }
+/* Tweak chips inherit the AI-adjust chip language so the surface
+   feels familiar — one-tap and the action lands in the same
+   'applied' card as the Adjust box. */
+.family-says .tweaks {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px;
+}
+.family-says .tweak-chip {
+  font-family: var(--mono); font-size: 11px;
+  padding: 5px 10px; border-radius: 999px;
+  background: var(--paper); color: var(--accent-cool);
+  border: 1px solid rgba(58,90,106,.3);
+  cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+  transition: background .15s ease, color .15s ease;
+}
+.family-says .tweak-chip:hover { background: var(--accent-cool); color: var(--paper); }
+/* Empty state when there's no cached synthesis yet — same chrome,
+   just a Generate button in place of the body text */
+.family-says.empty .body { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 
 /* MAGAZINE variant — full-bleed hero */
 .recipe-magazine-hero {

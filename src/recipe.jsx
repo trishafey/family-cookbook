@@ -537,42 +537,138 @@ function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Shared: Family-says synthesis (mocked per recipe)
+// Shared: Cook's notes + AI family-says synthesis
 // ─────────────────────────────────────────────────────────────
-function familySaysFor(recipe) {
-  const map = {
-    "prime-rib":     "Family cooks consistently pull at 125°F for true medium-rare and rest 20 minutes (not 15). For 8+ lb roasts, Mom adds 12 minutes of high heat at the start. Pete recommends buying the whole rib bone-on and tying it yourself — same result, ~$40 cheaper.",
-    "linguine-vongole": "Most cooks open a second bottle of wine the moment the first hits the pan. Jules pairs with crusty sourdough for the sauce.",
-    "blueberry-lemon-rolls": "Frozen-not-thawed blueberries is the consensus. The double glaze + crumble combo is the version everyone asks about.",
-    "block-party-ribs":  "The rib broth is the family's secret pantry item — strain it and use it as the base for Ryszard's Creamy Tomato Soup. Leftover ribs on Trish's Covid Bread is the standard next-day move.",
-    "kt-turkey":         "Time is a guide, temperature is the truth — pull at 165°F in the thickest part of the thigh. Most family cooks reduce the meat in the stuffing so it cooks through inside the bird.",
-    "ewas-pierogies":    "Potato & cheese is the default everyone agrees on; cabbage is a love-it-or-leave-it second. Topping ritual: butter, caramelized onions, crisp bacon, sour cream.",
+// Family says lives at the top of the cook's-notes disclosure.
+// On first view it's empty; a signed-in cook can hit Generate to
+// have the model read the family's tips + curated + live comments
+// and produce both a short prose summary and 0-4 concrete tweaks
+// the family consistently makes. Pinned via recipe.familySays on
+// the blob so subsequent visitors get it without re-paying.
+function FamilySaysBlock({ recipe, scaler, applied, setApplied, onSaveRecipe, authEmail }) {
+  const cached = recipe.familySays;
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState(null);
+
+  const generate = async (force = false) => {
+    setGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/ai/family-says", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ recipeId: recipe.id, force }),
+      });
+      if (!res.ok) {
+        const { error: msg } = await res.json().catch(() => ({}));
+        throw new Error(msg || `Family says failed (${res.status})`);
+      }
+      const data = await res.json();
+      // Worker already persisted to the blob — mirror it onto the
+      // in-memory recipe so the section re-renders without a
+      // page refresh.
+      onSaveRecipe?.({
+        ...recipe,
+        familySays: {
+          summary: data.summary,
+          tweaks: data.tweaks,
+          generatedAt: data.generatedAt,
+        },
+      });
+    } catch (err) {
+      setError(err.message || "Could not synthesise the family notes.");
+    } finally {
+      setGenerating(false);
+    }
   };
-  return map[recipe.id] || null;
+
+  // Apply one of the tweak actions returned by the model. Mirrors
+  // the AIAdjustBox.applyAction shape so the same scaler hooks
+  // do the work, and the cook gets the same 'applied' card
+  // surface to dismiss or revert.
+  const applyTweak = (tweak) => {
+    const action = tweak.action || { kind: "none" };
+    if (action.kind === "setServings" && action.value != null) scaler.setServings(Math.max(1, Math.round(action.value)));
+    else if (action.kind === "setWeight" && action.value != null) scaler.setWeight(action.value);
+    else if (action.kind === "setCalTarget" && action.value != null) scaler.setCalTarget?.(Math.max(0, Math.round(action.value)));
+    setApplied([{ summary: tweak.summary, prompt: `Family tweak: ${tweak.label}` }, ...applied]);
+  };
+
+  // No cached synthesis yet — show a Generate CTA to signed-in
+  // cooks; render nothing for guests so the section stays clean.
+  if (!cached) {
+    if (!authEmail) return null;
+    return (
+      <div className="family-says empty">
+        <div className="icon"><Icon name="sparkle" size={14} /></div>
+        <div className="body">
+          <div className="label">AI summary · what the family does differently</div>
+          <button className="btn ghost sm" onClick={() => generate(false)} disabled={generating}>
+            <Icon name="sparkle" size={11} /> {generating ? "Reading the notes…" : "Summarise with AI"}
+          </button>
+          {error && <div style={{ marginTop: 6, fontSize: 12, color: "#933" }}>{error}</div>}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="family-says">
+      <div className="icon"><Icon name="sparkle" size={14} /></div>
+      <div className="body">
+        <div className="label-row">
+          <span className="label">AI summary · what the family does differently</span>
+          {authEmail && (
+            <button
+              className="btn ghost sm regen"
+              onClick={() => generate(true)}
+              disabled={generating}
+              title="Regenerate from the latest comments"
+            >
+              <Icon name="sparkle" size={10} /> {generating ? "Regenerating…" : "Regenerate"}
+            </button>
+          )}
+        </div>
+        <div className="text">{cached.summary}</div>
+        {cached.tweaks?.length > 0 && (
+          <div className="tweaks">
+            {cached.tweaks.map((tw, i) => (
+              <button key={i} className="tweak-chip" onClick={() => applyTweak(tw)} title={tw.summary}>
+                <Icon name="sparkle" size={9} /> {tw.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {error && <div style={{ marginTop: 6, fontSize: 12, color: "#933" }}>{error}</div>}
+      </div>
+    </div>
+  );
 }
 
-// ─────────────────────────────────────────────────────────────
-// Shared: Cook's notes (disclosure)
-// ─────────────────────────────────────────────────────────────
-function CooksNotes({ recipe, defaultOpen }) {
+function CooksNotes({ recipe, defaultOpen, scaler, applied, setApplied, onSaveRecipe, authEmail }) {
   const { t } = useLang();
-  const familySays = FLAGS.familySays ? familySaysFor(recipe) : null;
+  const familySaysOn = FLAGS.familySays;
   return (
     <details className="disclosure first" open={defaultOpen}>
       <summary>
         <span className="chev">›</span>
         <h3>{t("cooksNotes")}</h3>
-        <span className="count">{recipe.tips.length} {recipe.tips.length === 1 ? t("oneNote") : t("manyNotes")}{FLAGS.familySays && " + AI summary"}</span>
+        <span className="count">
+          {recipe.tips.length} {recipe.tips.length === 1 ? t("oneNote") : t("manyNotes")}
+          {familySaysOn && recipe.familySays && " + AI summary"}
+        </span>
       </summary>
       <div className="disclosure-body">
-        {familySays && (
-          <div className="family-says">
-            <div className="icon"><Icon name="sparkle" size={14} /></div>
-            <div className="body">
-              <div className="label">AI summary · what the family does differently</div>
-              <div className="text">{familySays}</div>
-            </div>
-          </div>
+        {familySaysOn && (
+          <FamilySaysBlock
+            recipe={recipe}
+            scaler={scaler}
+            applied={applied}
+            setApplied={setApplied}
+            onSaveRecipe={onSaveRecipe}
+            authEmail={authEmail}
+          />
         )}
         <ul style={{ paddingLeft: 18, margin: 0 }}>
           {recipe.tips.map((tip, i) => (
@@ -960,7 +1056,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <span className="label">From the family</span>
       </div>
       <div>
-        <CooksNotes recipe={recipe} defaultOpen={true} />
+        <CooksNotes recipe={recipe} defaultOpen={true} scaler={scaler} applied={applied} setApplied={setApplied} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
         <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={false} />
       </div>
     </>
@@ -1046,7 +1142,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="section-break">
         <span className="label">From the family</span>
       </div>
-      <CooksNotes recipe={recipe} defaultOpen={true} />
+      <CooksNotes recipe={recipe} defaultOpen={true} scaler={scaler} applied={applied} setApplied={setApplied} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
       <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={false} />
     </>
   );
@@ -1130,7 +1226,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div className="section-break">
         <span className="label">Margin notes</span>
       </div>
-      <CooksNotes recipe={recipe} defaultOpen={true} />
+      <CooksNotes recipe={recipe} defaultOpen={true} scaler={scaler} applied={applied} setApplied={setApplied} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
       <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={false} />
     </div>
   );
