@@ -2,7 +2,7 @@
 // Variants: editorial (default), magazine, binder.
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Icon, fmtDuration, fmtTime, formatQty, formatIngredientQty, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage } from "./helpers.jsx";
+import { Icon, fmtDuration, fmtTime, formatQty, formatIngredientQty, logEvent, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage } from "./helpers.jsx";
 import { convertIngredient } from "./units.js";
 import { useLang } from "./i18n.js";
 import { TimeOfDayInput, PrintOnly } from "./ui.jsx";
@@ -1249,6 +1249,14 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
 // ─────────────────────────────────────────────────────────────
 export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, deleteComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
   const { t } = useLang();
+
+  // Log one view per recipe id change. Doesn't dedupe within a session
+  // — back-and-forth navigation will multi-count, which we'll refine
+  // later if the data looks noisy.
+  useEffect(() => {
+    if (recipe?.id) logEvent("view-recipe", recipe.id);
+  }, [recipe?.id]);
+
   // Scaling state
   const [servings, setServings] = useState(recipe.servingsDefault);
   const [weight, setWeight] = useState(recipe.weightDefault || 1);

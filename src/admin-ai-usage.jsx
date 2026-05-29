@@ -26,6 +26,19 @@ const FEATURE_LABELS = {
   "hero-image":     "Generate hero photo",
 };
 
+const ADD_METHOD_LABELS = {
+  "paste-text":  "Paste text",
+  "paste-url":   "Paste URL",
+  "paste-image": "Photo of recipe",
+  "manual":      "Typed by hand",
+};
+
+const SHOPPING_ACTION_LABELS = {
+  "copy":     "Copy to clipboard",
+  "download": "Download .txt",
+  "print":    "Print",
+};
+
 function featureLabel(key) {
   return FEATURE_LABELS[key] || key;
 }
@@ -112,12 +125,14 @@ function summariseMeta(feature, metaStr) {
 export function AdminAIUsage({ onClose }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [includeAdmins, setIncludeAdmins] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/admin/ai-usage", {
+        const url = `/api/admin/ai-usage${includeAdmins ? "?includeAdmins=1" : ""}`;
+        const res = await fetch(url, {
           credentials: "include",
           headers: { Accept: "application/json" },
         });
@@ -129,7 +144,7 @@ export function AdminAIUsage({ onClose }) {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [includeAdmins]);
 
   const totalCalls = (data?.featureTotals || []).reduce((a, b) => a + (b.n || 0), 0);
   const maxFeatureN = Math.max(1, ...(data?.featureTotals || []).map(r => r.n || 0));
@@ -138,6 +153,13 @@ export function AdminAIUsage({ onClose }) {
     (a, r) => a + (r.prompt_tokens || 0) + (r.completion_tokens || 0), 0,
   );
   const estCostUsd = estimateCostUsd(data?.tokenTotals, data?.imageCalls);
+
+  const maxViewN     = Math.max(1, ...(data?.viewTotals || []).map(r => r.n || 0));
+  const maxAddN      = Math.max(1, ...(data?.addMethodTotals || []).map(r => r.n || 0));
+  const maxShoppingN = Math.max(1, ...(data?.shoppingActionTotals || []).map(r => r.n || 0));
+  const totalAdds = (data?.addMethodTotals || []).reduce((a, b) => a + (b.n || 0), 0);
+  const totalViews = (data?.viewTotals || []).reduce((a, b) => a + (b.n || 0), 0);
+  const totalShopping = (data?.shoppingActionTotals || []).reduce((a, b) => a + (b.n || 0), 0);
 
   return (
     <div className="app admin-ai-usage" data-screen-label="Admin · AI usage">
@@ -150,13 +172,24 @@ export function AdminAIUsage({ onClose }) {
           Admin
         </div>
         <h1 style={{ fontFamily: "var(--serif)", fontSize: 36, fontStyle: "italic", fontWeight: 500, margin: 0 }}>
-          AI usage
+          Usage analytics
         </h1>
         <p style={{ color: "var(--ink-3)", fontFamily: "var(--serif)", fontSize: 15, marginTop: 8 }}>
           {totalCalls > 0
             ? `${totalCalls} AI ${totalCalls === 1 ? "call" : "calls"} · ${fmtTokens(totalTokens)} tokens · est. ${fmtUsd(estCostUsd)}`
             : "No usage data yet. Once the family uses an AI feature it'll show up here."}
         </p>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 14, fontSize: 13, color: "var(--ink-2)", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={includeAdmins}
+            onChange={(e) => setIncludeAdmins(e.target.checked)}
+          />
+          Include admin activity in user-behaviour stats
+          <span style={{ color: "var(--ink-3)", fontSize: 12 }}>
+            (always included in AI cost above)
+          </span>
+        </label>
       </header>
 
       {error && (
@@ -278,6 +311,87 @@ export function AdminAIUsage({ onClose }) {
                 ))}
               </tbody>
             </table>
+          </section>
+
+          {/* Section break — switch from AI cost analytics to user behaviour. */}
+          <div style={{ borderTop: "1px solid var(--rule)", paddingTop: 8 }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--accent-cool)" }}>
+              How people are using the cookbook
+            </div>
+            <p style={{ color: "var(--ink-3)", fontFamily: "var(--serif)", fontSize: 14, marginTop: 6 }}>
+              {totalViews + totalAdds + totalShopping > 0
+                ? `${totalViews} ${totalViews === 1 ? "view" : "views"} · ${totalAdds} ${totalAdds === 1 ? "recipe added" : "recipes added"} · ${totalShopping} shopping list ${totalShopping === 1 ? "action" : "actions"}${includeAdmins ? "" : " · admins excluded"}.`
+                : "No user activity captured yet — once people start using the cookbook it'll show up here."}
+            </p>
+          </div>
+
+          {/* Most-viewed recipes */}
+          <section>
+            <h2 className="admin-ai-h2">Most-viewed recipes</h2>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>
+              Top 10, all-time.
+            </div>
+            {data.viewTotals?.length ? (
+              <div className="admin-ai-bars">
+                {data.viewTotals.map((row) => (
+                  <div className="row" key={row.recipe_id}>
+                    <div className="label">{row.title || row.recipe_id}</div>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${(row.n / maxViewN) * 100}%` }} />
+                    </div>
+                    <div className="n">{row.n}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-ai-empty">No views logged yet.</div>
+            )}
+          </section>
+
+          {/* How recipes get added */}
+          <section>
+            <h2 className="admin-ai-h2">How recipes get added</h2>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>
+              Which entry path cooks prefer when adding a new recipe.
+            </div>
+            {data.addMethodTotals?.length ? (
+              <div className="admin-ai-bars">
+                {data.addMethodTotals.map((row) => (
+                  <div className="row" key={row.method}>
+                    <div className="label">{ADD_METHOD_LABELS[row.method] || row.method}</div>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${(row.n / maxAddN) * 100}%` }} />
+                    </div>
+                    <div className="n">{row.n}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-ai-empty">No recipes added yet.</div>
+            )}
+          </section>
+
+          {/* Shopping list actions */}
+          <section>
+            <h2 className="admin-ai-h2">Shopping list actions</h2>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>
+              What people do with the shopping list once it's generated.
+            </div>
+            {data.shoppingActionTotals?.length ? (
+              <div className="admin-ai-bars">
+                {data.shoppingActionTotals.map((row) => (
+                  <div className="row" key={row.action}>
+                    <div className="label">{SHOPPING_ACTION_LABELS[row.action] || row.action}</div>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${(row.n / maxShoppingN) * 100}%` }} />
+                    </div>
+                    <div className="n">{row.n}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-ai-empty">No shopping list actions yet.</div>
+            )}
           </section>
         </div>
       )}

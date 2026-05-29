@@ -386,6 +386,24 @@ export function signInUrl(returnTo) {
 // Cloudflare Access's built-in logout URL — clears the session cookie.
 export const SIGN_OUT_URL = "/cdn-cgi/access/logout";
 
+// Best-effort behavioural event log. Fire-and-forget — failures
+// (offline, anonymous user, 500) are swallowed so analytics never
+// breaks the surface that triggered them.
+export function logEvent(event, recipeId = null, meta = null) {
+  try {
+    fetch("/api/admin/events", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, recipeId, meta }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // Ignore — fetch can throw synchronously in rare edge cases (e.g.
+    // CSP block). We never want analytics to crash the app.
+  }
+}
+
 // Catches render errors below it and displays them inline. Useful so
 // production crashes don't leave a blank page with no signal.
 export class ErrorBoundary extends React.Component {

@@ -1,7 +1,7 @@
 // Shopping-list modal — supports multiple recipes, check-off, copy/print/export.
 
 import { useState, useMemo } from "react";
-import { useStorage, buildShoppingList, formatQty, formatIngredientQty, Icon } from "./helpers.jsx";
+import { useStorage, buildShoppingList, formatQty, formatIngredientQty, Icon, logEvent } from "./helpers.jsx";
 import { Modal, PrintOnly } from "./ui.jsx";
 import { useLang } from "./i18n.js";
 
@@ -40,8 +40,15 @@ export function ShoppingList({ open, onClose, payload }) {
     return out.join("\n");
   };
 
+  // For analytics: when one recipe is loaded, log its id directly; for
+  // multi-recipe lists, leave recipe_id null and stash the array in meta.
+  const recipeIds = (payload || []).map(p => p.recipe.id);
+  const primaryRecipeId = recipeIds.length === 1 ? recipeIds[0] : null;
+  const logShop = (action) => logEvent("shopping-list", primaryRecipeId, { action, recipeIds });
+
   const copyList = () => {
     navigator.clipboard.writeText(buildTextList(true));
+    logShop("copy");
     alert(t("copiedToClipboard"));
   };
   const downloadList = () => {
@@ -51,6 +58,11 @@ export function ShoppingList({ open, onClose, payload }) {
     const a = document.createElement("a");
     a.href = url; a.download = "shopping-list.txt"; a.click();
     URL.revokeObjectURL(url);
+    logShop("download");
+  };
+  const printList = () => {
+    logShop("print");
+    window.print();
   };
 
   return (
@@ -72,7 +84,7 @@ export function ShoppingList({ open, onClose, payload }) {
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn ghost sm" onClick={copyList}><Icon name="copy" size={13} /> {t("copyNeeded")}</button>
             <button className="btn ghost sm" onClick={downloadList}><Icon name="download" size={13} /> {t("download")}</button>
-            <button className="btn sm" onClick={() => window.print()}><Icon name="print" size={13} /> {t("print")}</button>
+            <button className="btn sm" onClick={printList}><Icon name="print" size={13} /> {t("print")}</button>
             <button className="btn primary sm" onClick={onClose}>{t("done")}</button>
           </div>
         </>

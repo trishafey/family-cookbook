@@ -185,6 +185,38 @@ function aiTokens(result) {
   return out;
 }
 
+// ─── User-behaviour analytics ───
+// Same shape as logAiEvent: best-effort insert into a separate
+// table. Distinct from AI logging because admins are excluded by
+// default from "how do people use the cookbook" but kept in for
+// "what's AI costing me" (real money).
+const ADMIN_EMAILS = ["patricia.fejdasz@gmail.com"];
+
+function logUserEvent(c, event, recipeId, meta) {
+  const email = authedEmail(c);
+  if (!email) return;
+  const created = new Date().toISOString();
+  const metaStr = meta ? JSON.stringify(meta) : null;
+  c.executionCtx.waitUntil(
+    c.env.DB.prepare(
+      "INSERT INTO user_events (created_at, user_email, event, recipe_id, meta) VALUES (?, ?, ?, ?, ?)"
+    )
+      .bind(created, email, event, recipeId || null, metaStr)
+      .run()
+      .catch((err) => console.error("user_events insert failed", err))
+  );
+}
+
+// Returns an SQL fragment for filtering out admin emails. Inlined
+// (not parameterised) because ADMIN_EMAILS is a hardcoded constant,
+// not user input — no injection surface. Empty when includeAdmins
+// is true so the same query template works either way.
+function adminFilterSql(includeAdmins) {
+  if (includeAdmins) return "";
+  const list = ADMIN_EMAILS.map(e => `'${e.replace(/'/g, "''")}'`).join(",");
+  return `AND user_email NOT IN (${list})`;
+}
+
 // JS uses this to check sign-in status. With Accept: application/json,
 // Access returns a 401 JSON body when unauthenticated (instead of a
 // 302 to login), so fetch sees a clean failure.
@@ -266,7 +298,61 @@ app.get("/api/admin/ai-usage", async (c) => {
 
   const imageCalls = imageCallRow[0]?.n || 0;
 
-  return c.json({ featureTotals, userTotals, recentPrompts, recentEvents, tokenTotals, imageCalls });
+  // ─── Behavioural analytics (separate table, admin-excluded by default) ───
+  const includeAdmins = c.req.query("includeAdmins") === "1";
+  const adminFilter = adminFilterSql(includeAdmins);
+
+  const [viewTotals, addMethodTotals, shoppingActionTotals, behavioralCallRow] = await Promise.all([
+    // Top viewed recipes — JOIN to surface the title alongside the id.
+    safe(`SELECT ue.recipe_id,
+                 r.title,
+                 COUNT(*) AS n
+            FROM user_events ue
+            LEFT JOIN recipes r ON r.id = ue.recipe_id
+           WHERE ue.event = 'view-recipe'
+             AND ue.recipe_id IS NOT NULL
+             ${adminFilter.replace(/user_email/g, "ue.user_email")}
+           GROUP BY ue.recipe_id, r.title
+           ORDER BY n DESC
+           LIMIT 10`),
+    safe(`SELECT json_extract(meta, '$.method') AS method,
+                 COUNT(*) AS n
+            FROM user_events
+           WHERE event = 'add-recipe'
+             AND json_extract(meta, '$.method') IS NOT NULL
+             ${adminFilter}
+           GROUP BY method
+           ORDER BY n DESC`),
+    safe(`SELECT json_extract(meta, '$.action') AS action,
+                 COUNT(*) AS n
+            FROM user_events
+           WHERE event = 'shopping-list'
+             AND json_extract(meta, '$.action') IS NOT NULL
+             ${adminFilter}
+           GROUP BY action
+           ORDER BY n DESC`),
+    safe(`SELECT COUNT(*) AS n FROM user_events WHERE 1=1 ${adminFilter}`),
+  ]);
+
+  const behavioralCalls = behavioralCallRow[0]?.n || 0;
+
+  return c.json({
+    featureTotals, userTotals, recentPrompts, recentEvents, tokenTotals, imageCalls,
+    viewTotals, addMethodTotals, shoppingActionTotals, behavioralCalls,
+    includesAdmins: includeAdmins,
+  });
+});
+
+// Best-effort event logger called by the client at user actions
+// (recipe view, add-recipe save, shopping-list action).
+app.post("/api/admin/events", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const body = await c.req.json().catch(() => ({}));
+  const event = (body?.event || "").trim();
+  if (!event) return c.json({ error: "missing event" }, 400);
+  logUserEvent(c, event, body?.recipeId || null, body?.meta || null);
+  return c.json({ ok: true });
 });
 
 // Create a new recipe. The draft from the AddRecipe form has the full
