@@ -211,11 +211,27 @@ function SourceLink({ recipe }) {
 // ─────────────────────────────────────────────────────────────
 // Shared: Tag row (filter-style tags inline on the recipe page)
 // ─────────────────────────────────────────────────────────────
+// Map an origin key ("heirloom" | "newToFamily" | "lab") to its
+// icon. The same icon shows on recipe cards and the recipe detail
+// page so the badge is recognisable everywhere.
+const ORIGIN_ICONS = { heirloom: "tomato", newToFamily: "sprout", lab: "beaker" };
+
+function OriginBadge({ origin, size = 11 }) {
+  const { tOrigin } = useLang();
+  if (!origin || !ORIGIN_ICONS[origin]) return null;
+  return (
+    <span className="recipe-tag origin" title={tOrigin(origin)} data-origin={origin}>
+      <Icon name={ORIGIN_ICONS[origin]} size={size} /> {tOrigin(origin)}
+    </span>
+  );
+}
+
 function TagRow({ recipe, scaled }) {
   const { t, tCourse, tOccasion, tDiet, tDifficulty } = useLang();
   return (
     <div className="tag-row">
       <SourcePhotosReveal recipe={recipe} />
+      <OriginBadge origin={recipe.origin} />
       <span className="recipe-tag diff">
         <span className="dot" /> {tDifficulty(recipe.difficulty)}
       </span>

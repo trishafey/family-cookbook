@@ -113,6 +113,7 @@ export const RECIPES = [
     author: "Patricia",
     cuisine: "Canadian / American",
     course: "Breakfast",
+    origin: "lab",
     diet: ["Vegetarian"],
     occasion: "Family style",
     photo: "images/bluberry-lemon-pie-rolls.PNG",
@@ -789,6 +790,9 @@ export const RECIPES = [
 
 export const AUTHORS  = [...new Set(RECIPES.map(r => r.author))];
 export const CUISINES = [...new Set(RECIPES.map(r => r.cuisine))];
-export const COURSES  = ["Breakfast", "Lunch", "Dinner", "Appetizer", "Dessert", "Snack"];
+export const COURSES  = ["Breakfast", "Lunch", "Dinner", "Sides", "Appetizer", "Dessert", "Snack"];
+// Origin tags: how a recipe came into the family book. Optional —
+// untagged recipes show no badge.
+export const ORIGINS  = ["heirloom", "newToFamily", "lab"];
 export const DIETS    = ["Gluten-free","Dairy-free","Nut-free","Soy-free","Vegan","Vegetarian","Pescatarian","Carnivore","High protein","High fibre","Low carb","Low calorie"];
 export const OCCASIONS = ["Solo","Family style","Date night"];

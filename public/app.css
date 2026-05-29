@@ -365,6 +365,12 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .recipe-tag.diff { color: var(--accent); border-color: rgba(176,74,42,.3); }
 .recipe-tag.time { color: var(--accent-cool); border-color: rgba(58,90,106,.3); }
 .recipe-tag.author { color: var(--ink-2); border-color: var(--rule); background: var(--paper-2); }
+/* Origin badges: each tag gets a distinct warm tint so the family
+   can spot heirloom vs adopted vs lab at a glance. */
+.recipe-tag.origin { font-weight: 500; }
+.recipe-tag.origin[data-origin="heirloom"]    { color: #b04a2a; border-color: rgba(176,74,42,.35); background: rgba(176,74,42,.08); }
+.recipe-tag.origin[data-origin="newToFamily"] { color: #6e7a3a; border-color: rgba(110,122,58,.35); background: rgba(110,122,58,.08); }
+.recipe-tag.origin[data-origin="lab"]         { color: #3a5a6a; border-color: rgba(58,90,106,.35); background: rgba(58,90,106,.08); }
 
 /* Unified stats+nutrition strip */
 .stats-strip {

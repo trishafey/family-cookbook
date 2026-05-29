@@ -27,6 +27,8 @@ const S = {
   clearAll:       { en: "Clear all",          pl: "Wyczyść wszystko" },
   browseByCourse: { en: "Browse by course",   pl: "Przeglądaj według dania" },
   occasion:       { en: "Occasion",           pl: "Okazja" },
+  originLbl:      { en: "Origin",             pl: "Pochodzenie" },
+  noneLabel:      { en: "None",               pl: "Brak" },
   familyFavorites:{ en: "Family favorites",   pl: "Ulubione rodziny" },
   familyFavoritesSub: { en: "The ones we keep coming back for", pl: "Te, do których ciągle wracamy" },
   deeperShelves:  { en: "The deeper shelves", pl: "Z głębi szafki" },
@@ -371,9 +373,24 @@ const COURSE = {
   Breakfast:       "Śniadanie",
   Lunch:           "Lunch",
   Dinner:          "Obiad",
+  Sides:           "Dodatki",
   Appetizer:       "Przystawka",
   Dessert:         "Deser",
   Snack:           "Przekąska",
+};
+
+// Origin: how a recipe came to live in the family book. The plain
+// label is the EN string; the lookup helper swaps in Polish only
+// when lang === "pl".
+const ORIGIN_LABEL = {
+  heirloom:    "Heirloom",
+  newToFamily: "New to the family",
+  lab:         "Lab experiment",
+};
+const ORIGIN_PL = {
+  Heirloom:              "Rodzinny",
+  "New to the family":   "Nowy w rodzinie",
+  "Lab experiment":      "Eksperyment z Laboratorium",
 };
 
 const DIFFICULTY = {
@@ -405,8 +422,15 @@ export function useLang() {
   const tCourse    = (v) => lookup(COURSE,     v, lang);
   const tDifficulty= (v) => lookup(DIFFICULTY, v, lang);
   const tPrecision = (v) => lookup(PRECISION,  v, lang);
+  // Origin uses two tables: ORIGIN_LABEL maps the data key
+  // ("heirloom") to the English label, then ORIGIN_PL translates
+  // the English label to Polish when needed.
+  const tOrigin    = (v) => {
+    const en = ORIGIN_LABEL[v] || v;
+    return lang === "pl" ? (ORIGIN_PL[en] || en) : en;
+  };
   // Pass through to toLocaleDateString so weekday names ("Friday") and
   // date formats ("May 28, 2026") follow the chosen language.
   const locale = lang === "pl" ? "pl-PL" : "en-US";
-  return { lang, setLang, t, tDiet, tOccasion, tCourse, tDifficulty, tPrecision, locale };
+  return { lang, setLang, t, tDiet, tOccasion, tCourse, tDifficulty, tPrecision, tOrigin, locale };
 }
