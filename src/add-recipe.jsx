@@ -622,14 +622,14 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           <Icon name="sparkle" size={12} /> {t("pasteAndAi")}
         </button>
         )}
-        <button className={mode === "manual" ? "on" : ""} onClick={() => setMode("manual")}>
-          <Icon name="edit" size={12} /> {t("manualEntry")}
-        </button>
         {FLAGS.extractImage && (
         <button className={mode === "photo" ? "on" : ""} onClick={() => setMode("photo")}>
           <Icon name="camera" size={12} /> {t("photoOfCookbook")}
         </button>
         )}
+        <button className={mode === "manual" ? "on" : ""} onClick={() => setMode("manual")}>
+          <Icon name="edit" size={12} /> {t("manualEntry")}
+        </button>
         {FLAGS.extractUrl && (
         <button className={mode === "url" ? "on" : ""} onClick={() => setMode("url")}>
           <Icon name="link" size={12} /> {t("linkToUrl")}
@@ -1045,15 +1045,17 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   onChange={(e) => { enqueueImages(e.target.files); e.target.value = ""; }}
                 />
               </label>
-              <button
-                className="btn accent"
-                onClick={runFromImages}
-                disabled={!pendingImages.length || extracting}
-              >
-                {extracting
-                  ? t("extracting")
-                  : <><Icon name="sparkle" size={13} /> {t("extractRecipeN").replace("{n}", pendingImages.length || "")}</>}
-              </button>
+              {pendingImages.length > 0 && (
+                <button
+                  className="btn accent"
+                  onClick={runFromImages}
+                  disabled={extracting}
+                >
+                  {extracting
+                    ? t("extracting")
+                    : <><Icon name="sparkle" size={13} /> {t("extractRecipeN").replace("{n}", pendingImages.length)}</>}
+                </button>
+              )}
             </div>
             <div style={{ marginTop: 20, fontSize: 12, color: "var(--ink-3)" }}>
               <span className="ai-sparkle"><Icon name="sparkle" size={11} /> AI-parsed</span> · {t("multiPagePhotoHelper")}
