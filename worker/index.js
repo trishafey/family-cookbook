@@ -390,10 +390,13 @@ app.patch("/api/admin/recipes/:id", async (c) => {
 
   const merged = { ...JSON.parse(existing.blob), ...patch, id };
   const now = Date.now();
+  // Clear translations on every edit — the canonical text may have
+  // changed and the stale PL overlay would otherwise sit on top of
+  // fresh EN content. translateAndStore below rebuilds it.
   await c.env.DB.prepare(
     `UPDATE recipes
        SET title = ?, subtitle = ?, author = ?, cuisine = ?, course = ?,
-           photo = ?, blob = ?, updated_at = ?
+           photo = ?, blob = ?, translations = NULL, updated_at = ?
      WHERE id = ?`
   ).bind(
     merged.title,
@@ -411,6 +414,49 @@ app.patch("/api/admin/recipes/:id", async (c) => {
   // canonical English. Fire-and-forget; the cook's PATCH returns
   // immediately.
   c.executionCtx.waitUntil(translateAndStore(c.env, id, merged, "en", "pl"));
+
+  return c.json({ ok: true, id });
+});
+
+// ─── Recovery: restore a recipe from its data.js seed ───
+// Used to recover recipes whose canonical blob was clobbered (the
+// 'edited-in-PL-stuck-in-PL' bug that pre-dated the canonical-read
+// fix). Only works for recipes that exist in SEED_RECIPES — drafts
+// and Lab-promoted recipes have no seed to restore from.
+app.post("/api/admin/recipes/:id/reset-from-seed", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+
+  const id = c.req.param("id");
+  const seed = SEED_RECIPES.find(r => r.id === id);
+  if (!seed) return c.json({ error: "no seed for this recipe" }, 404);
+
+  const existing = await c.env.DB.prepare("SELECT blob FROM recipes WHERE id = ?").bind(id).first();
+  if (!existing) return c.json({ error: "not found" }, 404);
+
+  // Preserve community-added fields (comments, pairings, favorites
+  // are stored separately) but reset the authored text + structure
+  // back to the original. Wipe translations so PL re-builds from
+  // the restored canonical.
+  const now = Date.now();
+  await c.env.DB.prepare(
+    `UPDATE recipes
+       SET title = ?, subtitle = ?, author = ?, cuisine = ?, course = ?,
+           photo = ?, blob = ?, translations = NULL, updated_at = ?
+     WHERE id = ?`
+  ).bind(
+    seed.title,
+    seed.subtitle ?? null,
+    seed.author ?? null,
+    seed.cuisine ?? null,
+    seed.course ?? null,
+    seed.photo ?? null,
+    JSON.stringify(seed),
+    now,
+    id,
+  ).run();
+
+  c.executionCtx.waitUntil(translateAndStore(c.env, id, seed, "en", "pl"));
 
   return c.json({ ok: true, id });
 });
@@ -1039,6 +1085,12 @@ app.post("/api/admin/ai/pairings", async (c) => {
   const keepSuggestions = Array.isArray(body?.keepSuggestions)
     ? body.keepSuggestions.filter(s => s && typeof s.title === "string").slice(0, 3)
     : [];
+  // Pinned in-book IDs the caller wants forced into fromBook. We
+  // validate against the catalogue further down to drop anything
+  // that doesn't actually exist.
+  const keepFromBook = Array.isArray(body?.keepFromBook)
+    ? body.keepFromBook.filter(s => typeof s === "string").slice(0, 4)
+    : [];
   if (!recipeId) return c.json({ error: "missing recipeId" }, 400);
 
   const row = await c.env.DB.prepare("SELECT blob FROM recipes WHERE id = ?").bind(recipeId).first();
@@ -1111,6 +1163,10 @@ Quality bar: a thoughtful family cook should look at these and immediately under
         {
           role: "user",
           content: `TARGET RECIPE:\n${JSON.stringify(target, null, 2)}\n\nCATALOGUE OF OTHER COOKBOOK RECIPES:\n${JSON.stringify(catalogue, null, 2)}${
+            keepFromBook.length
+              ? `\n\nPINNED IN-BOOK IDS (already locked in by the cook — pick different recipes to complement these, do not repeat):\n${JSON.stringify(keepFromBook)}`
+              : ""
+          }${
             keepSuggestions.length
               ? `\n\nPINNED SUGGESTIONS (already in the response — do not repeat):\n${JSON.stringify(keepSuggestions.map(s => ({ title: s.title, kind: s.kind, blurb: s.blurb })), null, 2)}`
               : ""
@@ -1143,6 +1199,14 @@ Quality bar: a thoughtful family cook should look at these and immediately under
   // schema can't enforce membership).
   const validIds = new Set(catalogue.map(r => r.id));
   parsed.fromBook = (parsed.fromBook || []).filter(id => validIds.has(id));
+
+  // Force pinned in-book IDs to the front of fromBook (validated
+  // against the catalogue, deduped against AI picks).
+  if (keepFromBook.length) {
+    const validKept = keepFromBook.filter(id => validIds.has(id));
+    const aiPicks = parsed.fromBook.filter(id => !validKept.includes(id));
+    parsed.fromBook = [...validKept, ...aiPicks].slice(0, 4);
+  }
 
   // Pinned suggestions come first so the order stays stable
   // across regenerates (the cook's pinned tiles don't shuffle).

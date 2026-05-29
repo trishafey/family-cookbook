@@ -1461,7 +1461,8 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .pairing-tile .pairing-pin svg { pointer-events: none; }
 .pairing-tile .pairing-pin.on  { color: var(--paper); background: var(--accent); border-color: var(--accent); }
 .pairing-tile .pairing-pin:hover { transform: scale(1.08); }
-.pairing-tile.suggestion.pinned { box-shadow: 0 0 0 2px var(--accent), 0 8px 16px rgba(0,0,0,.06); }
+.pairing-tile.suggestion.pinned,
+.pairing-tile.from-book.pinned { box-shadow: 0 0 0 2px var(--accent), 0 8px 16px rgba(0,0,0,.06); }
 
 /* PairingRecipeModal body — a wide hero photo on top of a compact
    prose block so the modal feels like a tasting card. */
