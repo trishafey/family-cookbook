@@ -1,7 +1,7 @@
 // Cooking mode — one step at a time, full-screen, with reverse-timing.
 
 import { useState, useEffect, useMemo } from "react";
-import { useStorage, scheduleForFinish, fmtTime, fmtDuration, formatQty, Icon } from "./helpers.jsx";
+import { useStorage, scheduleForFinish, fmtTime, fmtDuration, formatQty, formatIngredientQty, Icon } from "./helpers.jsx";
 import { TimeOfDayInput } from "./ui.jsx";
 import { NeedHelp } from "./need-help.jsx";
 import { useLang } from "./i18n.js";
@@ -126,7 +126,7 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
           <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 12.5 }}>
             {ingredients.map((i, idx) => (
               <li key={idx} style={{ display: "grid", gridTemplateColumns: "60px 1fr", gap: 8, padding: "4px 0", borderBottom: "1px dotted var(--rule)" }}>
-                <span className="mono" style={{ color: "var(--accent)" }}>{formatQty(i.qty)} {i.unit}</span>
+                <span className="mono" style={{ color: "var(--accent)" }}>{formatIngredientQty(i)}</span>
                 <span style={{ color: "var(--ink-2)" }}>{i.item}</span>
               </li>
             ))}

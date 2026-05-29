@@ -2,7 +2,7 @@
 // Variants: editorial (default), magazine, binder.
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Icon, fmtDuration, fmtTime, formatQty, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage } from "./helpers.jsx";
+import { Icon, fmtDuration, fmtTime, formatQty, formatIngredientQty, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage } from "./helpers.jsx";
 import { convertIngredient } from "./units.js";
 import { useLang } from "./i18n.js";
 import { TimeOfDayInput, PrintOnly } from "./ui.jsx";
@@ -413,7 +413,7 @@ function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
                         aria-label={`Decrease ${recipe.weightUnit || "lb"}`}
                       ><Icon name="minus" size={9} /></button>
                     )}
-                    {formatQty(i.qty)} {i.unit}
+                    {formatIngredientQty(i)}
                     {isWeightAnchor && (
                       <button
                         type="button"
@@ -1408,7 +1408,7 @@ function RecipePrintView({ recipe, ings, servings }) {
               <ul>
                 {items.map((i, idx) => (
                   <li key={idx}>
-                    <span className="qty">{formatQty(i.qty)} {i.unit}</span> {i.item}
+                    <span className="qty">{formatIngredientQty(i)}</span> {i.item}
                   </li>
                 ))}
               </ul>

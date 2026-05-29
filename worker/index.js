@@ -631,9 +631,14 @@ QUANTITIES (critical)
 - "a few" / "several" → qty=3
 - "a pinch" / "a dash" → qty=0.25, unit="tsp"
 - "a sprinkle" → qty=1, unit="tsp"
-- "to taste" → qty=0.5, unit="tsp"
 - If the recipe says "1 kg" or "2 lb", USE THAT NUMBER as qty and that unit. Do not drop quantities.
 - When the recipe is truly silent on a quantity, use your best estimate (default qty=1, unit="" for countable items; qty=1, unit="tbsp" for spreads/sauces).
+
+INTUITIVE / FAMILY-COOK MEASURES (sacred — do NOT replace with a number)
+- Many family recipes describe quantities by feel: "by eye", "a glug", "to taste", "a generous splash", "until it looks right", "a handful", "as much as you like", "enough to coat", "a knob of butter".
+- When the source uses an intuitive measure, set qtyNote to the verbatim phrase from the source ("by eye", "to taste", "a generous splash") and leave qty=1, unit="" as a structural placeholder.
+- DO NOT silently convert intuitive measures to fake precision. A family cook's "to taste" is the recipe; replacing it with "0.5 tsp" loses signal.
+- qtyNote is always present in the JSON (the schema requires it) but is the empty string "" when the source gives a concrete measurement.
 
 UNITS
 - unit is the measurement unit ONLY (cup, cups, tbsp, tsp, oz, lb, kg, g, ml, L, clove, cloves, can, cans, etc.).
@@ -657,7 +662,8 @@ TITLE & TAGLINE (the family-cookbook voice)
 STEPS (preserve EVERY detail; just polish the prose)
 - The family does not want to lose details. Do NOT drop information, ingredients mentioned in passing, optional steps, temperatures, timings, or any cook's notes from the original.
 - DO rewrite the prose so it reads cleanly and warmly. Fix grammar. Replace fragments with full sentences. Reorder when an instruction is buried mid-sentence.
-- Keep all the original substance: every quantity, every cue ("until golden", "until water evaporates"), every conditional ("if you prefer"), every optional addition, every warning ("not too much or it will be bitter").
+- Keep all the original substance: every quantity, every cue, every conditional ("if you prefer"), every optional addition, every warning ("not too much or it will be bitter").
+- PRESERVE INTUITIVE COOKING CUES VERBATIM. Phrases like "until the bone shows", "when you can smell the garlic", "until it looks right", "until the dough springs back when poked", "stir until your arm gets tired", "cook by eye" are signal, not noise — they're how the family teaches the recipe. Keep these phrases word-for-word in the step prose. Do NOT replace them with measured times or temperatures. You may ALSO add a precise estimate alongside ("until the bone shows — usually 40-50 min") but the original phrase stays.
 - If the original mentions an ingredient or trick in the step text that wasn't in the ingredient list, keep that mention in the step.
 - Each step gets a short title 't' (max 60 chars) summarising the action plus a fuller 'd' description (the polished prose).
 - precision: "easy" (set and forget), "medium" (some attention), "careful" (precise), "watch" (don't walk away — heat, browning), "patient" (long wait — rest, rise, marinate).
@@ -708,12 +714,18 @@ const AI_RECIPE_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["qty", "unit", "item", "grp"],
+        required: ["qty", "unit", "item", "grp", "qtyNote"],
         properties: {
           qty: { type: "number" },
           unit: { type: "string" },
           item: { type: "string" },
           grp: { type: "string" },
+          // Verbatim intuitive measure (e.g. "by eye", "a glug",
+          // "to taste", "until it looks right"). When present, the
+          // cook sees this in place of qty + unit — a family cook's
+          // measure is sacred and isn't replaced with a fake number.
+          // Empty string when not applicable.
+          qtyNote: { type: "string" },
         },
       },
     },
