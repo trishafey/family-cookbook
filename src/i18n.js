@@ -230,9 +230,9 @@ const S = {
   aiGenerateFromTitle: { en: "AI-generate from title", pl: "Wygeneruj z tytułu (AI)" },
 
   // Mode tabs
-  pasteAndAi:     { en: "Paste & let AI fill it in", pl: "Wklej, AI uzupełni" },
+  pasteAndAi:     { en: "Type it in",         pl: "Wpisz przepis" },
   manualEntry:    { en: "Manual entry",       pl: "Wpis ręczny" },
-  photoOfCookbook:{ en: "Photo of a cookbook",pl: "Zdjęcie z książki kucharskiej" },
+  photoOfCookbook:{ en: "Upload photo",       pl: "Wgraj zdjęcie" },
   linkToUrl:      { en: "Link to a URL",      pl: "Link do strony" },
 
   // Mode panels
