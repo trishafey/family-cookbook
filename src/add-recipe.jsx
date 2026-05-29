@@ -951,11 +951,6 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                 ingredients={draft.ingredients}
                 onChange={(ings) => setDraft({ ...draft, ingredients: ings })}
               />
-              {FLAGS.extractText && (
-              <button type="button" className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => alert("AI would fill in missing quantities, units, and pantry-staple defaults.")}>
-                <Icon name="sparkle" size={12} /> {t("aiFillMissing")}
-              </button>
-              )}
             </div>
           </div>
           <div className="input-row">
