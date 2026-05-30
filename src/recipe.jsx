@@ -262,16 +262,16 @@ function TagRow({ recipe, scaled }) {
       <SourcePhotosReveal recipe={recipe} />
       <OriginBadge origin={recipe.origin} />
       <span className="recipe-tag diff">
-        <span className="dot" /> {tDifficulty(recipe.difficulty)}
+        {tDifficulty(recipe.difficulty)}
       </span>
       <span className="recipe-tag time">
         <Icon name="clock" size={11} /> {fmtDuration(scaled.totalTime)}
       </span>
       <span className="recipe-tag">
-        <span className="dot" style={{ background: "var(--accent-cool)" }} /> {tCourse(recipe.course)}
+        {tCourse(recipe.course)}
       </span>
       <span className="recipe-tag">
-        <span className="dot" style={{ background: "var(--ink-3)" }} /> {recipe.cuisine}
+        {recipe.cuisine}
       </span>
       <span className="recipe-tag">
         <span className="dot" style={{ background: "var(--accent-warm)" }} /> {tOccasion(recipe.occasion)}
