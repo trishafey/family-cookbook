@@ -566,7 +566,7 @@ export const Icon = ({ name, size = 16 }) => {
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"
+         stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"
          data-icon={name}>
       {paths[name]}
     </svg>

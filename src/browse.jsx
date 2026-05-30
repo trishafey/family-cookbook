@@ -128,7 +128,7 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
         <div style={{ marginTop: 24, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
           <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> {t("addRecipe")}</button>
           {!simpleMode && (
-            <button className="btn" onClick={openMealBuilder}><Icon name="bowl" /> {t("buildMeal")}</button>
+            <button className="btn" onClick={openMealBuilder}><Icon name="build" /> {t("buildMeal")}</button>
           )}
           {/* Lab access lives in the top-nav button only. The
               masthead button was duplicate chrome. */}
