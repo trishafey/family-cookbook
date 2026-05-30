@@ -20,9 +20,17 @@
   --shadow: 0 1px 0 rgba(28,24,19,.04), 0 12px 32px -16px rgba(28,24,19,.18);
   --radius: 4px;
   --radius-lg: 8px;
-  --serif: "Source Serif 4", "Iowan Old Style", Georgia, serif;
-  --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Fraunces (variable) carries the editorial voice — section
+     titles, hero heading, descriptions, spec values, card text,
+     plus the broader body default. The opsz axis re-shapes the
+     letterforms automatically with `font-optical-sizing: auto`;
+     SOFT is a fixed warmth setting we apply globally below. */
+  --serif: "Fraunces", "Iowan Old Style", Georgia, serif;
+  /* Inter Tight is the condensed Inter variant — UI chrome,
+     eyebrow labels, button text, footer, section numbers. Stays
+     crisp at 10–12px where most chrome lives. */
+  --sans: "Inter Tight", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Inter Tight", ui-monospace, "SF Mono", Menlo, monospace;
   --gap: 24px;
   --pad-card: 20px;
   --content-max: 1240px;
@@ -67,15 +75,28 @@ body {
     radial-gradient(ellipse at top, rgba(176, 74, 42, 0.025), transparent 60%),
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.45 0 0 0 0 0.4 0 0 0 0.035 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
   color: var(--ink);
-  font-family: var(--sans);
+  /* Fraunces is now the broader default — body paragraphs,
+     descriptions, card text inherit the editorial serif. UI
+     chrome (buttons, inputs, eyebrows) explicitly opts into
+     var(--sans) further down. */
+  font-family: var(--serif);
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* Fraunces variable-axis defaults. opsz auto-applies to match
+     the rendered font-size; SOFT 30 gives the letterforms a touch
+     of warmth without veering goofy. Tweak SOFT 0–100 to taste. */
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 30;
 }
 img { display: block; max-width: 100%; }
-button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; padding: 0; }
-input, textarea, select { font: inherit; color: inherit; }
+/* UI chrome opts into the condensed sans by default — buttons,
+   inputs, selects all stay Inter Tight rather than inheriting the
+   editorial Fraunces from <body>. Headings + .serif content
+   remain in Fraunces via their own rules. */
+button { font: inherit; font-family: var(--sans); color: inherit; background: none; border: none; cursor: pointer; padding: 0; }
+input, textarea, select { font: inherit; font-family: var(--sans); color: inherit; }
 a { color: inherit; text-decoration: none; }
 
 /* Typography */
