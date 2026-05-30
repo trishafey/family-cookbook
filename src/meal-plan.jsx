@@ -65,17 +65,12 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
       subtitle={`${recipes.length} ${recipes.length === 1 ? t("recipe") : t("recipes")} \u2014 ${t("staggerSubtitle")}`}
       size="lg"
       footer={
-        <>
-          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-            <Icon name="sparkle" size={11} /> {t("aiStaggers")}
-          </span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn" onClick={onClose}>{t("cancel")}</button>
-            <button className="btn primary" onClick={() => onConfirm(finishTime, { eveningHour })}>
-              <Icon name="play" /> {t("buildSchedule")}
-            </button>
-          </div>
-        </>
+        <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+          <button className="btn" onClick={onClose}>{t("cancel")}</button>
+          <button className="btn primary" onClick={() => onConfirm(finishTime, { eveningHour })}>
+            <Icon name="play" /> {t("buildSchedule")}
+          </button>
+        </div>
       }
     >
       <div className="meal-plan-modal-body">
@@ -381,6 +376,7 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
         open={cookOpen}
         onClose={() => setCookOpen(false)}
         combined={combined}
+        grouped={grouped}
         perRecipe={perRecipe}
         recipes={recipes}
         authEmail={authEmail}
@@ -440,6 +436,22 @@ function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
             )}
             <div className="timeline-marker">
               <Icon name="clock" size={13} /> {g.key}
+              {bumpStep && (
+                <span className="time-bump">
+                  <button
+                    type="button"
+                    onClick={() => g.items.forEach(it => bumpStep(it.recipe.id, it.si, -5))}
+                    aria-label="Shift this time slot 5 minutes earlier"
+                    title="Shift this time slot 5 minutes earlier"
+                  ><Icon name="minus" size={10} /></button>
+                  <button
+                    type="button"
+                    onClick={() => g.items.forEach(it => bumpStep(it.recipe.id, it.si, 5))}
+                    aria-label="Shift this time slot 5 minutes later"
+                    title="Shift this time slot 5 minutes later"
+                  ><Icon name="plus" size={10} /></button>
+                </span>
+              )}
             </div>
             {g.items.map((it, ii) => {
               const isAdjusted = !!stepOverrides?.[it.recipe.id]?.[it.si];
@@ -450,28 +462,6 @@ function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
                       {fmtTime(it.start)}
                     </span>
                     <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 4 }}>→ {fmtTime(it.end)}</div>
-                    {bumpStep && (
-                      <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-                        <button
-                          className="btn ghost"
-                          style={{ padding: "2px 6px", fontSize: 11, minHeight: 0 }}
-                          onClick={() => bumpStep(it.recipe.id, it.si, -5)}
-                          title="This step started 5 min earlier than planned"
-                          aria-label="Bump start time 5 minutes earlier"
-                        >
-                          −5
-                        </button>
-                        <button
-                          className="btn ghost"
-                          style={{ padding: "2px 6px", fontSize: 11, minHeight: 0 }}
-                          onClick={() => bumpStep(it.recipe.id, it.si, 5)}
-                          title="This step is running 5 min late — push following steps back"
-                          aria-label="Bump start time 5 minutes later"
-                        >
-                          +5
-                        </button>
-                      </div>
-                    )}
                   </div>
                   <div className="step-card">
                     <div>
@@ -552,105 +542,174 @@ function PerRecipeView({ rec, onCookMode }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// MealCookMode — step-by-step focus mode for a multi-recipe meal.
-// Walks the combined timeline one step at a time with prev/next
-// nav, recipe colour coding, and an embedded Need help panel for
-// per-step questions to the kitchen AI.
+// MealCookMode — focus mode for a multi-recipe meal.
+// Iterates by TIME GROUP (not individual step), so concurrent
+// steps from different recipes show side-by-side and the cook
+// can work on multiple things in tandem. Layout mirrors the
+// single-recipe cook mode (big title, body, footer nav, AI help
+// as a blue toggle) but without the left-side timeline — the
+// coloured-square strip across the top serves the same purpose
+// and stays simpler for parallel cooking.
 // ─────────────────────────────────────────────────────────────
-function MealCookMode({ open, onClose, combined, perRecipe, recipes, authEmail }) {
-  const [idx, setIdx] = useState(0);
-  const [done, setDone] = useState({});
+function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, authEmail }) {
+  const [gIdx, setGIdx] = useState(0);
+  const [done, setDone] = useState({});       // keyed by combined-index
+  const [helpOpen, setHelpOpen] = useState(false);
 
-  // Reset state when the modal is reopened on a fresh session.
   useEffect(() => {
-    if (open) { setIdx(0); setDone({}); }
+    if (open) { setGIdx(0); setDone({}); setHelpOpen(false); }
   }, [open]);
+  // Reset the AI help panel when the active group changes — fresh
+  // group, fresh conversation.
+  useEffect(() => { setHelpOpen(false); }, [gIdx]);
 
-  if (!open || !combined.length) return null;
-  const cur = combined[idx];
-  const recipeMeta = perRecipe.find(p => p.recipe.id === cur.recipe.id);
-  const recipeColor = recipeMeta?.color || "var(--ink)";
-  const total = combined.length;
-  const isDone = !!done[idx];
-  const isLast = idx === total - 1;
+  if (!open || !grouped?.length) return null;
+  const curGroup = grouped[gIdx];
+  const totalGroups = grouped.length;
+  const isLast = gIdx === totalGroups - 1;
+  // Combined-index of every item in the current group, used to
+  // toggle done state when the cook moves forward / back.
+  const curIndices = curGroup.items.map(it => combined.indexOf(it));
+
+  const goNext = () => {
+    setDone(d => {
+      const next = { ...d };
+      curIndices.forEach(i => { next[i] = true; });
+      return next;
+    });
+    if (!isLast) setGIdx(g => g + 1);
+  };
+  const goPrev = () => {
+    if (gIdx === 0) return;
+    const prevGroup = grouped[gIdx - 1];
+    const prevIndices = prevGroup.items.map(it => combined.indexOf(it));
+    setDone(d => {
+      const next = { ...d };
+      prevIndices.forEach(i => { delete next[i]; });
+      return next;
+    });
+    setGIdx(g => g - 1);
+  };
+
+  const doneCount = Object.values(done).filter(Boolean).length;
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={`Cooking step ${idx + 1} of ${total}`}
+      title={`Time slot ${gIdx + 1} of ${totalGroups} · ${curGroup.key}`}
       subtitle={recipes.map(r => r.title).join(" + ")}
       size="lg"
       footer={
         <>
           <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
-            {Object.values(done).filter(Boolean).length} of {total} done
+            {doneCount} of {combined.length} steps done
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn" onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}>
+            <button className="btn" onClick={goPrev} disabled={gIdx === 0}>
               <Icon name="chevL" /> Previous
             </button>
-            <button
-              className="btn primary"
-              onClick={() => {
-                setDone(d => ({ ...d, [idx]: true }));
-                if (!isLast) setIdx(i => i + 1);
-              }}
-            >
-              {isLast ? "Mark done" : (isDone ? "Next step" : "Done — next step")} <Icon name="chevR" />
+            <button className="btn primary" onClick={goNext}>
+              {isLast ? <>Mark done <Icon name="check" /></> : <>Next time slot <Icon name="chevR" /></>}
             </button>
           </div>
         </>
       }
     >
       <div style={{ padding: "4px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-          <span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 999, background: recipeColor }} />
-          <strong style={{ fontFamily: "var(--serif)" }}>{cur.recipe.title}</strong>
-          <span style={{ color: "var(--ink-3)", fontSize: 13 }}>· step {cur.stepIdx} of {cur.recipe.steps.length}</span>
-          <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", fontSize: 12, color: "var(--ink-3)" }}>
-            {fmtTime(cur.start)} → {fmtTime(cur.end)} · {fmtDuration(cur.step.mins)}
-          </span>
+        {/* Mini-timeline of every step in the meal, grouped visually
+            by time slot. Squares in the current slot are highlighted;
+            completed slots fade. Tapping a square jumps to that slot. */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
+          {grouped.map((g, gi) => (
+            <div key={gi} style={{ display: "flex", gap: 3 }}>
+              {g.items.map((it) => {
+                const ci = combined.indexOf(it);
+                const cm = perRecipe.find(p => p.recipe.id === it.recipe.id);
+                const dot = cm?.color || "var(--ink-3)";
+                const active = gi === gIdx;
+                const completed = !!done[ci];
+                return (
+                  <button
+                    key={ci}
+                    onClick={() => setGIdx(gi)}
+                    title={`${it.recipe.title} · step ${it.stepIdx}: ${it.step.t}`}
+                    style={{
+                      width: 22, height: 22, borderRadius: 4,
+                      background: completed ? dot : active ? dot : "transparent",
+                      opacity: completed ? 0.55 : active ? 1 : 0.45,
+                      border: `1px solid ${dot}`,
+                      cursor: "pointer", padding: 0,
+                      outline: active ? "2px solid var(--ink)" : "none",
+                      outlineOffset: 2,
+                    }}
+                    aria-label={`Jump to step ${ci + 1}`}
+                  />
+                );
+              })}
+            </div>
+          ))}
         </div>
 
-        <h2 style={{ margin: "8px 0 12px", fontFamily: "var(--serif)", fontSize: 26 }}>{cur.step.t}</h2>
-        <p style={{ fontFamily: "var(--serif)", fontSize: 17, lineHeight: 1.55, color: "var(--ink-2)" }}>
-          {cur.step.d}
-        </p>
-
-        {/* Mini-timeline showing where you are in the meal */}
-        <div style={{ display: "flex", gap: 3, marginTop: 24, marginBottom: 24, flexWrap: "wrap" }}>
-          {combined.map((c, i) => {
-            const cm = perRecipe.find(p => p.recipe.id === c.recipe.id);
-            const dot = cm?.color || "var(--ink-3)";
-            const active = i === idx;
-            const completed = !!done[i];
+        {/* Concurrent steps in this time slot. Single step → one big
+            card; multiple → stack them so the cook can work in
+            parallel. Recipe colour codes each card so it's obvious
+            which dish a step belongs to at a glance. */}
+        <div style={{ display: "grid", gap: 16 }}>
+          {curGroup.items.map((it, ii) => {
+            const cm = perRecipe.find(p => p.recipe.id === it.recipe.id);
+            const color = cm?.color || "var(--ink)";
             return (
-              <button
-                key={i}
-                onClick={() => setIdx(i)}
-                title={`${c.recipe.title} · step ${c.stepIdx}: ${c.step.t}`}
+              <div
+                key={ii}
                 style={{
-                  width: 18, height: 18, borderRadius: 4,
-                  background: completed ? dot : active ? dot : "transparent",
-                  opacity: completed ? 0.6 : active ? 1 : 0.5,
-                  border: `1px solid ${dot}`,
-                  cursor: "pointer", padding: 0,
-                  outline: active ? "2px solid var(--ink)" : "none",
-                  outlineOffset: 1,
+                  borderLeft: `4px solid ${color}`,
+                  paddingLeft: 16,
                 }}
-                aria-label={`Jump to step ${i + 1}`}
-              />
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6, fontSize: 12 }}>
+                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 999, background: color }} />
+                  <strong style={{ fontFamily: "var(--serif)", fontSize: 13 }}>{it.recipe.title}</strong>
+                  <span style={{ color: "var(--ink-3)" }}>· step {it.stepIdx} of {it.recipe.steps.length}</span>
+                  <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", color: "var(--ink-3)" }}>
+                    {fmtTime(it.start)} → {fmtTime(it.end)} · {fmtDuration(it.step.mins)}
+                  </span>
+                </div>
+                <h2 style={{ margin: "4px 0 8px", fontFamily: "var(--serif)", fontSize: curGroup.items.length === 1 ? 26 : 20 }}>
+                  {it.step.t}
+                </h2>
+                <p style={{ fontFamily: "var(--serif)", fontSize: curGroup.items.length === 1 ? 17 : 15, lineHeight: 1.55, color: "var(--ink-2)", margin: 0 }}>
+                  {it.step.d}
+                </p>
+              </div>
             );
           })}
         </div>
 
-        <NeedHelp
-          recipe={cur.recipe}
-          currentStep={cur.step}
-          compact
-          authEmail={authEmail}
-        />
+        {/* Ask AI — single button per slot, matching single-recipe
+            cook mode visually. Passes the whole meal as context so
+            the model can answer cross-recipe questions ("can I
+            substitute X across both dishes?"). */}
+        <div style={{ marginTop: 28 }}>
+          <button
+            className="btn ai"
+            onClick={() => setHelpOpen(o => !o)}
+          >
+            <Icon name="sparkle" size={13} /> {helpOpen ? "Hide help" : "Need help with this step?"}
+          </button>
+          {helpOpen && (
+            <div style={{ marginTop: 12 }}>
+              <NeedHelp
+                key={gIdx /* reset turns on slot change */}
+                recipes={recipes}
+                currentStep={curGroup.items[0]?.step}
+                compact
+                defaultOpen={true}
+                authEmail={authEmail}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </Modal>
   );
