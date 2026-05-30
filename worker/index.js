@@ -1409,9 +1409,21 @@ app.post("/api/admin/ai/pairings", async (c) => {
     };
   });
 
+  // Cook's notes (recipe.tips) and the public margin notes (comments
+  // table) often contain explicit pairing intent — "always serve with
+  // X", "great alongside Y" — that the model should treat as a
+  // strong signal rather than ignoring.
+  const commentRows = await c.env.DB.prepare(
+    "SELECT author, body FROM comments WHERE recipe_id = ? ORDER BY created_at ASC LIMIT 30"
+  ).bind(recipeId).all();
+  const marginNotes = (commentRows.results || [])
+    .map(r => `${r.author}: ${r.body}`)
+    .slice(0, 30);
+
   // Trim the target down to what the model needs to reason about
   // pairings — full ingredient list (so it can avoid duplicating
-  // flavours) plus identity / mood fields.
+  // flavours) plus identity / mood fields, plus any pairing hints
+  // the cook has written into tips or comments.
   const target = {
     title:    recipe.title,
     subtitle: recipe.subtitle || "",
@@ -1420,6 +1432,8 @@ app.post("/api/admin/ai/pairings", async (c) => {
     occasion: recipe.occasion,
     diet:     recipe.diet || [],
     ingredients: (recipe.ingredients || []).map(i => `${i.qty || ""} ${i.unit || ""} ${i.item}`.trim()),
+    cooksNotes: Array.isArray(recipe.tips) && recipe.tips.length ? recipe.tips : undefined,
+    marginNotes: marginNotes.length ? marginNotes : undefined,
   };
 
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -1436,6 +1450,9 @@ app.post("/api/admin/ai/pairings", async (c) => {
           content: `You suggest food pairings for a family cookbook. Given a target recipe and a catalogue of other recipes in the same cookbook, return two lists:
 
 1. fromBook: up to 4 RECIPE IDs (taken EXACTLY from the catalogue's "id" field — do not invent ids) that would complement the target as sides, sauces, drinks, or desserts. Prefer Sides for mains, and lighter items for rich dishes. Leave empty if nothing in the catalogue fits well.
+
+PAIRING HINTS FROM THE FAMILY (highest priority):
+If the target recipe's cooksNotes or marginNotes mention a specific dish by name as something the family "pairs with", "serves with", "goes with", or otherwise treats as a default companion — and that dish exists in the catalogue — include its id at the FRONT of fromBook. This is real family knowledge, not your guess. Match flexibly: "tomato soup" should match a catalogue entry titled "Ryszard's Creamy Tomato Soup". Only do this when the mention is clearly a pairing suggestion (not just an offhand reference).
 
 2. suggestions: ${Math.max(1, 3 - keepSuggestions.length)} NEW pairing ideas not already in the cookbook — sauces, sides, garnishes, drinks, or simple desserts that would round out the meal. Each must include realistic ingredients (qty + unit + item), 3-5 concise plain-text steps, a kind from the allowed enum, a one-sentence blurb that explains why it pairs, an approximate total time in minutes, and a photoTone hex colour that visually fits the dish (e.g. "#b04a2a" for tomato-forward, "#6e7a3a" for herby).${
             keepSuggestions.length

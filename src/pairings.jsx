@@ -616,7 +616,7 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
             in-book IDs or suggestions — survive the regenerate. */}
         {canGenerate && (
           <button
-            className="btn ghost sm"
+            className="btn ghost ai sm"
             onClick={() => generate(true)}
             disabled={generating}
             title={cached ? "Regenerate with AI (pinned items kept)" : "Generate AI pairings (pinned items kept)"}
@@ -638,7 +638,7 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
         <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)", fontSize: 16, marginBottom: 14 }}>
           No pairings yet — let the AI suggest some.
         </div>
-        <button className="btn primary" onClick={() => generate(false)} disabled={generating}>
+        <button className="btn ai" onClick={() => generate(false)} disabled={generating}>
           <Icon name="sparkle" size={13} /> {generating ? "Generating pairings…" : "Generate pairings"}
         </button>
         {genError && (
