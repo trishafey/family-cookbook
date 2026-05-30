@@ -502,6 +502,7 @@ function App() {
           setFinishTime={setFinishTime}
           onClose={() => setCookState(null)}
           authEmail={authEmail}
+          onSaveRecipe={onSaveRecipe}
         />
       )}
 

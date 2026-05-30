@@ -234,7 +234,7 @@ const S = {
   },
   heroPhotoLbl:   { en: "Hero photo",         pl: "Główne zdjęcie" },
   uploadPhoto:    { en: "Upload photo",       pl: "Wgraj zdjęcie" },
-  aiGenerateFromTitle: { en: "AI-generate from title", pl: "Wygeneruj z tytułu (AI)" },
+  aiGenerateFromTitle: { en: "AI generate", pl: "Generuj (AI)" },
   aiGenerateHint:      { en: "Generate a hero photo from the title in the family-cookbook style", pl: "Wygeneruj zdjęcie z tytułu w stylu rodzinnej książki kucharskiej" },
   aiGenerateNeedsTitle:{ en: "Add a title first so the AI knows what to draw.", pl: "Najpierw dodaj tytuł, żeby AI wiedziało, co narysować." },
   generating:          { en: "Generating…",            pl: "Generuję…" },

@@ -522,13 +522,12 @@ function StepsEditor({ steps, onChange }) {
                       </button>
                     </div>
                   ) : (
-                    <label className="step-add-photo" title="Snap a photo with your camera or pick from your library">
+                    <label className="step-add-photo" title="Upload a photo from your files">
                       <Icon name="camera" size={11} />
                       {uploadingIdx === s._idx ? "Uploading…" : "Add photo"}
                       <input
                         type="file"
                         accept="image/*"
-                        capture="environment"
                         style={{ display: "none" }}
                         onChange={(e) => {
                           uploadStepPhoto(s._idx, e.target.files?.[0]);
@@ -1164,44 +1163,46 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
             </div>
           </div>
           <div className="input-row">
-            <label>
-              {t("nutritionPerServing")}
-              <button
-                type="button"
-                className="btn ghost ai sm"
-                style={{ marginLeft: 8, fontSize: 11 }}
-                onClick={estimateNutrition}
-                disabled={!authEmail || estimatingNutrition || !draft.ingredients?.length}
-                title={t("estimateNutritionHint")}
-              >
-                <Icon name="sparkle" size={10} /> {estimatingNutrition ? t("estimating") : t("estimateWithAI")}
-              </button>
-              {nutritionError && (
-                <div style={{ marginTop: 4, fontSize: 11, color: "#933", fontWeight: 400 }}>{nutritionError}</div>
-              )}
-            </label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 6, maxWidth: 480 }}>
-              {[
-                ["cal", t("calories")],
-                ["protein", t("proteinG")],
-                ["carbs", t("carbsG")],
-                ["fat", t("fatG")],
-                ["fiber", t("fiberG")],
-                ["sodium", t("sodiumMg")],
-              ].map(([key, label]) => (
-                <label key={key} style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                  {label}
-                  <input
-                    type="number"
-                    value={draft.nutrition?.[key] || ""}
-                    onChange={(e) => setDraft({
-                      ...draft,
-                      nutrition: { ...(draft.nutrition || {}), [key]: e.target.value === "" ? 0 : +e.target.value }
-                    })}
-                    style={{ width: "100%", marginTop: 2 }}
-                  />
-                </label>
-              ))}
+            <label>{t("nutritionPerServing")}</label>
+            <div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 6, maxWidth: 480 }}>
+                {[
+                  ["cal", t("calories")],
+                  ["protein", t("proteinG")],
+                  ["carbs", t("carbsG")],
+                  ["fat", t("fatG")],
+                  ["fiber", t("fiberG")],
+                  ["sodium", t("sodiumMg")],
+                ].map(([key, label]) => (
+                  <label key={key} style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                    {label}
+                    <input
+                      type="number"
+                      value={draft.nutrition?.[key] || ""}
+                      onChange={(e) => setDraft({
+                        ...draft,
+                        nutrition: { ...(draft.nutrition || {}), [key]: e.target.value === "" ? 0 : +e.target.value }
+                      })}
+                      style={{ width: "100%", marginTop: 2 }}
+                    />
+                  </label>
+                ))}
+              </div>
+              <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn ghost ai sm"
+                  style={{ fontSize: 11 }}
+                  onClick={estimateNutrition}
+                  disabled={!authEmail || estimatingNutrition || !draft.ingredients?.length}
+                  title={t("estimateNutritionHint")}
+                >
+                  <Icon name="sparkle" size={10} /> {estimatingNutrition ? t("estimating") : t("estimateWithAI")}
+                </button>
+                {nutritionError && (
+                  <span style={{ fontSize: 11, color: "#933" }}>{nutritionError}</span>
+                )}
+              </div>
             </div>
           </div>
           <div className="input-row">
@@ -1418,7 +1419,6 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                 onClick={() => setPolishOpen(true)}
                 disabled={saving}
                 title="Ask the AI to suggest small clean-up edits (review each one before applying)"
-                style={{ marginRight: "auto" }}
               >
                 <Icon name="sparkle" /> Clean up recipe
               </button>

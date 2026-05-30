@@ -7,9 +7,16 @@ import { NeedHelp } from "./need-help.jsx";
 import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 
-export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClose, authEmail }) {
+export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClose, authEmail, onSaveRecipe }) {
   const { t, tPrecision } = useLang();
   const [idx, setIdx] = useStorage(`cookmode:${recipe.id}:idx`, 0);
+
+  // Photos taken during this cook-mode session, keyed by step index.
+  // Overlays whatever's already on the step so the cook sees the new
+  // shot immediately; we also persist via onSaveRecipe so it sticks
+  // for next time and shows in the editor / recipe page.
+  const [sessionPhotos, setSessionPhotos] = useState({});
+  const [capturingIdx, setCapturingIdx] = useState(null);
 
   // Analytics: log one start per cook-mode session and one finish
   // (with the highest step reached) when the modal unmounts. The
@@ -78,6 +85,39 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
 
   const cur = steps[idx];
   const curSched = schedule[idx];
+  // Display photo: locally-captured shot wins over whatever's saved
+  // (covers the brief window between upload and parent re-render).
+  const curPhoto = sessionPhotos[idx] || cur.photo;
+
+  // Snap a photo from the device camera, upload to R2, then PATCH
+  // the recipe so the photo persists. The session-state overlay
+  // makes the photo visible to the cook the moment the upload
+  // finishes, before the server round-trip completes.
+  const captureStepPhoto = async (file) => {
+    if (!file || !onSaveRecipe) return;
+    setCapturingIdx(idx);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/admin/uploads", {
+        method: "POST",
+        credentials: "include",
+        body,
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `Upload failed (${res.status})`);
+      }
+      const { url } = await res.json();
+      setSessionPhotos(p => ({ ...p, [idx]: url }));
+      const nextSteps = recipe.steps.map((s, i) => i === idx ? { ...s, photo: url } : s);
+      await onSaveRecipe({ ...recipe, steps: nextSteps });
+    } catch (err) {
+      alert(err.message || "Photo upload failed");
+    } finally {
+      setCapturingIdx(null);
+    }
+  };
 
   // Mark-as-done is implicit: clicking Next means "I finished this step",
   // clicking Previous means "I'm going back to redo something earlier"
@@ -170,10 +210,10 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
             {t("step").toUpperCase()} {String(idx + 1).padStart(2, "0")} {t("of").toUpperCase()} {String(steps.length).padStart(2, "0")} · {tPrecision(cur.precision).toUpperCase()}
           </div>
           <h1 className="cookmode-step-title">{cur.t}</h1>
-          {cur.photo && (
+          {curPhoto && (
             <img
               className="cookmode-step-photo"
-              src={cur.photo}
+              src={curPhoto}
               alt={`Photo for step: ${cur.t}`}
               onClick={() => setPhotoOpen(true)}
             />
@@ -217,6 +257,22 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
               >
                 <Icon name="sparkle" size={13} /> {helpOpen ? "Hide help" : "Need help with this step?"}
               </button>
+            )}
+            {onSaveRecipe && (
+              <label className="btn" style={{ cursor: "pointer" }} title="Snap a photo of this step as you cook">
+                <Icon name="camera" size={13} />
+                {capturingIdx === idx ? "Uploading…" : (curPhoto ? "Replace photo" : "Take photo")}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    captureStepPhoto(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
             )}
             <span style={{ fontSize: 12, color: "var(--ink-3)", marginLeft: "auto" }}>
               {done.length} {t("of")} {steps.length} {t("complete")}
