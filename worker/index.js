@@ -656,6 +656,18 @@ app.post("/api/admin/recipes", async (c) => {
 // the body is left alone, except blob which is always replaced with the
 // merged result so the UI can read JSON.parse(row.blob) without joining
 // the column values back together.
+// Stable serialisation of the fields the translator actually reads.
+// Used by PATCH to decide whether a save is "text-changing" (must
+// retranslate) or "non-text" (e.g. a step photo, a hero photo swap)
+// where the existing translation is still correct.
+function recipeTextSignature(r) {
+  if (!r) return "";
+  const ings = (r.ingredients || []).map(i => i?.item || "").join("|");
+  const steps = (r.steps || []).map(s => `${s?.t || ""}::${s?.d || ""}`).join("|");
+  const tips = (r.tips || []).join("|");
+  return [r.title || "", r.subtitle || "", ings, steps, tips].join("‖");
+}
+
 app.patch("/api/admin/recipes/:id", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
@@ -668,32 +680,50 @@ app.patch("/api/admin/recipes/:id", async (c) => {
   ).bind(id).first();
   if (!existing) return c.json({ error: "not found" }, 404);
 
-  const merged = { ...JSON.parse(existing.blob), ...patch, id };
+  const oldRecipe = JSON.parse(existing.blob);
+  const merged = { ...oldRecipe, ...patch, id };
+  const textChanged = recipeTextSignature(oldRecipe) !== recipeTextSignature(merged);
   const now = Date.now();
-  // Clear translations on every edit — the canonical text may have
-  // changed and the stale PL overlay would otherwise sit on top of
-  // fresh EN content. translateAndStore below rebuilds it.
-  await c.env.DB.prepare(
-    `UPDATE recipes
-       SET title = ?, subtitle = ?, author = ?, cuisine = ?, course = ?,
-           photo = ?, blob = ?, translations = NULL, updated_at = ?
-     WHERE id = ?`
-  ).bind(
-    merged.title,
-    merged.subtitle ?? null,
-    merged.author ?? null,
-    merged.cuisine ?? null,
-    merged.course ?? null,
-    merged.photo ?? null,
-    JSON.stringify(merged),
-    now,
-    id
-  ).run();
-
-  // Re-translate after every edit so Polish stays in sync with the
-  // canonical English. Fire-and-forget; the cook's PATCH returns
-  // immediately.
-  c.executionCtx.waitUntil(translateAndStore(c.env, id, merged, "en", "pl"));
+  // Only clear the cached Polish overlay when the underlying English
+  // text has actually changed. Photo-only saves (e.g. adding a step
+  // photo during cook mode) keep the existing translation intact —
+  // no wasted OpenAI call, no transient blank state for PL readers.
+  if (textChanged) {
+    await c.env.DB.prepare(
+      `UPDATE recipes
+         SET title = ?, subtitle = ?, author = ?, cuisine = ?, course = ?,
+             photo = ?, blob = ?, translations = NULL, updated_at = ?
+       WHERE id = ?`
+    ).bind(
+      merged.title,
+      merged.subtitle ?? null,
+      merged.author ?? null,
+      merged.cuisine ?? null,
+      merged.course ?? null,
+      merged.photo ?? null,
+      JSON.stringify(merged),
+      now,
+      id
+    ).run();
+    c.executionCtx.waitUntil(translateAndStore(c.env, id, merged, "en", "pl"));
+  } else {
+    await c.env.DB.prepare(
+      `UPDATE recipes
+         SET title = ?, subtitle = ?, author = ?, cuisine = ?, course = ?,
+             photo = ?, blob = ?, updated_at = ?
+       WHERE id = ?`
+    ).bind(
+      merged.title,
+      merged.subtitle ?? null,
+      merged.author ?? null,
+      merged.cuisine ?? null,
+      merged.course ?? null,
+      merged.photo ?? null,
+      JSON.stringify(merged),
+      now,
+      id
+    ).run();
+  }
 
   return c.json({ ok: true, id });
 });
