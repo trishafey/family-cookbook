@@ -265,7 +265,7 @@ function TagRow({ recipe, scaled }) {
         {tDifficulty(recipe.difficulty)}
       </span>
       <span className="recipe-tag time">
-        <Icon name="clock" size={11} /> {fmtDuration(scaled.totalTime)}
+        <Icon name="clock" size={13} /> {fmtDuration(scaled.totalTime)}
       </span>
       <span className="recipe-tag">
         {tCourse(recipe.course)}
@@ -279,12 +279,12 @@ function TagRow({ recipe, scaled }) {
       {recipe.diet.slice(0, 3).map(d => (
         <span key={d} className="recipe-tag diet">
           {DIET_ICON[d]
-            ? <Icon name={DIET_ICON[d]} size={11} />
+            ? <Icon name={DIET_ICON[d]} size={13} />
             : <span className="dot" />}{" "}
           {tDiet(d)}
         </span>
       ))}
-      <span className="recipe-tag author"><Icon name="chef" size={11} /> {t("by")} {recipe.author}</span>
+      <span className="recipe-tag author"><Icon name="chef" size={13} /> {t("by")} {recipe.author}</span>
     </div>
   );
 }
