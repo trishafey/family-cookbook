@@ -829,7 +829,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   line-height: 1;
 }
 .steps-list .step .t {
-  font-family: var(--serif); font-size: 20px; font-weight: 500;
+  font-family: var(--serif); font-size: 20px; font-weight: 400;
   margin-bottom: 6px;
 }
 .steps-list .step .d {
@@ -1093,7 +1093,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .need-help .head .text { flex: 1; }
 .need-help .head .text .t {
-  font-family: var(--serif); font-size: 17px; font-weight: 500;
+  font-family: var(--serif); font-size: 17px; font-weight: 400;
 }
 .need-help .head .text .s {
   font-size: 12px; color: var(--ink-3); margin-top: 1px;
