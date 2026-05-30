@@ -14,7 +14,8 @@
   --accent: #b04a2a;        /* terracotta */
   --accent-2: #6e7a3a;      /* olive */
   --accent-warm: #d68a2a;   /* mustard */
-  --accent-cool: #3a5a6a;   /* slate */
+  --accent-cool: #3a5a6a;   /* slate — reserved for AI affordances */
+  --accent-rose: #a8566a;   /* dusty rose — non-AI accent for time/precision/photo links */
   --danger: #a8341c;
   --shadow: 0 1px 0 rgba(28,24,19,.04), 0 12px 32px -16px rgba(28,24,19,.18);
   --radius: 4px;
@@ -379,7 +380,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .recipe-tag .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
 .recipe-tag.diet { color: var(--accent-2); border-color: rgba(110,122,58,.3); }
 .recipe-tag.diff { color: var(--accent); border-color: rgba(176,74,42,.3); }
-.recipe-tag.time { color: var(--accent-cool); border-color: rgba(58,90,106,.3); }
+.recipe-tag.time { color: var(--accent-rose); border-color: rgba(168, 86, 106, .3); }
 .recipe-tag.author { color: var(--ink-2); border-color: var(--rule); background: var(--paper-2); }
 /* Origin badges: each tag gets a distinct warm tint so the family
    can spot heirloom vs adopted vs lab at a glance. */
@@ -815,7 +816,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-family: var(--mono); font-size: 11px;
   color: var(--ink-3); align-items: center;
 }
-.steps-list .step .meta .time { color: var(--accent-cool); }
+.steps-list .step .meta .time { color: var(--accent-rose); }
 .steps-list .step .meta .start {
   background: var(--paper-2);
   padding: 3px 9px;
@@ -2128,10 +2129,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .step .t { font-family: var(--serif); font-size: 19px; font-weight: 500; margin-bottom: 6px; }
 .step .d { color: var(--ink-2); font-size: 14.5px; line-height: 1.55; max-width: 60ch; }
 .step .meta { display: flex; gap: 10px; margin-top: 8px; font-family: var(--mono); font-size: 11px; color: var(--ink-3); align-items: center; }
-.step .meta .time { color: var(--accent-cool); }
+.step .meta .time { color: var(--accent-rose); }
 .step .meta .start { background: var(--paper-3); padding: 2px 8px; border-radius: 3px; }
 .precision-easy    { color: var(--accent-2); }
-.precision-medium  { color: var(--accent-cool); }
+.precision-medium  { color: var(--accent-rose); }
 .precision-careful { color: var(--accent-warm); }
 .precision-watch   { color: var(--accent); }
 .precision-patient { color: var(--ink-3); }
@@ -3213,7 +3214,7 @@ body.simple-mode .meal-tray { display: none; }
   padding: 4px 8px; border-radius: 4px;
   cursor: pointer;
 }
-.step-add-photo:hover { color: var(--accent-cool); border-color: var(--accent-cool); }
+.step-add-photo:hover { color: var(--accent-rose); border-color: var(--accent-rose); }
 /* Cook-mode step body: stacks on narrow, side-by-side with the
    photo on the right when there's a photo and room for it.
    Phone photos are usually portrait, so a fixed right column
@@ -3244,7 +3245,7 @@ body.simple-mode .meal-tray { display: none; }
 }
 .step-photo-link {
   display: inline-flex; align-items: center; gap: 3px;
-  color: var(--accent-cool);
+  color: var(--accent-rose);
   cursor: pointer;
   background: transparent; border: none;
   padding: 0;

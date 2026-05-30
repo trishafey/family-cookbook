@@ -523,7 +523,7 @@ function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
                       onClick={() => setLightbox({ src: s.photo, alt: `Photo for step: ${s.t}` })}
                       title="View photo for this step"
                     >
-                      <Icon name="camera" size={11} /> photo
+                      <Icon name="camera" size={11} /> view photo
                     </button>
                   )}
                   {doneBy && schedule && (
