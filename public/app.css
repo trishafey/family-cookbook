@@ -3328,6 +3328,17 @@ svg .spin {
 }
 @keyframes ic-spin { to { transform: rotate(360deg); } }
 
+/* AI loading: any button marked aria-busy="true" containing the
+   sparkle icon spins the sparkle so the cook gets a clear "the
+   AI is thinking" signal while the call is in flight. Scoped by
+   data-icon so only the sparkle spins (chevrons / labels stay
+   put). */
+button[aria-busy="true"] svg[data-icon="sparkle"],
+.btn[aria-busy="true"] svg[data-icon="sparkle"] {
+  animation: ic-spin 1.4s linear infinite;
+  transform-origin: center;
+}
+
 /* Respect motion-reduced preference */
 @media (prefers-reduced-motion: reduce) {
   svg [class] { animation: none !important; }

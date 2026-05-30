@@ -489,7 +489,7 @@ export const Icon = ({ name, size = 16 }) => {
     rate:      <path d="m12 3 2.6 6 6.4.6-4.8 4.4 1.4 6.4L12 17l-5.6 3.4 1.4-6.4L3 9.6 9.4 9 12 3Z" />,
     rateFill:  <path d="m12 3 2.6 6 6.4.6-4.8 4.4 1.4 6.4L12 17l-5.6 3.4 1.4-6.4L3 9.6 9.4 9 12 3Z" fill="currentColor" />,
     starfruit: <><path d="M12 3.5 L13.9 9.2 L19.8 9.2 L15 12.8 L16.9 18.5 L12 15 L7.1 18.5 L9 12.8 L4.2 9.2 L10.1 9.2 Z" /><path d="M12 8.2 V13" /><circle className="seed" cx="12" cy="10.7" r=".7" /><circle className="seed" cx="10.6" cy="11.6" r=".6" /><circle className="seed" cx="13.4" cy="11.6" r=".6" /></>,
-    filter:    <><path d="M3 7 H21" /><path d="M3 12 H21" /><path d="M3 17 H21" /><circle cx="9" cy="7" r="2.3" fill="var(--paper)" /><circle cx="15" cy="12" r="2.3" fill="var(--paper)" /><circle cx="8" cy="17" r="2.3" fill="var(--paper)" /></>,
+    filter:    <path d="M3 6h18M6 12h12M10 18h4" />,
     edit:      <><path d="M4 20 L4.2 16.4 L15.4 5.2 L18.8 8.6 L7.6 19.8 L4 20 Z" /><path d="M13.2 7.4 L16.6 10.8" /><path d="M4.2 16.4 L7.6 19.8" /></>,
     share:     <><circle cx="6" cy="12" r="2.6" /><circle cx="18" cy="6" r="2.6" /><circle cx="18" cy="18" r="2.6" /><path d="M8.3 10.8 15.7 7.2 M8.3 13.2 15.7 16.8" /></>,
     capture:   <><path d="M4 8.5 H7 L8.5 6 H15.5 L17 8.5 H20 V19 H4 Z" /><circle cx="12" cy="13.2" r="3.4" /></>,
@@ -553,8 +553,8 @@ export const Icon = ({ name, size = 16 }) => {
     camera:    <><path d="M4 8.5 H7 L8.5 6 H15.5 L17 8.5 H20 V19 H4 Z" /><circle cx="12" cy="13.2" r="3.4" /></>,
     paperclip: <path d="M9 7 V16 A3 3 0 0 0 15 16 V6 A2 2 0 0 0 11 6 V15 A1 1 0 0 0 13 15 V8" />,
     clock:     <><circle cx="12" cy="13.7" r="7.4" /><path className="sweep" d="M12 13.7 V8.4" /><path d="M9.6 3 H14.4 M12 3 V5.6" /></>,
-    heart:     <><path d="M12 20 C5 15.5 3 12 3 8.6 A4.4 4.4 0 0 1 12 7 A4.4 4.4 0 0 1 21 8.6 C21 12 19 15.5 12 20 Z" /><path d="M12 20.5 V10.5" /><path d="M12 14 L8.6 11.2 M12 14 L15.4 11.2 M12 17 L9.6 14.8 M12 17 L14.4 14.8" /></>,
-    heartFill: <><path d="M12 20 C5 15.5 3 12 3 8.6 A4.4 4.4 0 0 1 12 7 A4.4 4.4 0 0 1 21 8.6 C21 12 19 15.5 12 20 Z" fill="currentColor" /></>,
+    heart:     <path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9Z" />,
+    heartFill: <path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9Z" fill="currentColor" />,
     star:      <path d="m12 3 2.6 6 6.4.6-4.8 4.4 1.4 6.4L12 17l-5.6 3.4 1.4-6.4L3 9.6 9.4 9 12 3Z" />,
     starFill:  <path d="m12 3 2.6 6 6.4.6-4.8 4.4 1.4 6.4L12 17l-5.6 3.4 1.4-6.4L3 9.6 9.4 9 12 3Z" fill="currentColor" />,
     tomato:    <><path d="M12 8.5 C7.5 8.5 5.5 12 5.5 14.8 A6.5 6.3 0 0 0 18.5 14.8 C18.5 12 16.5 8.5 12 8.5 Z" /><path d="M12 8.5 V5.6" /><path d="M12 8 C10.2 8 8.8 7 8.2 5.4 C10 5.4 11.3 6.4 12 8 Z" /><path d="M12 8 C13.8 8 15.2 7 15.8 5.4 C14 5.4 12.7 6.4 12 8 Z" /><path d="M12 8 C11.4 6.4 11.4 4.8 12 3.8 C12.6 4.8 12.6 6.4 12 8 Z" /></>,
@@ -566,7 +566,8 @@ export const Icon = ({ name, size = 16 }) => {
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+         stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"
+         data-icon={name}>
       {paths[name]}
     </svg>
   );

@@ -614,6 +614,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
                 className="btn ghost sm"
                 onClick={suggestNext}
                 disabled={suggesting || !authEmail}
+                aria-busy={suggesting}
                 title="Ask the AI what to try next"
               >
                 <Icon name="sparkle" size={11} /> {suggesting ? "Thinking…" : "What to try next"}
@@ -622,6 +623,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
                 className="btn ghost sm"
                 onClick={polishForCookbook}
                 disabled={polishing || !authEmail}
+                aria-busy={polishing}
                 title="Polish this draft for the cookbook — distils tasting notes into final tips"
               >
                 <Icon name="sparkle" size={11} /> {polishing ? "Polishing…" : "Polish with AI"}

@@ -1032,7 +1032,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               onChange={(e) => setAiText(e.target.value)}
             />
             <div style={{ display: "flex", gap: 8, marginTop: 16, alignItems: "center" }}>
-              <button className="btn accent" disabled={!aiText.trim() || extracting} onClick={runAI}>
+              <button className="btn accent" disabled={!aiText.trim() || extracting} aria-busy={extracting} onClick={runAI}>
                 {extracting ? t("extracting") : <><Icon name="sparkle" size={13} /> {t("extractRecipe")}</>}
               </button>
               <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
@@ -1195,6 +1195,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   style={{ fontSize: 11 }}
                   onClick={estimateNutrition}
                   disabled={!authEmail || estimatingNutrition || !draft.ingredients?.length}
+                  aria-busy={estimatingNutrition}
                   title={t("estimateNutritionHint")}
                 >
                   <Icon name="sparkle" size={10} /> {estimatingNutrition ? t("estimating") : t("estimateWithAI")}
@@ -1348,6 +1349,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                     style={{ marginLeft: 6 }}
                     onClick={generatePhoto}
                     disabled={!authEmail || generatingPhoto || uploadingPhoto || !draft.title?.trim()}
+                    aria-busy={generatingPhoto}
                     type="button"
                     title={t("aiGenerateHint")}
                   >
@@ -1535,6 +1537,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   className="btn accent"
                   onClick={runFromImages}
                   disabled={extracting}
+                  aria-busy={extracting}
                 >
                   {extracting
                     ? t("extracting")
@@ -1564,7 +1567,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                 onKeyDown={(e) => { if (e.key === "Enter") runFromUrl(); }}
                 disabled={extracting}
               />
-              <button className="btn accent" onClick={runFromUrl} disabled={!aiUrl.trim() || extracting}>
+              <button className="btn accent" onClick={runFromUrl} disabled={!aiUrl.trim() || extracting} aria-busy={extracting}>
                 {extracting ? t("extracting") : <><Icon name="sparkle" size={13} /> {t("fetchAndParse")}</>}
               </button>
             </div>

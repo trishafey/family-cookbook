@@ -619,6 +619,7 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
             className="btn ghost ai sm"
             onClick={() => generate(true)}
             disabled={generating}
+            aria-busy={generating}
             title={cached ? "Regenerate with AI (pinned items kept)" : "Generate AI pairings (pinned items kept)"}
           >
             <Icon name="sparkle" size={11} /> {generating ? (cached ? "Regenerating…" : "Generating…") : (cached ? "Regenerate" : "Generate with AI")}
@@ -638,7 +639,7 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
         <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)", fontSize: 16, marginBottom: 14 }}>
           No pairings yet — let the AI suggest some.
         </div>
-        <button className="btn ai" onClick={() => generate(false)} disabled={generating}>
+        <button className="btn ai" onClick={() => generate(false)} disabled={generating} aria-busy={generating}>
           <Icon name="sparkle" size={13} /> {generating ? "Generating pairings…" : "Generate pairings"}
         </button>
         {genError && (

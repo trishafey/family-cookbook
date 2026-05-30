@@ -629,7 +629,7 @@ function FamilySaysBlock({ recipe, scaler, applied, setApplied, onSaveRecipe, au
         <div className="icon"><Icon name="sparkle" size={14} /></div>
         <div className="body">
           <div className="label">AI summary · what the family does differently</div>
-          <button className="btn ghost sm" onClick={() => generate(false)} disabled={generating}>
+          <button className="btn ghost sm" onClick={() => generate(false)} disabled={generating} aria-busy={generating}>
             <Icon name="sparkle" size={11} /> {generating ? "Reading the notes…" : "Summarise with AI"}
           </button>
           {error && <div style={{ marginTop: 6, fontSize: 12, color: "#933" }}>{error}</div>}
