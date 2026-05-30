@@ -54,7 +54,21 @@ function makeHelpPrompts(recipe, currentStep) {
   return [...base, ...swaps, ...perRecipe];
 }
 
-export function NeedHelp({ recipe, currentStep, compact, defaultOpen, authEmail, servings, weight, appliedAdjustments }) {
+// Prompts when the panel is opened against a multi-recipe meal plan
+// rather than a single recipe. Different question shape — substitution,
+// scaling, prep ordering, drink/side pairings across the dishes.
+function makeMealHelpPrompts(recipes) {
+  const titles = recipes.map(r => r.title).join(" + ");
+  return [
+    { label: "What should I prep first?", t: `I'm making ${titles} together. What should I prep first to avoid running around at the end?` },
+    { label: "I'm short an ingredient", t: `I'm making ${titles} but I'm missing one of the ingredients. What's the best substitute?` },
+    { label: "Halve the whole meal", t: `How do I scale ${titles} down for a smaller group?` },
+    { label: "What goes with this?", t: `What's a simple side or drink that would round out ${titles}?` },
+    { label: "Make some of it ahead", t: `Which parts of ${titles} can I make ahead, and how far in advance?` },
+  ];
+}
+
+export function NeedHelp({ recipe, recipes, currentStep, compact, defaultOpen, authEmail, servings, weight, appliedAdjustments }) {
   const [open, setOpen] = useState(!!defaultOpen);
   const [text, setText] = useState("");
   const [turns, setTurns] = useState([]);
@@ -82,6 +96,7 @@ export function NeedHelp({ recipe, currentStep, compact, defaultOpen, authEmail,
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
           recipe,
+          recipes,
           turns: nextTurns,
           currentStep,
           servings,
@@ -110,16 +125,23 @@ export function NeedHelp({ recipe, currentStep, compact, defaultOpen, authEmail,
     if (convRef.current) convRef.current.scrollTop = convRef.current.scrollHeight;
   }, [turns, thinking]);
 
-  const prompts = makeHelpPrompts(recipe, currentStep);
+  const isMeal = !recipe && Array.isArray(recipes) && recipes.length > 0;
+  const prompts = isMeal
+    ? makeMealHelpPrompts(recipes)
+    : makeHelpPrompts(recipe, currentStep);
 
   return (
     <details className="need-help" open={open} onToggle={(e) => setOpen(e.target.open)}>
       <summary className="head" onClick={(e) => { e.preventDefault(); setOpen(o => !o); }}>
         <div className="icon"><Icon name="sparkle" size={15} /></div>
         <div className="text">
-          <div className="t">Need help? Ask the kitchen AI.</div>
+          <div className="t">
+            {isMeal ? "Ask the kitchen AI about this meal." : "Need help? Ask the kitchen AI."}
+          </div>
           <div className="s">
-            {currentStep
+            {isMeal
+              ? "Substitutions · what to prep first · scaling for a smaller group · what to serve with it."
+              : currentStep
               ? `Stuck on step "${currentStep.t}"? Get a hand.`
               : "Missing an ingredient · added too much · running behind. We've got you."}
           </div>

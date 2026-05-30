@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo, Fragment } from "react";
 import { Icon, fmtDuration, fmtTime, logEvent, scheduleForFinish } from "./helpers.jsx";
 import { Modal } from "./ui.jsx";
 import { useLang } from "./i18n.js";
+import { NeedHelp } from "./need-help.jsx";
 
 // ─────────────────────────────────────────────────────────────
 // PlanMealModal — entry point. Asks "when do you want this done by"
@@ -162,22 +163,80 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
 // ─────────────────────────────────────────────────────────────
 const RECIPE_COLORS = ["#b04a2a", "#6e7a3a", "#3a5a6a", "#d68a2a", "#8a3a5a"];
 
-export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, onCookMode, onShop }) {
+export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, onCookMode, onShop, authEmail }) {
   const { t, locale } = useLang();
   const [tab, setTab] = useState("combined");
+  const [cookOpen, setCookOpen] = useState(false);
+
+  // Per-step start overrides. Shape: { [recipeId]: { [stepIdx]: ISOString } }.
+  // When a cook bumps a step ±5 minutes, we store the new start time here
+  // and cascade subsequent steps forward (same mechanic as cook mode).
+  // Finish time slides — the original "all ready by" stays as the
+  // intended target, the timeline shows the actual current plan.
+  const [stepOverrides, setStepOverrides] = useState({});
 
   useEffect(() => { logEvent("meal-plan-open"); }, []);
 
-  // Each recipe gets its own back-scheduled timeline
+  // Each recipe gets its own back-scheduled timeline. If the recipe has
+  // step overrides, walk forward applying them and cascade following
+  // steps from the override end rather than the back-scheduled start.
   const perRecipe = useMemo(() => {
     return recipes.map((r, ri) => {
-      const { schedule, startTime } = scheduleForFinish(r.steps, finishTime, { eveningHour });
+      const base = scheduleForFinish(r.steps, finishTime, { eveningHour });
+      const overrides = stepOverrides[r.id] || {};
+      const hasAnyOverride = Object.keys(overrides).length > 0;
+      if (!hasAnyOverride) {
+        return {
+          recipe: r, idx: ri, color: RECIPE_COLORS[ri % RECIPE_COLORS.length],
+          schedule: base.schedule, startTime: base.startTime,
+        };
+      }
+      const adjusted = new Array(r.steps.length);
+      let prevEnd = null;
+      for (let i = 0; i < r.steps.length; i++) {
+        const overrideRaw = overrides[i];
+        const start = overrideRaw
+          ? new Date(overrideRaw)
+          : prevEnd != null ? new Date(prevEnd) : new Date(base.schedule[i].start);
+        const mins = r.steps[i].mins || 0;
+        const end = new Date(start.getTime() + mins * 60000);
+        adjusted[i] = { ...base.schedule[i], start, end };
+        prevEnd = end.getTime();
+      }
       return {
         recipe: r, idx: ri, color: RECIPE_COLORS[ri % RECIPE_COLORS.length],
-        schedule, startTime,
+        schedule: adjusted, startTime: adjusted[0]?.start || base.startTime,
       };
     });
-  }, [recipes, finishTime, eveningHour]);
+  }, [recipes, finishTime, eveningHour, stepOverrides]);
+
+  // Bump a step's start time by ±N minutes. Persists as an override
+  // which cascades through subsequent steps via the memo above.
+  const bumpStep = (recipeId, stepIdx, deltaMin) => {
+    const rec = perRecipe.find(p => p.recipe.id === recipeId);
+    if (!rec) return;
+    const currentStart = rec.schedule[stepIdx].start;
+    const newStart = new Date(currentStart.getTime() + deltaMin * 60000);
+    setStepOverrides(prev => ({
+      ...prev,
+      [recipeId]: { ...(prev[recipeId] || {}), [stepIdx]: newStart.toISOString() },
+    }));
+  };
+
+  const hasOverrides = Object.values(stepOverrides).some(o => Object.keys(o).length > 0);
+  const resetOverrides = () => setStepOverrides({});
+
+  // Where the meal actually finishes after any bumps. Used to show
+  // slip if the cook has pushed steps later.
+  const actualFinish = useMemo(() => {
+    let latest = finishTime;
+    for (const p of perRecipe) {
+      const last = p.schedule[p.schedule.length - 1]?.end;
+      if (last && last > latest) latest = last;
+    }
+    return latest;
+  }, [perRecipe, finishTime]);
+  const slipMin = Math.round((actualFinish - finishTime) / 60000);
 
   // Combined timeline = all steps from all recipes, interleaved chronologically
   const combined = useMemo(() => {
@@ -235,13 +294,33 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
           </div>
         </div>
         <div className="rhs">
-          <div className="clock-big">{fmtTime(finishTime)}</div>
-          <div className="clock-small">{t("allReadyBy")}</div>
-          <div style={{ marginTop: 16, display: "flex", gap: 6, justifyContent: "flex-end" }}>
+          <div className="clock-big">{fmtTime(actualFinish)}</div>
+          <div className="clock-small">
+            {t("allReadyBy")}
+            {slipMin > 0 && (
+              <span style={{ color: "#933", marginLeft: 6 }}>
+                (+{slipMin} min vs plan)
+              </span>
+            )}
+            {slipMin < 0 && (
+              <span style={{ color: "var(--accent-cool)", marginLeft: 6 }}>
+                ({slipMin} min vs plan)
+              </span>
+            )}
+          </div>
+          <div style={{ marginTop: 16, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            <button className="btn primary sm" onClick={() => setCookOpen(true)}>
+              <Icon name="play" size={12} /> Cook this meal
+            </button>
             <button className="btn sm" onClick={() => onShop(recipes.map(r => ({ recipe: r, ings: r.ingredients })))}>
               <Icon name="bowl" size={12} /> {t("shoppingList")}
             </button>
             <button className="btn ghost sm"><Icon name="print" size={12} /> {t("print")}</button>
+            {hasOverrides && (
+              <button className="btn ghost sm" onClick={resetOverrides} title="Clear all time adjustments and snap back to the planned schedule">
+                Reset adjustments
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -277,7 +356,12 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
       </div>
 
       {tab === "combined" && (
-        <CombinedTimeline grouped={grouped} finishTime={finishTime} />
+        <CombinedTimeline
+          grouped={grouped}
+          finishTime={finishTime}
+          stepOverrides={stepOverrides}
+          bumpStep={bumpStep}
+        />
       )}
       {tab !== "combined" && (
         <PerRecipeView
@@ -285,11 +369,27 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
           onCookMode={onCookMode}
         />
       )}
+
+      {/* Ask the kitchen AI about the whole meal — substitutions,
+          scaling, what to prep first, etc. Lives at the bottom of
+          either tab. */}
+      <div style={{ marginTop: 40 }}>
+        <NeedHelp recipes={recipes} authEmail={authEmail} defaultOpen={false} />
+      </div>
+
+      <MealCookMode
+        open={cookOpen}
+        onClose={() => setCookOpen(false)}
+        combined={combined}
+        perRecipe={perRecipe}
+        recipes={recipes}
+        authEmail={authEmail}
+      />
     </div>
   );
 }
 
-function CombinedTimeline({ grouped, finishTime }) {
+function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
   const { t, locale } = useLang();
   // Compute earliest item across groups so we can label day transitions
   // and gaps with a meaningful "previous day"/"day of" label.
@@ -341,25 +441,52 @@ function CombinedTimeline({ grouped, finishTime }) {
             <div className="timeline-marker">
               <Icon name="clock" size={13} /> {g.key}
             </div>
-            {g.items.map((it, ii) => (
-              <div className="timeline-row" data-rc={it.ri} key={`${gi}-${ii}`}>
-                <div className="when-col">
-                  {fmtTime(it.start)}
-                  <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 4 }}>→ {fmtTime(it.end)}</div>
-                </div>
-                <div className="step-card">
-                  <div>
-                    <div className="recipe-label">{it.recipe.title} · step {it.stepIdx}</div>
-                    <div className="step-title">{it.step.t}</div>
-                    <div className="step-desc">{it.step.d}</div>
+            {g.items.map((it, ii) => {
+              const isAdjusted = !!stepOverrides?.[it.recipe.id]?.[it.si];
+              return (
+                <div className="timeline-row" data-rc={it.ri} key={`${gi}-${ii}`}>
+                  <div className="when-col">
+                    <span style={{ color: isAdjusted ? "var(--accent)" : undefined }}>
+                      {fmtTime(it.start)}
+                    </span>
+                    <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 4 }}>→ {fmtTime(it.end)}</div>
+                    {bumpStep && (
+                      <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                        <button
+                          className="btn ghost"
+                          style={{ padding: "2px 6px", fontSize: 11, minHeight: 0 }}
+                          onClick={() => bumpStep(it.recipe.id, it.si, -5)}
+                          title="This step started 5 min earlier than planned"
+                          aria-label="Bump start time 5 minutes earlier"
+                        >
+                          −5
+                        </button>
+                        <button
+                          className="btn ghost"
+                          style={{ padding: "2px 6px", fontSize: 11, minHeight: 0 }}
+                          onClick={() => bumpStep(it.recipe.id, it.si, 5)}
+                          title="This step is running 5 min late — push following steps back"
+                          aria-label="Bump start time 5 minutes later"
+                        >
+                          +5
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="duration">
-                    {fmtDuration(it.step.mins)}
-                    <div className={`precision precision-${it.step.precision}`} style={{ marginTop: 4 }}>● {it.step.precision}</div>
+                  <div className="step-card">
+                    <div>
+                      <div className="recipe-label">{it.recipe.title} · step {it.stepIdx}</div>
+                      <div className="step-title">{it.step.t}</div>
+                      <div className="step-desc">{it.step.d}</div>
+                    </div>
+                    <div className="duration">
+                      {fmtDuration(it.step.mins)}
+                      <div className={`precision precision-${it.step.precision}`} style={{ marginTop: 4 }}>● {it.step.precision}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </Fragment>
         );
 
@@ -421,6 +548,111 @@ function PerRecipeView({ rec, onCookMode }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// MealCookMode — step-by-step focus mode for a multi-recipe meal.
+// Walks the combined timeline one step at a time with prev/next
+// nav, recipe colour coding, and an embedded Need help panel for
+// per-step questions to the kitchen AI.
+// ─────────────────────────────────────────────────────────────
+function MealCookMode({ open, onClose, combined, perRecipe, recipes, authEmail }) {
+  const [idx, setIdx] = useState(0);
+  const [done, setDone] = useState({});
+
+  // Reset state when the modal is reopened on a fresh session.
+  useEffect(() => {
+    if (open) { setIdx(0); setDone({}); }
+  }, [open]);
+
+  if (!open || !combined.length) return null;
+  const cur = combined[idx];
+  const recipeMeta = perRecipe.find(p => p.recipe.id === cur.recipe.id);
+  const recipeColor = recipeMeta?.color || "var(--ink)";
+  const total = combined.length;
+  const isDone = !!done[idx];
+  const isLast = idx === total - 1;
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Cooking step ${idx + 1} of ${total}`}
+      subtitle={recipes.map(r => r.title).join(" + ")}
+      size="lg"
+      footer={
+        <>
+          <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
+            {Object.values(done).filter(Boolean).length} of {total} done
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn" onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}>
+              <Icon name="chevL" /> Previous
+            </button>
+            <button
+              className="btn primary"
+              onClick={() => {
+                setDone(d => ({ ...d, [idx]: true }));
+                if (!isLast) setIdx(i => i + 1);
+              }}
+            >
+              {isLast ? "Mark done" : (isDone ? "Next step" : "Done — next step")} <Icon name="chevR" />
+            </button>
+          </div>
+        </>
+      }
+    >
+      <div style={{ padding: "4px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+          <span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 999, background: recipeColor }} />
+          <strong style={{ fontFamily: "var(--serif)" }}>{cur.recipe.title}</strong>
+          <span style={{ color: "var(--ink-3)", fontSize: 13 }}>· step {cur.stepIdx} of {cur.recipe.steps.length}</span>
+          <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", fontSize: 12, color: "var(--ink-3)" }}>
+            {fmtTime(cur.start)} → {fmtTime(cur.end)} · {fmtDuration(cur.step.mins)}
+          </span>
+        </div>
+
+        <h2 style={{ margin: "8px 0 12px", fontFamily: "var(--serif)", fontSize: 26 }}>{cur.step.t}</h2>
+        <p style={{ fontFamily: "var(--serif)", fontSize: 17, lineHeight: 1.55, color: "var(--ink-2)" }}>
+          {cur.step.d}
+        </p>
+
+        {/* Mini-timeline showing where you are in the meal */}
+        <div style={{ display: "flex", gap: 3, marginTop: 24, marginBottom: 24, flexWrap: "wrap" }}>
+          {combined.map((c, i) => {
+            const cm = perRecipe.find(p => p.recipe.id === c.recipe.id);
+            const dot = cm?.color || "var(--ink-3)";
+            const active = i === idx;
+            const completed = !!done[i];
+            return (
+              <button
+                key={i}
+                onClick={() => setIdx(i)}
+                title={`${c.recipe.title} · step ${c.stepIdx}: ${c.step.t}`}
+                style={{
+                  width: 18, height: 18, borderRadius: 4,
+                  background: completed ? dot : active ? dot : "transparent",
+                  opacity: completed ? 0.6 : active ? 1 : 0.5,
+                  border: `1px solid ${dot}`,
+                  cursor: "pointer", padding: 0,
+                  outline: active ? "2px solid var(--ink)" : "none",
+                  outlineOffset: 1,
+                }}
+                aria-label={`Jump to step ${i + 1}`}
+              />
+            );
+          })}
+        </div>
+
+        <NeedHelp
+          recipe={cur.recipe}
+          currentStep={cur.step}
+          compact
+          authEmail={authEmail}
+        />
+      </div>
+    </Modal>
   );
 }
 

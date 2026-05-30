@@ -455,6 +455,7 @@ function App() {
           onClose={() => setView("meal")}
           onCookMode={(r, steps, ings) => openCook(r, steps, ings)}
           onShop={openShop}
+          authEmail={authEmail}
         />
       )}
 

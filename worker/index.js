@@ -1533,39 +1533,57 @@ app.post("/api/admin/ai/help", async (c) => {
 
   const body = await c.req.json().catch(() => ({}));
   const recipe = body?.recipe;
-  if (!recipe?.title) return c.json({ error: "missing recipe" }, 400);
+  const mealRecipes = Array.isArray(body?.recipes) && body.recipes.length > 1 ? body.recipes : null;
+  if (!recipe?.title && !mealRecipes) return c.json({ error: "missing recipe" }, 400);
   const turns = Array.isArray(body?.turns) ? body.turns.slice(-12) : [];
   if (!turns.length) return c.json({ error: "no question" }, 400);
 
-  // Compact context for the model — full ingredient list (with the
-  // cook's current scaled qty, so suggestions match what's actually
-  // in front of them), step titles for orientation, plus live
-  // cook-state hints if present.
-  const context = {
-    title:    recipe.title,
-    subtitle: recipe.subtitle || "",
-    cuisine:  recipe.cuisine,
-    course:   recipe.course,
-    servings: body?.servings ?? recipe.servingsDefault,
-    weight:   body?.weight ?? null,
-    ingredients: (recipe.ingredients || []).map(i => `${i.qty ?? ""} ${i.unit ?? ""} ${i.item}`.trim()),
-    steps:    (recipe.steps || []).map((s, i) => `${i + 1}. ${s.t || s.d?.slice(0, 60)}`),
-    currentStep: body?.currentStep
-      ? `Cook is currently on step "${body.currentStep.t}" — ${body.currentStep.d}`
-      : null,
-    appliedAdjustments: Array.isArray(body?.appliedAdjustments) && body.appliedAdjustments.length
-      ? body.appliedAdjustments.map(a => a.summary || a.prompt).filter(Boolean)
-      : null,
-  };
+  // Two context shapes depending on what the caller sent:
+  //  • single recipe — full ingredient list + step titles + cook state
+  //  • multi-recipe meal — each dish summarised so the model can
+  //    reason about prep order, substitutions, and pairings without
+  //    being flooded by every ingredient.
+  const context = mealRecipes
+    ? {
+        meal: mealRecipes.map(r => r.title).join(" + "),
+        dishes: mealRecipes.map(r => ({
+          title:    r.title,
+          subtitle: r.subtitle || "",
+          cuisine:  r.cuisine,
+          course:   r.course,
+          servings: r.servingsDefault,
+          totalMin: r.total,
+          diet:     r.diet || [],
+          ingredients: (r.ingredients || []).map(i => `${i.qty ?? ""} ${i.unit ?? ""} ${i.item}`.trim()),
+          steps:       (r.steps || []).map((s, i) => `${i + 1}. ${s.t || s.d?.slice(0, 60)}`),
+        })),
+      }
+    : {
+        title:    recipe.title,
+        subtitle: recipe.subtitle || "",
+        cuisine:  recipe.cuisine,
+        course:   recipe.course,
+        servings: body?.servings ?? recipe.servingsDefault,
+        weight:   body?.weight ?? null,
+        ingredients: (recipe.ingredients || []).map(i => `${i.qty ?? ""} ${i.unit ?? ""} ${i.item}`.trim()),
+        steps:    (recipe.steps || []).map((s, i) => `${i + 1}. ${s.t || s.d?.slice(0, 60)}`),
+        currentStep: body?.currentStep
+          ? `Cook is currently on step "${body.currentStep.t}" — ${body.currentStep.d}`
+          : null,
+        appliedAdjustments: Array.isArray(body?.appliedAdjustments) && body.appliedAdjustments.length
+          ? body.appliedAdjustments.map(a => a.summary || a.prompt).filter(Boolean)
+          : null,
+      };
+
+  const systemPrompt = mealRecipes
+    ? `You are the kitchen-side AI helper inside a family cookbook. The cook is planning or cooking a multi-dish meal — keep the whole meal in mind, not just one dish. Reply in 2-4 short paragraphs, plain prose, written like a thoughtful family cook giving real advice. When asked about substitutions or scaling, name which dish you mean. When asked about prep order, think about what can be made ahead vs what has to be timed to finishing. Never invent ingredients that aren't in the recipes you were given.`
+    : `You are the kitchen-side AI helper inside a family cookbook. The cook is mid-recipe and needs a practical answer fast. Reply in 2-4 short paragraphs, plain prose, written like a thoughtful family cook giving real advice — not a list of caveats. Reference the recipe's actual ingredients and the cook's current step or servings when it helps. If the cook hasn't told you which ingredient/step they mean, ask ONE focused clarifying question first. Never invent ingredients that aren't in the recipe.`;
 
   const messages = [
-    {
-      role: "system",
-      content: `You are the kitchen-side AI helper inside a family cookbook. The cook is mid-recipe and needs a practical answer fast. Reply in 2-4 short paragraphs, plain prose, written like a thoughtful family cook giving real advice — not a list of caveats. Reference the recipe's actual ingredients and the cook's current step or servings when it helps. If the cook hasn't told you which ingredient/step they mean, ask ONE focused clarifying question first. Never invent ingredients that aren't in the recipe.`,
-    },
+    { role: "system", content: systemPrompt },
     {
       role: "user",
-      content: `RECIPE CONTEXT:\n${JSON.stringify(context, null, 2)}`,
+      content: `${mealRecipes ? "MEAL CONTEXT" : "RECIPE CONTEXT"}:\n${JSON.stringify(context, null, 2)}`,
     },
     ...turns.map(t => ({
       role: t.role === "ai" ? "assistant" : "user",
@@ -1591,6 +1609,8 @@ app.post("/api/admin/ai/help", async (c) => {
     turnCount: turns.length,
     prompt: (lastUserTurn?.text || "").slice(0, 200),
     fromCookMode: !!body?.cookState,
+    mealMode: !!mealRecipes,
+    mealDishCount: mealRecipes?.length || null,
   });
   return c.json({ answer });
 });
