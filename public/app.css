@@ -87,9 +87,17 @@ a { color: inherit; text-decoration: none; }
 /* Typography */
 /* Fraunces — let opsz auto-shape letterforms with font-size; SOFT
    30 adds a touch of warmth (0 = sharper, 100 = round). Applied
-   to headings + .serif so the body text stays in Geist. */
+   to headings + .serif so the body text stays in Geist.
+   --------------------------------------------------------------
+   FUTURE TWEAK: if Fraunces ever feels too pervasive (e.g. card
+   titles + h3/h4 section heads feel "too magazine"), pull this
+   rule down to just `h1` and let h2/h3/h4 fall back to whatever
+   default the surrounding context provides (or set them
+   explicitly to var(--sans)). That keeps the hero + recipe
+   title on Fraunces and reverts everything else.
+   -------------------------------------------------------------- */
 h1, h2, h3, h4 {
-  font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; margin: 0; color: var(--ink);
+  font-family: var(--serif); font-weight: 400; letter-spacing: -0.01em; margin: 0; color: var(--ink);
   font-optical-sizing: auto;
   font-variation-settings: "SOFT" 30;
 }
@@ -312,7 +320,7 @@ h4 { font-size: 17px; line-height: 1.3; }
   flex: 1;
 }
 .card .author { font-size: 11px; color: var(--ink-3); letter-spacing: 0.06em; text-transform: uppercase; }
-.card .title { font-family: var(--serif); font-size: 22px; font-weight: 500; line-height: 1.15; }
+.card .title { font-family: var(--serif); font-size: 22px; font-weight: 400; line-height: 1.15; }
 .card .sub { font-size: 13px; color: var(--ink-3); line-height: 1.4; min-height: 2.6em; }
 .card .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 .card .footer {
