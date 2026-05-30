@@ -3255,3 +3255,80 @@ body.simple-mode .meal-tray { display: none; }
 /* Lightbox styles live above (see .lightbox / .lightbox-close).
    The component is portaled to <body> so containing-block traps
    on ancestors can't break the overlay. */
+
+/* ─── Botanical icon set: animation hooks ──────────────────
+   The new icons embed small classes (.nod, .sweep, .vine,
+   .bloom, .grow, .bub/.bub2/.bub3, .stir, .bloomgrow) on
+   sub-paths. The animations fire on hover of any interactive
+   parent (button, .btn, a) so they read as a subtle invite-to-
+   interact, not constant motion. `.spin` is always-on for the
+   standalone loader glyph. `.seed` paints sub-shapes solid in
+   currentColor for the dot/grain details (no outline stroke).
+   ─────────────────────────────────────────────────────────── */
+svg .seed { fill: currentColor; stroke: none; }
+button svg [class], a svg [class], .btn svg [class] { transform-box: fill-box; }
+
+/* Leaf nods (the plus icon's leaf) */
+button:hover .nod, a:hover .nod, .btn:hover .nod {
+  animation: ic-nod 1.5s ease-in-out infinite;
+  transform-origin: 50% 92%;
+}
+@keyframes ic-nod { 0%, 100% { transform: rotate(0); } 45% { transform: rotate(-13deg); } }
+
+/* Timer hand sweep */
+button:hover .sweep, a:hover .sweep, .btn:hover .sweep {
+  animation: ic-sweep 2.4s cubic-bezier(.5, 0, .5, 1) infinite;
+  transform-origin: 50% 100%;
+}
+@keyframes ic-sweep { to { transform: rotate(360deg); } }
+
+/* Search-handle vine curl (via stroke-dashoffset) */
+svg .vine { stroke-dasharray: 13; stroke-dashoffset: 0; }
+button:hover .vine, a:hover .vine, .btn:hover .vine {
+  animation: ic-curl 1.8s ease-in-out infinite;
+}
+@keyframes ic-curl { 0% { stroke-dashoffset: 13; } 55%, 100% { stroke-dashoffset: 0; } }
+
+/* Blossom petals pulse in sequence */
+button:hover .bloom > *, a:hover .bloom > *, .btn:hover .bloom > * {
+  animation: ic-bloom 1.8s ease-in-out infinite;
+  transform-origin: center;
+}
+button:hover .bloom > :nth-child(2), .btn:hover .bloom > :nth-child(2) { animation-delay: .08s; }
+button:hover .bloom > :nth-child(3), .btn:hover .bloom > :nth-child(3) { animation-delay: .16s; }
+button:hover .bloom > :nth-child(4), .btn:hover .bloom > :nth-child(4) { animation-delay: .24s; }
+button:hover .bloom > :nth-child(5), .btn:hover .bloom > :nth-child(5) { animation-delay: .32s; }
+@keyframes ic-bloom { 0%, 100% { transform: scale(1); } 50% { transform: scale(.78); } }
+
+/* Sprout grows (vegan mark) */
+button:hover .grow, a:hover .grow, .btn:hover .grow {
+  animation: ic-grow 1.8s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+@keyframes ic-grow { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(.9) rotate(2deg); } }
+
+/* Beaker bubbles rise (experiment mark) */
+@keyframes ic-bub { 0% { transform: translateY(2px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(-7px); opacity: 0; } }
+button:hover .bub, a:hover .bub, .btn:hover .bub { animation: ic-bub 1.7s ease-in infinite; }
+button:hover .bub2, .btn:hover .bub2 { animation-delay: .55s; }
+button:hover .bub3, .btn:hover .bub3 { animation-delay: 1.05s; }
+
+/* Spoon stirs the mixing bowl (build mark) */
+@keyframes ic-stir { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg); } }
+button:hover .stir, a:hover .stir, .btn:hover .stir {
+  animation: ic-stir 1.7s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+/* Standalone loader — runs continuously, no parent hover needed */
+svg .spin {
+  animation: ic-spin 2.6s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes ic-spin { to { transform: rotate(360deg); } }
+
+/* Respect motion-reduced preference */
+@media (prefers-reduced-motion: reduce) {
+  svg [class] { animation: none !important; }
+}
