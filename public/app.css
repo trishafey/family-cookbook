@@ -2181,22 +2181,27 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 
 .lightbox {
-  position: fixed; inset: 0; z-index: 1000;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 10000;
   background: rgba(0, 0, 0, 0.86);
-  display: grid; place-items: center;
+  display: flex; align-items: center; justify-content: center;
   padding: 24px; cursor: zoom-out;
 }
 .lightbox img {
-  max-width: 100%; max-height: 100%;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  width: auto; height: auto;
   object-fit: contain; cursor: default;
   border-radius: 4px;
 }
 .lightbox-close {
-  position: absolute; top: 16px; right: 16px;
+  position: fixed; top: 16px; right: 16px;
   width: 40px; height: 40px; border-radius: 50%;
   background: rgba(255, 255, 255, 0.12); color: #fff;
   border: none; cursor: pointer;
   display: grid; place-items: center;
+  z-index: 1;
 }
 .lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
 
@@ -3209,13 +3214,33 @@ body.simple-mode .meal-tray { display: none; }
   cursor: pointer;
 }
 .step-add-photo:hover { color: var(--accent-cool); border-color: var(--accent-cool); }
+/* Cook-mode step body: stacks on narrow, side-by-side with the
+   photo on the right when there's a photo and room for it.
+   Phone photos are usually portrait, so a fixed right column
+   gives them sensible vertical space without crowding the text. */
+.cookmode-step-body { display: grid; gap: 20px; }
 .cookmode-step-photo {
-  margin: 16px 0 24px;
   border-radius: 8px;
   max-width: 100%;
-  max-height: 320px;
+  max-height: 60vh;
   object-fit: cover;
   cursor: zoom-in;
+  justify-self: start;
+}
+@media (min-width: 760px) {
+  .cookmode-step-body.has-photo {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+    align-items: start;
+  }
+  .cookmode-step-body.has-photo .cookmode-step-desc {
+    grid-column: 1; grid-row: 1;
+  }
+  .cookmode-step-body.has-photo .cookmode-step-photo {
+    grid-column: 2; grid-row: 1;
+    width: 100%;
+    max-height: 70vh;
+    justify-self: stretch;
+  }
 }
 .step-photo-link {
   display: inline-flex; align-items: center; gap: 3px;
@@ -3226,25 +3251,6 @@ body.simple-mode .meal-tray { display: none; }
   font-size: inherit; font-family: inherit;
 }
 .step-photo-link:hover { text-decoration: underline; }
-.lightbox {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.88);
-  display: grid; place-items: center;
-  z-index: 9999;
-  padding: 20px;
-  cursor: zoom-out;
-}
-.lightbox img {
-  max-width: 100%;
-  max-height: 100%;
-  border-radius: 8px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.5);
-}
-.lightbox .close {
-  position: absolute; top: 16px; right: 16px;
-  background: rgba(255,255,255,.15); color: #fff;
-  border: none; border-radius: 999px;
-  width: 36px; height: 36px;
-  display: grid; place-items: center;
-  cursor: pointer;
-}
+/* Lightbox styles live above (see .lightbox / .lightbox-close).
+   The component is portaled to <body> so containing-block traps
+   on ancestors can't break the overlay. */

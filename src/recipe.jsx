@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Icon, fmtDuration, fmtTime, formatQty, formatIngredientQty, logEvent, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage } from "./helpers.jsx";
 import { convertIngredient } from "./units.js";
 import { useLang } from "./i18n.js";
-import { TimeOfDayInput, PrintOnly } from "./ui.jsx";
+import { TimeOfDayInput, PrintOnly, Lightbox } from "./ui.jsx";
 import { NeedHelp } from "./need-help.jsx";
 import { PairingsSection } from "./pairings.jsx";
 import { FLAGS } from "./config/flags.js";
@@ -555,12 +555,7 @@ function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
         );
       })}
       {lightbox && (
-        <div className="lightbox" onClick={() => setLightbox(null)}>
-          <button className="close" aria-label="Close" onClick={() => setLightbox(null)}>
-            <Icon name="x" size={16} />
-          </button>
-          <img src={lightbox.src} alt={lightbox.alt} />
-        </div>
+        <Lightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />
       )}
     </div>
   );
@@ -705,27 +700,6 @@ function CooksNotes({ recipe, defaultOpen, scaler, applied, setApplied, onSaveRe
 // ─────────────────────────────────────────────────────────────
 // Shared: Comments (disclosure)
 // ─────────────────────────────────────────────────────────────
-function Lightbox({ src, alt, onClose }) {
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [onClose]);
-  return (
-    <div className="lightbox" onClick={onClose} role="dialog" aria-modal="true">
-      <button className="lightbox-close" onClick={onClose} aria-label="Close">
-        <Icon name="x" size={20} />
-      </button>
-      <img src={src} alt={alt} onClick={(e) => e.stopPropagation()} />
-    </div>
-  );
-}
-
 function StarRow({ value, onChange, readOnly, size = 18 }) {
   return (
     <span className="stars" style={{ display: "inline-flex", gap: 2 }}>

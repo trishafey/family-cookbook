@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useStorage, scheduleForFinish, fmtTime, fmtDuration, formatQty, formatIngredientQty, Icon, logEvent } from "./helpers.jsx";
-import { TimeOfDayInput } from "./ui.jsx";
+import { TimeOfDayInput, Lightbox } from "./ui.jsx";
 import { NeedHelp } from "./need-help.jsx";
 import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
@@ -210,15 +210,17 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
             {t("step").toUpperCase()} {String(idx + 1).padStart(2, "0")} {t("of").toUpperCase()} {String(steps.length).padStart(2, "0")} · {tPrecision(cur.precision).toUpperCase()}
           </div>
           <h1 className="cookmode-step-title">{cur.t}</h1>
-          {curPhoto && (
-            <img
-              className="cookmode-step-photo"
-              src={curPhoto}
-              alt={`Photo for step: ${cur.t}`}
-              onClick={() => setPhotoOpen(true)}
-            />
-          )}
-          <p className="cookmode-step-desc">{cur.d}</p>
+          <div className={`cookmode-step-body ${curPhoto ? "has-photo" : ""}`}>
+            <p className="cookmode-step-desc">{cur.d}</p>
+            {curPhoto && (
+              <img
+                className="cookmode-step-photo"
+                src={curPhoto}
+                alt={`Photo for step: ${cur.t}`}
+                onClick={() => setPhotoOpen(true)}
+              />
+            )}
+          </div>
 
           <div className="cookmode-step-time">
             <div>
@@ -315,13 +317,8 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
         </div>
       </div>
 
-      {photoOpen && cur.photo && (
-        <div className="lightbox" onClick={() => setPhotoOpen(false)}>
-          <button className="close" aria-label="Close" onClick={() => setPhotoOpen(false)}>
-            <Icon name="x" size={16} />
-          </button>
-          <img src={cur.photo} alt={`Photo for step: ${cur.t}`} />
-        </div>
+      {photoOpen && curPhoto && (
+        <Lightbox src={curPhoto} alt={`Photo for step: ${cur.t}`} onClose={() => setPhotoOpen(false)} />
       )}
     </div>
   );

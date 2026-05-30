@@ -13,6 +13,40 @@ export function PrintOnly({ children }) {
   return createPortal(<div className="print-only">{children}</div>, document.body);
 }
 
+// Full-screen image viewer. Portaled to document.body so a
+// `transform` or `filter` on any ancestor can't break the
+// `position: fixed` overlay (a CSS containing-block trap that
+// was making the lightbox render mid-page instead of full-bleed).
+// Closes on backdrop click, Escape, or the × button. Locks
+// body scroll while open so a tap-to-scroll on iPad doesn't
+// scroll the page behind the dim.
+export function Lightbox({ src, alt, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+  if (typeof document === "undefined" || !src) return null;
+  return createPortal(
+    <div className="lightbox" onClick={onClose} role="dialog" aria-modal="true">
+      <button
+        className="lightbox-close"
+        aria-label="Close"
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+      >
+        <Icon name="x" size={20} />
+      </button>
+      <img src={src} alt={alt || ""} onClick={(e) => e.stopPropagation()} />
+    </div>,
+    document.body
+  );
+}
+
 export function Modal({ open, onClose, title, subtitle, children, footer, size }) {
   useEffect(() => {
     if (!open) return;
