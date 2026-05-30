@@ -10,6 +10,7 @@ import { FLAGS } from "./config/flags.js";
 export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClose, authEmail, onSaveRecipe }) {
   const { t, tPrecision } = useLang();
   const [idx, setIdx] = useStorage(`cookmode:${recipe.id}:idx`, 0);
+  const [done, setDone] = useStorage(`cookmode:${recipe.id}:done`, []);
 
   // Photos taken during this cook-mode session, keyed by step index.
   // Overlays whatever's already on the step so the cook sees the new
@@ -21,6 +22,10 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
   // Analytics: log one start per cook-mode session and one finish
   // (with the highest step reached) when the modal unmounts. The
   // session boundary is the component's lifetime, not the recipe id.
+  // Same cleanup also resets the saved progress so re-entering
+  // cook mode later starts fresh at step 1 with nothing checked
+  // off — the previous run's ticks shouldn't leak into the next
+  // cook session.
   const maxStepRef = useRef(idx);
   useEffect(() => {
     logEvent("cook-mode-start", recipe.id, { totalSteps: steps.length });
@@ -29,6 +34,8 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
         stepsReached: maxStepRef.current + 1,
         totalSteps: steps.length,
       });
+      setDone([]);
+      setIdx(0);
     };
     // Intentionally empty deps — we want one start at mount, one
     // finish at unmount. recipe.id is stable for this modal session.
@@ -79,7 +86,6 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
     if (!confirm(t("resetAllAdjustments"))) return;
     setStartOverrides({});
   };
-  const [done, setDone] = useStorage(`cookmode:${recipe.id}:done`, []);
   const [helpOpen, setHelpOpen] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
 
