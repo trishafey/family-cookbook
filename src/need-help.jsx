@@ -169,7 +169,7 @@ export function NeedHelp({ recipe, recipes, currentStep, compact, defaultOpen, a
             rows={2}
             disabled={!authEmail}
           />
-          <button className="btn primary sm" disabled={!text.trim() || thinking || !authEmail} onClick={() => submit()}>
+          <button className="btn ai sm" disabled={!text.trim() || thinking || !authEmail} onClick={() => submit()}>
             <Icon name="sparkle" size={11} /> Ask
           </button>
         </div>

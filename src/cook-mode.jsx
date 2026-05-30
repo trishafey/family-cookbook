@@ -74,18 +74,29 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
   };
   const [done, setDone] = useStorage(`cookmode:${recipe.id}:done`, []);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   const cur = steps[idx];
   const curSched = schedule[idx];
 
+  // Mark-as-done is implicit: clicking Next means "I finished this step",
+  // clicking Previous means "I'm going back to redo something earlier"
+  // — so we untick the step we're returning to. Cleaner than juggling a
+  // separate done button.
+  const goNext = () => {
+    setDone(d => d.includes(idx) ? d : [...d, idx]);
+    setIdx(i => Math.min(steps.length - 1, i + 1));
+  };
+  const goPrev = () => {
+    if (idx === 0) return;
+    setDone(d => d.filter(x => x !== idx - 1));
+    setIdx(i => Math.max(0, i - 1));
+  };
+
   const onKey = (e) => {
-    if (e.key === "ArrowRight") setIdx(i => Math.min(steps.length - 1, i + 1));
-    if (e.key === "ArrowLeft")  setIdx(i => Math.max(0, i - 1));
+    if (e.key === "ArrowRight") goNext();
+    if (e.key === "ArrowLeft")  goPrev();
     if (e.key === "Escape") onClose();
-    if (e.key === " ") {
-      e.preventDefault();
-      setDone(d => d.includes(idx) ? d.filter(x => x !== idx) : [...d, idx]);
-    }
   };
   useEffect(() => {
     window.addEventListener("keydown", onKey);
@@ -159,6 +170,14 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
             {t("step").toUpperCase()} {String(idx + 1).padStart(2, "0")} {t("of").toUpperCase()} {String(steps.length).padStart(2, "0")} · {tPrecision(cur.precision).toUpperCase()}
           </div>
           <h1 className="cookmode-step-title">{cur.t}</h1>
+          {cur.photo && (
+            <img
+              className="cookmode-step-photo"
+              src={cur.photo}
+              alt={`Photo for step: ${cur.t}`}
+              onClick={() => setPhotoOpen(true)}
+            />
+          )}
           <p className="cookmode-step-desc">{cur.d}</p>
 
           <div className="cookmode-step-time">
@@ -191,22 +210,16 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
           </div>
 
           <div style={{ marginTop: 40, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              className={`btn ${done.includes(idx) ? "accent" : ""}`}
-              onClick={() => setDone(d => d.includes(idx) ? d.filter(x => x !== idx) : [...d, idx])}
-            >
-              <Icon name="check" size={14} /> {done.includes(idx) ? "Step completed" : "Mark step done"}
-            </button>
             {FLAGS.needHelp && (
-            <button
-              className={`btn ${helpOpen ? "primary" : ""}`}
-              onClick={() => setHelpOpen(o => !o)}
-            >
-              <Icon name="sparkle" size={13} /> {helpOpen ? "Hide help" : "Need help with this step?"}
-            </button>
+              <button
+                className="btn ai"
+                onClick={() => setHelpOpen(o => !o)}
+              >
+                <Icon name="sparkle" size={13} /> {helpOpen ? "Hide help" : "Need help with this step?"}
+              </button>
             )}
             <span style={{ fontSize: 12, color: "var(--ink-3)", marginLeft: "auto" }}>
-              {done.length} {t("of")} {steps.length} {t("complete")} <span className="mono">SPACE</span>
+              {done.length} {t("of")} {steps.length} {t("complete")}
             </span>
           </div>
 
@@ -226,7 +239,7 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
 
       <div className="cookmode-foot">
         <div className="nav-btns">
-          <button className="btn" onClick={() => setIdx(Math.max(0, idx - 1))} disabled={idx === 0}>
+          <button className="btn" onClick={goPrev} disabled={idx === 0}>
             <Icon name="chevL" /> Previous
           </button>
         </div>
@@ -235,16 +248,25 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
         </div>
         <div className="nav-btns">
           {idx < steps.length - 1 ? (
-            <button className="btn primary" onClick={() => setIdx(idx + 1)}>
+            <button className="btn primary" onClick={goNext}>
               Next step <Icon name="chevR" />
             </button>
           ) : (
-            <button className="btn accent" onClick={onClose}>
+            <button className="btn accent" onClick={() => { setDone(d => d.includes(idx) ? d : [...d, idx]); onClose(); }}>
               <Icon name="check" /> Done — eat!
             </button>
           )}
         </div>
       </div>
+
+      {photoOpen && cur.photo && (
+        <div className="lightbox" onClick={() => setPhotoOpen(false)}>
+          <button className="close" aria-label="Close" onClick={() => setPhotoOpen(false)}>
+            <Icon name="x" size={16} />
+          </button>
+          <img src={cur.photo} alt={`Photo for step: ${cur.t}`} />
+        </div>
+      )}
     </div>
   );
 }

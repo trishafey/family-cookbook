@@ -487,6 +487,7 @@ function TimingBar({ doneBy, setDoneBy, finishTime, setFinishTime, schedule }) {
 // ─────────────────────────────────────────────────────────────
 function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
   const { t, tPrecision, locale } = useLang();
+  const [lightbox, setLightbox] = useState(null); // { src, alt }
   let lastSection = null;
   let lastDayOffset = null;
   return (
@@ -515,6 +516,16 @@ function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
                   <span className={`precision-${s.precision}`}>● {tPrecision(s.precision)}</span>
                   <span className="time">{fmtDuration(s.mins)}</span>
                   {s.hands != null && <span>{t("handsOn")} {fmtDuration(s.hands)}</span>}
+                  {s.photo && (
+                    <button
+                      className="step-photo-link"
+                      type="button"
+                      onClick={() => setLightbox({ src: s.photo, alt: `Photo for step: ${s.t}` })}
+                      title="View photo for this step"
+                    >
+                      <Icon name="camera" size={11} /> photo
+                    </button>
+                  )}
                   {doneBy && schedule && (
                     <span className="start">
                       ▶ {fmtTime(stepSched.start)} – {fmtTime(stepSched.end)}
@@ -543,6 +554,14 @@ function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
           </React.Fragment>
         );
       })}
+      {lightbox && (
+        <div className="lightbox" onClick={() => setLightbox(null)}>
+          <button className="close" aria-label="Close" onClick={() => setLightbox(null)}>
+            <Icon name="x" size={16} />
+          </button>
+          <img src={lightbox.src} alt={lightbox.alt} />
+        </div>
+      )}
     </div>
   );
 }

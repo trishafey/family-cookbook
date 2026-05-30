@@ -194,6 +194,22 @@ h4 { font-size: 17px; line-height: 1.3; }
   border-color: var(--accent);
 }
 .btn.accent:hover { filter: brightness(.92); }
+/* AI-action buttons — anything that fires off the kitchen AI gets
+   the cool-blue identity so cooks can spot AI affordances at a
+   glance (and so "Polish" the verb doesn't get confused with
+   "Polish" the language). `.btn.ai` is the filled secondary
+   variant; `.btn.ghost.ai` is the tertiary (blue text on
+   transparent) version. */
+.btn.ai {
+  background: var(--accent-cool); color: var(--paper);
+  border-color: var(--accent-cool);
+}
+.btn.ai:hover { filter: brightness(.92); }
+.btn.ghost.ai {
+  background: transparent; color: var(--accent-cool);
+  border-color: transparent;
+}
+.btn.ghost.ai:hover { background: rgba(58, 90, 106, .08); }
 .btn.ghost { border-color: transparent; background: transparent; }
 .btn.ghost:hover { background: var(--paper-2); }
 .btn.icon-only { padding: 8px; }
@@ -3144,4 +3160,75 @@ body.simple-mode .meal-tray { display: none; }
   background: rgba(110,122,58,.1);
   padding: 1px 4px;
   border-radius: 3px;
+}
+
+/* ─── Step photos ─────────────────────────────────────────
+   Per-step photos: small thumbnail in the editor, larger
+   inline display in cook mode, a "view photo" affordance on
+   the recipe page that opens a lightbox.
+   ─────────────────────────────────────────────────────── */
+.step-photo-thumb {
+  position: relative;
+  width: 64px; height: 64px;
+  border-radius: 6px;
+  background: var(--paper-2) center/cover;
+  border: 1px solid var(--rule);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.step-photo-thumb button.remove {
+  position: absolute; top: 2px; right: 2px;
+  width: 20px; height: 20px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.65); color: #fff;
+  border: none; padding: 0;
+  display: grid; place-items: center;
+  cursor: pointer; line-height: 0;
+}
+.step-add-photo {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--ink-3);
+  background: transparent; border: 1px dashed var(--rule);
+  padding: 4px 8px; border-radius: 4px;
+  cursor: pointer;
+}
+.step-add-photo:hover { color: var(--accent-cool); border-color: var(--accent-cool); }
+.cookmode-step-photo {
+  margin: 16px 0 24px;
+  border-radius: 8px;
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  cursor: zoom-in;
+}
+.step-photo-link {
+  display: inline-flex; align-items: center; gap: 3px;
+  color: var(--accent-cool);
+  cursor: pointer;
+  background: transparent; border: none;
+  padding: 0;
+  font-size: inherit; font-family: inherit;
+}
+.step-photo-link:hover { text-decoration: underline; }
+.lightbox {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.88);
+  display: grid; place-items: center;
+  z-index: 9999;
+  padding: 20px;
+  cursor: zoom-out;
+}
+.lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.lightbox .close {
+  position: absolute; top: 16px; right: 16px;
+  background: rgba(255,255,255,.15); color: #fff;
+  border: none; border-radius: 999px;
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  cursor: pointer;
 }

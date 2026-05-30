@@ -391,6 +391,7 @@ function HoursMinutes({ value, onChange }) {
 function StepsEditor({ steps, onChange }) {
   const { t } = useLang();
   const sections = groupBySection(steps, (s) => s.section, "");
+  const [uploadingIdx, setUploadingIdx] = useState(null);
 
   const update = (idx, patch) => {
     const next = [...steps];
@@ -398,6 +399,32 @@ function StepsEditor({ steps, onChange }) {
     onChange(next);
   };
   const remove = (idx) => onChange(steps.filter((_, j) => j !== idx));
+  // Per-step photo upload. Same endpoint as the hero photo. The
+  // response gives us a /api/images/<key> URL that we stash on the
+  // step. Cook mode and the recipe page both render off this field.
+  const uploadStepPhoto = async (stepIdx, file) => {
+    if (!file) return;
+    setUploadingIdx(stepIdx);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/admin/uploads", {
+        method: "POST",
+        credentials: "include",
+        body,
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `Upload failed (${res.status})`);
+      }
+      const { url } = await res.json();
+      update(stepIdx, { photo: url });
+    } catch (err) {
+      alert(err.message || "Photo upload failed");
+    } finally {
+      setUploadingIdx(null);
+    }
+  };
   const renameSection = (oldName, newName) => {
     onChange(steps.map(s => (s.section || "") === oldName ? { ...s, section: newName || null } : s));
   };
@@ -479,6 +506,37 @@ function StepsEditor({ steps, onChange }) {
                   <select value={s.precision || "easy"} onChange={(e) => update(s._idx, { precision: e.target.value })}>
                     {["easy","medium","careful","watch","patient"].map(p => <option key={p}>{p}</option>)}
                   </select>
+                  {s.photo ? (
+                    <div
+                      className="step-photo-thumb"
+                      style={{ backgroundImage: `url(${s.photo})` }}
+                      title="Click to replace; tap × to remove"
+                    >
+                      <button
+                        type="button"
+                        className="remove"
+                        onClick={() => update(s._idx, { photo: null })}
+                        aria-label="Remove photo"
+                      >
+                        <Icon name="x" size={10} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="step-add-photo" title="Snap a photo with your camera or pick from your library">
+                      <Icon name="camera" size={11} />
+                      {uploadingIdx === s._idx ? "Uploading…" : "Add photo"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          uploadStepPhoto(s._idx, e.target.files?.[0]);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
                   <button type="button" className="btn ghost icon-only step-remove" onClick={() => remove(s._idx)} aria-label={t("remove")}>
                     <Icon name="x" size={12} />
                   </button>
@@ -1110,7 +1168,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               {t("nutritionPerServing")}
               <button
                 type="button"
-                className="btn ghost sm"
+                className="btn ghost ai sm"
                 style={{ marginLeft: 8, fontSize: 11 }}
                 onClick={estimateNutrition}
                 disabled={!authEmail || estimatingNutrition || !draft.ingredients?.length}
@@ -1285,7 +1343,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                     />
                   </label>
                   <button
-                    className="btn ghost sm"
+                    className="btn ghost ai sm"
                     style={{ marginLeft: 6 }}
                     onClick={generatePhoto}
                     disabled={!authEmail || generatingPhoto || uploadingPhoto || !draft.title?.trim()}
@@ -1356,7 +1414,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           <div style={{ marginTop: 32, display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
             {editing && authEmail && (
               <button
-                className="btn ghost"
+                className="btn ghost ai"
                 onClick={() => setPolishOpen(true)}
                 disabled={saving}
                 title="Ask the AI to suggest small clean-up edits (review each one before applying)"
