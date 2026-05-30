@@ -212,18 +212,26 @@ function AIAdjustBox({ recipe, scaler, applied, setApplied, authEmail }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Shared: Source link (when a recipe is adapted from somewhere)
+// Shared: Source link (when a recipe is adapted from somewhere).
+// Rendered as a clickable chip below the hero so the text isn't
+// fighting the photo behind it for contrast.
 // ─────────────────────────────────────────────────────────────
 function SourceLink({ recipe }) {
   if (!recipe.link?.url) return null;
+  const title = recipe.link.label
+    ? `${recipe.link.label} (${recipe.link.url})`
+    : recipe.link.url;
   return (
-    <div style={{ marginTop: 8, fontSize: 13, fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)" }}>
-      <Icon name="link" size={11} />{" "}
-      Adapted from{" "}
-      <a href={recipe.link.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "underline" }}>
-        {recipe.link.label || recipe.link.url}
-      </a>
-    </div>
+    <a
+      href={recipe.link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="recipe-tag"
+      title={title}
+      style={{ color: "var(--accent)", textDecoration: "none" }}
+    >
+      <Icon name="link" size={11} /> Original recipe
+    </a>
   );
 }
 
@@ -249,6 +257,7 @@ function TagRow({ recipe, scaled }) {
   const { t, tCourse, tOccasion, tDiet, tDifficulty } = useLang();
   return (
     <div className="tag-row">
+      <SourceLink recipe={recipe} />
       <SourcePhotosReveal recipe={recipe} />
       <OriginBadge origin={recipe.origin} />
       <span className="recipe-tag diff">
@@ -994,7 +1003,6 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
           </div>
           <h1>{recipe.title}</h1>
           <div className="sub">{recipe.subtitle}</div>
-          <SourceLink recipe={recipe} />
 
           {!simpleMode && <TagRow recipe={recipe} scaled={scaled} />}
 
@@ -1082,7 +1090,6 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
             <div className="eyebrow">{tCourse(recipe.course).toUpperCase()} · {recipe.cuisine.toUpperCase()}</div>
             <h1>{recipe.title}</h1>
             <div className="sub">{recipe.subtitle}</div>
-            <SourceLink recipe={recipe} />
             <div className="author-block">
               <div className="av">{recipe.author[0]}</div>
               <div>{t("aRecipeFrom")} <strong style={{ fontWeight: 500 }}>{recipe.author}</strong></div>
@@ -1174,7 +1181,6 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
       <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 18, color: "var(--ink-3)", maxWidth: "44ch" }}>
         {recipe.subtitle}
       </div>
-      <SourceLink recipe={recipe} />
 
       <div className="recipe-meta-line">
         <span><strong>{tCourse(recipe.course)}</strong></span>

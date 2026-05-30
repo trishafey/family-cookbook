@@ -22,6 +22,7 @@ const FEATURE_LABELS = {
   "lab-iterate":    "Lab · iterate",
   "lab-suggest":    "Lab · what to try next",
   "lab-promote":    "Lab · polish for cookbook",
+  "polish-recipe":  "Clean up recipe",
   "nutrition":      "Nutrition estimate",
   "hero-image":     "Generate hero photo",
 };

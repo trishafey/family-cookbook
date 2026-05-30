@@ -10,10 +10,10 @@ import { COUNTRIES } from "./countries.js";
 import { useLang } from "./i18n.js";
 
 // ─────────────────────────────────────────────────────────────
-// AI Polish — per-field diff modal
+// Clean up recipe — per-field diff modal
 // ─────────────────────────────────────────────────────────────
-// Cook clicks "AI Polish" on an edit form. We send the current
-// draft to /api/admin/ai/polish-recipe; the worker returns a
+// Cook clicks "Clean up recipe" on an edit form. We send the
+// current draft to /api/admin/ai/polish-recipe; the worker returns a
 // list of proposals, each touching ONE field. We render them as
 // per-row diffs the cook can accept/discard before applying. The
 // cook is always the author — the AI never silently overwrites.
@@ -97,7 +97,7 @@ function PolishModal({ open, onClose, draft, onApply }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="AI Polish — review proposals"
+      title="Clean up — review proposals"
       subtitle="Each change touches one field. Accept what helps, ignore the rest. The cook is always the author."
       size="lg"
       footer={
@@ -508,8 +508,8 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
   const [generatingPhoto, setGeneratingPhoto] = useState(false);
   const [estimatingNutrition, setEstimatingNutrition] = useState(false);
   const [nutritionError, setNutritionError] = useState(null);
-  // AI Polish modal — only used when editing an existing recipe.
-  // The cook clicks "AI Polish" → the modal fetches per-field
+  // Clean-up modal — only used when editing an existing recipe.
+  // The cook clicks "Clean up recipe" → the modal fetches per-field
   // proposals → the cook accepts/discards → accepted changes are
   // applied to draft (still unsaved until the cook hits Save).
   const [polishOpen, setPolishOpen] = useState(false);
@@ -913,17 +913,6 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               title={t("resetSeedHint")}
             >
               <Icon name="chevL" /> {t("resetSeed")}
-            </button>
-          )}
-          {editing && authEmail && (
-            <button
-              className="btn ghost"
-              onClick={() => setPolishOpen(true)}
-              disabled={saving}
-              style={{ marginRight: 4 }}
-              title="Ask the AI to suggest small polish edits (review each one before applying)"
-            >
-              <Icon name="sparkle" /> AI Polish
             </button>
           )}
           {editing && onDelete && (
@@ -1364,10 +1353,21 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
             </div>
           )}
 
-          <div style={{ marginTop: 32, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <div style={{ marginTop: 32, display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            {editing && authEmail && (
+              <button
+                className="btn ghost"
+                onClick={() => setPolishOpen(true)}
+                disabled={saving}
+                title="Ask the AI to suggest small clean-up edits (review each one before applying)"
+                style={{ marginRight: "auto" }}
+              >
+                <Icon name="sparkle" /> Clean up recipe
+              </button>
+            )}
             <button className="btn" onClick={onClose} disabled={saving}>{t("cancel")}</button>
             <button className="btn primary" onClick={save} disabled={saving || !authEmail}>
-              {saving ? t("saving") : t("saveToCookbook")}
+              {saving ? t("saving") : (editing ? t("saveChanges") : t("saveToCookbook"))}
             </button>
           </div>
         </div>
