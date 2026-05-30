@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Icon, Pill, fmtDuration } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
 import { useLang } from "./i18n.js";
-import { COURSES, OCCASIONS } from "./data.js";
+import { COURSES, OCCASIONS, DIET_ICON } from "./data.js";
 
 export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selectionMode, isFavorite, onToggleFavorite }) {
   const { t, tDiet, tOccasion, tDifficulty } = useLang();
@@ -56,10 +56,14 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
         <div className="tags">
           {recipe.origin && (
             <span className="recipe-tag origin" data-origin={recipe.origin} style={{ fontSize: 10, padding: "3px 8px" }}>
-              <Icon name={recipe.origin === "heirloom" ? "tomato" : recipe.origin === "newToFamily" ? "sprout" : "beaker"} size={10} />
+              <Icon name={recipe.origin === "heirloom" ? "tomato" : recipe.origin === "newToFamily" ? "sprout" : "beaker"} size={13} />
             </span>
           )}
-          {recipe.diet.slice(0, 2).map((d) => <Pill key={d} kind="olive">{tDiet(d)}</Pill>)}
+          {recipe.diet.slice(0, 2).map((d) => (
+            <Pill key={d} kind="olive">
+              {DIET_ICON[d] && <Icon name={DIET_ICON[d]} size={13} />} {tDiet(d)}
+            </Pill>
+          ))}
           <Pill kind="slate">{recipe.cuisine}</Pill>
         </div>
         <div className="footer">

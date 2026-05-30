@@ -325,12 +325,12 @@ function App() {
           <div className="nav-actions">
             {!simpleMode && FLAGS.lab && (
             <button className="btn ghost sm" onClick={() => setView("lab")} title={t("kitchenExp")}>
-              <Icon name="sparkle" size={13} /> <span className="btn-label">{t("theLab")}</span>
+              <Icon name="experiment" size={13} /> <span className="btn-label">{t("theLab")}</span>
             </button>
             )}
             {!simpleMode && (
               <button className="btn ghost sm" onClick={() => setView("meal")} title={t("buildMeal")}>
-                <Icon name="bowl" size={13} /> <span className="btn-label">{t("buildMeal")}</span>
+                <Icon name="build" size={13} /> <span className="btn-label">{t("buildMeal")}</span>
                 {selection.length > 0 && <span style={{ marginLeft: 4, padding: "1px 6px", background: "var(--accent)", color: "var(--paper)", borderRadius: 999, fontSize: 10, fontWeight: 600 }}>{selection.length}</span>}
               </button>
             )}

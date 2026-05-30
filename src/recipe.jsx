@@ -6,6 +6,7 @@ import { Icon, fmtDuration, fmtTime, formatQty, formatIngredientQty, logEvent, s
 import { convertIngredient } from "./units.js";
 import { useLang } from "./i18n.js";
 import { TimeOfDayInput, PrintOnly, Lightbox } from "./ui.jsx";
+import { DIET_ICON } from "./data.js";
 import { NeedHelp } from "./need-help.jsx";
 import { PairingsSection } from "./pairings.jsx";
 import { FLAGS } from "./config/flags.js";
@@ -261,24 +262,29 @@ function TagRow({ recipe, scaled }) {
       <SourcePhotosReveal recipe={recipe} />
       <OriginBadge origin={recipe.origin} />
       <span className="recipe-tag diff">
-        <span className="dot" /> {tDifficulty(recipe.difficulty)}
+        {tDifficulty(recipe.difficulty)}
       </span>
       <span className="recipe-tag time">
-        <Icon name="clock" size={11} /> {fmtDuration(scaled.totalTime)}
+        <Icon name="clock" size={13} /> {fmtDuration(scaled.totalTime)}
       </span>
       <span className="recipe-tag">
-        <span className="dot" style={{ background: "var(--accent-cool)" }} /> {tCourse(recipe.course)}
+        {tCourse(recipe.course)}
       </span>
       <span className="recipe-tag">
-        <span className="dot" style={{ background: "var(--ink-3)" }} /> {recipe.cuisine}
+        {recipe.cuisine}
       </span>
       <span className="recipe-tag">
         <span className="dot" style={{ background: "var(--accent-warm)" }} /> {tOccasion(recipe.occasion)}
       </span>
       {recipe.diet.slice(0, 3).map(d => (
-        <span key={d} className="recipe-tag diet"><span className="dot" /> {tDiet(d)}</span>
+        <span key={d} className="recipe-tag diet">
+          {DIET_ICON[d]
+            ? <Icon name={DIET_ICON[d]} size={13} />
+            : <span className="dot" />}{" "}
+          {tDiet(d)}
+        </span>
       ))}
-      <span className="recipe-tag author">{t("by")} {recipe.author}</span>
+      <span className="recipe-tag author"><Icon name="chef" size={13} /> {t("by")} {recipe.author}</span>
     </div>
   );
 }
@@ -629,7 +635,7 @@ function FamilySaysBlock({ recipe, scaler, applied, setApplied, onSaveRecipe, au
         <div className="icon"><Icon name="sparkle" size={14} /></div>
         <div className="body">
           <div className="label">AI summary · what the family does differently</div>
-          <button className="btn ghost sm" onClick={() => generate(false)} disabled={generating}>
+          <button className="btn ghost sm" onClick={() => generate(false)} disabled={generating} aria-busy={generating}>
             <Icon name="sparkle" size={11} /> {generating ? "Reading the notes…" : "Summarise with AI"}
           </button>
           {error && <div style={{ marginTop: 6, fontSize: 12, color: "#933" }}>{error}</div>}
