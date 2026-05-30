@@ -6,6 +6,7 @@ import { Icon, fmtDuration, fmtTime, formatQty, formatIngredientQty, logEvent, s
 import { convertIngredient } from "./units.js";
 import { useLang } from "./i18n.js";
 import { TimeOfDayInput, PrintOnly, Lightbox } from "./ui.jsx";
+import { DIET_ICON } from "./data.js";
 import { NeedHelp } from "./need-help.jsx";
 import { PairingsSection } from "./pairings.jsx";
 import { FLAGS } from "./config/flags.js";
@@ -276,9 +277,14 @@ function TagRow({ recipe, scaled }) {
         <span className="dot" style={{ background: "var(--accent-warm)" }} /> {tOccasion(recipe.occasion)}
       </span>
       {recipe.diet.slice(0, 3).map(d => (
-        <span key={d} className="recipe-tag diet"><span className="dot" /> {tDiet(d)}</span>
+        <span key={d} className="recipe-tag diet">
+          {DIET_ICON[d]
+            ? <Icon name={DIET_ICON[d]} size={11} />
+            : <span className="dot" />}{" "}
+          {tDiet(d)}
+        </span>
       ))}
-      <span className="recipe-tag author">{t("by")} {recipe.author}</span>
+      <span className="recipe-tag author"><Icon name="chef" size={11} /> {t("by")} {recipe.author}</span>
     </div>
   );
 }

@@ -795,4 +795,23 @@ export const COURSES  = ["Breakfast", "Lunch", "Dinner", "Sides", "Appetizer", "
 // untagged recipes show no badge.
 export const ORIGINS  = ["heirloom", "newToFamily", "lab"];
 export const DIETS    = ["Gluten-free","Dairy-free","Nut-free","Soy-free","Vegan","Vegetarian","Pescatarian","Carnivore","High protein","High fibre","Low carb","Low calorie"];
+
+// Diet → icon name. Keys are the canonical English DIETS values
+// (recipe.diet stores those untranslated; tDiet only translates
+// for display). Falls back to a generic leaf when a diet hasn't
+// been mapped.
+export const DIET_ICON = {
+  "Vegan":         "vegan",
+  "Vegetarian":    "vegetarian",
+  "Pescatarian":   "pescatarian",
+  "Carnivore":     "carnivore",
+  "Gluten-free":   "glutenFree",
+  "Dairy-free":    "dairyFree",
+  "Nut-free":      "nutFree",
+  "Soy-free":      "soyFree",
+  "High protein":  "highProtein",
+  "High fibre":    "highFibre",
+  "Low carb":      "lowCarb",
+  "Low calorie":   "lowCalorie",
+};
 export const OCCASIONS = ["Solo","Family style","Date night"];
