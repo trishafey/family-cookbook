@@ -2775,7 +2775,26 @@ app.get("/recipe/:id", async (c) => {
   });
 });
 
-// Everything else: hand to the static React app.
-app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
+// Everything else: hand to the static React app. If the assets
+// binding returns 404 for a path that looks like a page route
+// (no file extension, or an explicit HTML request), serve
+// index.html so the SPA can resolve the route client-side.
+// This is what makes /add, /edit/:id, /meal, etc. work when
+// accessed directly (in-app navigation already works via
+// pushState; this is the cold-load + sharable-link path).
+app.all("*", async (c) => {
+  const resp = await c.env.ASSETS.fetch(c.req.raw);
+  if (resp.status !== 404) return resp;
+  const url = new URL(c.req.url);
+  const accept = c.req.header("accept") || "";
+  const looksLikeAsset = /\.[a-z0-9]+$/i.test(url.pathname);
+  const wantsHtml = accept.includes("text/html");
+  if (looksLikeAsset && !wantsHtml) return resp;
+  const shell = await c.env.ASSETS.fetch(new Request(new URL("/", c.req.url).toString()));
+  return new Response(shell.body, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+});
 
 export default app;
