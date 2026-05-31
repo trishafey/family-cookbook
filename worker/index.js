@@ -2679,6 +2679,102 @@ app.get("/api/images/:key", async (c) => {
   return new Response(obj.body, { headers });
 });
 
+// ─── Per-recipe Open Graph (shareable previews) ──────────────
+// Intercepts /recipe/:id document requests, fetches the SPA's
+// index.html, and rewrites the static og:* / twitter:* / <title>
+// tags with this recipe's title, subtitle, and hero photo. So
+// when someone pastes the link into iMessage / WhatsApp /
+// Slack / Facebook, the unfurl shows the dish and its name
+// instead of the generic cookbook identity.
+//
+// Crawlers don't run JS — they read the HTML response. The
+// React app still bootstraps normally for human visitors; only
+// the head meta changes.
+//
+// Note: only intercepts HTML requests (Accept: text/html and
+// no .ext on the path). API calls go through their own routes
+// further up.
+function escHtml(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function absoluteImageUrl(photo, requestUrl) {
+  if (!photo) return null;
+  if (/^https?:\/\//i.test(photo)) return photo;
+  const origin = new URL(requestUrl).origin;
+  return photo.startsWith("/") ? `${origin}${photo}` : `${origin}/${photo}`;
+}
+
+function injectRecipeOG(html, { title, description, image, url }) {
+  const t = escHtml(title);
+  const d = escHtml(description);
+  const i = image ? escHtml(image) : null;
+  const u = escHtml(url);
+  let out = html
+    .replace(/<title>[^<]*<\/title>/i, `<title>${t}</title>`)
+    .replace(/<meta\s+name="description"[^>]*>/i, `<meta name="description" content="${d}" />`)
+    .replace(/<meta\s+property="og:title"[^>]*>/i, `<meta property="og:title" content="${t}" />`)
+    .replace(/<meta\s+property="og:description"[^>]*>/i, `<meta property="og:description" content="${d}" />`)
+    .replace(/<meta\s+property="og:url"[^>]*>/i, `<meta property="og:url" content="${u}" />`)
+    .replace(/<meta\s+property="og:type"[^>]*>/i, `<meta property="og:type" content="article" />`)
+    .replace(/<meta\s+name="twitter:title"[^>]*>/i, `<meta name="twitter:title" content="${t}" />`)
+    .replace(/<meta\s+name="twitter:description"[^>]*>/i, `<meta name="twitter:description" content="${d}" />`)
+    .replace(/<meta\s+name="twitter:card"[^>]*>/i, `<meta name="twitter:card" content="summary_large_image" />`);
+  if (i) {
+    out = out
+      .replace(/<meta\s+property="og:image"[^>]*>/i, `<meta property="og:image" content="${i}" />`)
+      .replace(/<meta\s+name="twitter:image"[^>]*>/i, `<meta name="twitter:image" content="${i}" />`);
+  }
+  return out;
+}
+
+app.get("/recipe/:id", async (c) => {
+  // Only intercept if the request looks like a browser asking for
+  // HTML (not e.g. an asset preflight). Hono parses content
+  // negotiation via the Accept header.
+  const accept = c.req.header("accept") || "";
+  if (!accept.includes("text/html")) {
+    return c.env.ASSETS.fetch(c.req.raw);
+  }
+  const id = c.req.param("id");
+  // Fetch the SPA shell first so we can return SOMETHING even
+  // when the recipe lookup fails — better to show generic OG
+  // than to error out the page.
+  const shellResp = await c.env.ASSETS.fetch(new Request(new URL("/", c.req.url).toString()));
+  const html = await shellResp.text();
+  let row = null;
+  try {
+    row = await c.env.DB.prepare("SELECT blob FROM recipes WHERE id = ?").bind(id).first();
+  } catch (err) {
+    console.error("og lookup failed", err);
+  }
+  if (!row) {
+    return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
+  }
+  let recipe;
+  try { recipe = JSON.parse(row.blob); } catch { recipe = null; }
+  if (!recipe) {
+    return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
+  }
+  const title = `${recipe.title} · The Family Cookbook`;
+  const description = recipe.subtitle && recipe.subtitle.trim()
+    ? recipe.subtitle.trim()
+    : `${recipe.author ? `${recipe.author}'s ` : ""}${recipe.title}, from The Family Cookbook.`;
+  const image = absoluteImageUrl(recipe.photo, c.req.url);
+  const url = `${new URL(c.req.url).origin}/recipe/${encodeURIComponent(id)}`;
+  const injected = injectRecipeOG(html, { title, description, image, url });
+  return new Response(injected, {
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      // Crawlers may revisit. Short cache is fine — recipe edits
+      // should reflect within minutes.
+      "cache-control": "public, max-age=300",
+    },
+  });
+});
+
 // Everything else: hand to the static React app.
 app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
