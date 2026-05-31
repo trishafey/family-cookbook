@@ -492,26 +492,28 @@ function PerRecipeView({ rec, onCookMode }) {
   const { recipe, color, schedule, startTime } = rec;
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 32, marginBottom: 32 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 240px) minmax(0, 1fr)", gap: 32, marginBottom: 32 }} className="per-recipe-head">
         <div style={{ aspectRatio: "4/5", backgroundImage: `url(${recipe.photo})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: "var(--radius-lg)" }} />
         <div>
           <div className="eyebrow" style={{ color }}>{recipe.course} · {recipe.cuisine}</div>
           <h2 style={{ margin: "6px 0 10px" }}>{recipe.title}</h2>
           <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)" }}>{recipe.subtitle}</div>
-          <div style={{ marginTop: 16, padding: 14, background: "var(--paper-2)", borderRadius: "var(--radius)", display: "flex", gap: 20 }}>
-            <div>
-              <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Start at</div>
-              <div style={{ fontFamily: "var(--serif)", fontSize: 22, color }}>{fmtTime(startTime)}</div>
+          <div style={{ marginTop: 16, padding: 14, background: "var(--paper-2)", borderRadius: "var(--radius)", display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 200px", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Start at</div>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 22, color }}>{fmtTime(startTime)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Total</div>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 22 }}>{fmtDuration(recipe.total)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Difficulty</div>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 22, fontStyle: "italic" }}>{recipe.difficulty}</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Total</div>
-              <div style={{ fontFamily: "var(--serif)", fontSize: 22 }}>{fmtDuration(recipe.total)}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Difficulty</div>
-              <div style={{ fontFamily: "var(--serif)", fontSize: 22, fontStyle: "italic" }}>{recipe.difficulty}</div>
-            </div>
-            <button className="btn primary" style={{ marginLeft: "auto", alignSelf: "center" }} onClick={() => onCookMode(recipe, recipe.steps, recipe.ingredients)}>
+            <button className="btn primary" style={{ flexShrink: 0 }} onClick={() => onCookMode(recipe, recipe.steps, recipe.ingredients)}>
               <Icon name="play" /> Cook this
             </button>
           </div>

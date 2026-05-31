@@ -3393,3 +3393,15 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
 .recipe-tag svg     { width: 13px; height: 13px; flex-shrink: 0; }
 .filter-pill svg    { width: 14px; height: 14px; flex-shrink: 0; }
 .chip svg           { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* Per-recipe view inside the meal plan page: stack the photo
+   above the content on narrow viewports instead of trying to
+   force a 240px + 1fr grid that crushes the title and stats. */
+@media (max-width: 720px) {
+  .per-recipe-head {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .per-recipe-head > div:first-child {
+    max-width: 240px;
+  }
+}
