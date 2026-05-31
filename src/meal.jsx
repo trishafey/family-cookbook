@@ -52,20 +52,22 @@ export function BuildAMeal({ recipes, selection, clearSelection, toggleSelect, o
               </div>
             ))}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr) auto", gap: 0, marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--rule)", alignItems: "center" }}>
-            <div>
-              <div className="eyebrow">Courses</div>
-              <div style={{ fontFamily: "var(--serif)", fontSize: 26 }}>{selected.length}</div>
+          <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap", marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--rule)" }}>
+            <div style={{ flex: "1 1 240px", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
+              <div>
+                <div className="eyebrow">Courses</div>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 26 }}>{selected.length}</div>
+              </div>
+              <div>
+                <div className="eyebrow">Longest cook</div>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 26 }}>{fmtDuration(totalTime)}</div>
+              </div>
+              <div>
+                <div className="eyebrow">Calories (per pers.)</div>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 26 }}>{totalCal.toLocaleString()}</div>
+              </div>
             </div>
-            <div>
-              <div className="eyebrow">Longest cook</div>
-              <div style={{ fontFamily: "var(--serif)", fontSize: 26 }}>{fmtDuration(totalTime)}</div>
-            </div>
-            <div>
-              <div className="eyebrow">Calories (per pers.)</div>
-              <div style={{ fontFamily: "var(--serif)", fontSize: 26 }}>{totalCal.toLocaleString()}</div>
-            </div>
-            <button className="btn primary lg" onClick={() => onPlanMeal(selected)}>
+            <button className="btn primary lg" onClick={() => onPlanMeal(selected)} style={{ flexShrink: 0 }}>
               <Icon name="clock" /> Plan & cook together →
             </button>
           </div>
