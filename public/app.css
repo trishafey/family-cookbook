@@ -3383,6 +3383,12 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
 .btn.lg svg         { width: 18px; height: 18px; }
 .btn.icon-only svg  { width: 16px; height: 16px; }
 
+/* Top-nav buttons get a slightly bigger glyph than other .btn.sm
+   uses — they're the entry points the cook reaches for most
+   often, and a 14px icon sits visually lighter than the
+   surrounding 16px nav search field. */
+.nav .btn svg       { width: 18px; height: 18px; }
+
 .pill svg           { width: 13px; height: 13px; flex-shrink: 0; }
 .recipe-tag svg     { width: 13px; height: 13px; flex-shrink: 0; }
 .filter-pill svg    { width: 14px; height: 14px; flex-shrink: 0; }

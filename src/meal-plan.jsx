@@ -449,7 +449,7 @@ function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
                     onClick={() => g.items.forEach(it => bumpStep(it.recipe.id, it.si, 5))}
                     aria-label="Shift this time slot 5 minutes later"
                     title="Shift this time slot 5 minutes later"
-                  ><Icon name="plus" size={12} /></button>
+                  ><Icon name="plusBare" size={12} /></button>
                 </span>
               )}
             </div>

@@ -538,6 +538,10 @@ export const Icon = ({ name, size = 18 }) => {
     chevD:     <path d="m6 9 6 6 6-6" />,
     chevU:     <path d="m6 15 6-6 6 6" />,
     minus:     <path d="M5 12h14" />,
+    // Plain plus with no botanical leaf — for utility +/- pairs
+    // (increment / decrement controls) where the decorative
+    // `plus` icon's leaf reads as visual noise.
+    plusBare:  <path d="M12 5v14M5 12h14" />,
     play:      <path d="M7 5v14l12-7L7 5Z" />,
     copy:      <path d="M9 9h11v11H9zM5 5h11v3M5 15V5" />,
     download:  <path d="M12 4v12m0 0-5-5m5 5 5-5M4 21h16" />,

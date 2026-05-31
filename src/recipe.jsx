@@ -341,7 +341,7 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
               {currentServings}
             </span>
             <button onClick={() => bumpServings(1)} aria-label="More servings">
-              <Icon name="plus" size={13} />
+              <Icon name="plusBare" size={13} />
             </button>
           </div>
         </div>
@@ -435,7 +435,7 @@ function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
                         className="qty-bump"
                         onClick={(e) => { e.preventDefault(); scaler.setWeight(+(scaler.weight + 0.5).toFixed(1)); }}
                         aria-label={`Increase ${recipe.weightUnit || "lb"}`}
-                      ><Icon name="plus" size={11} /></button>
+                      ><Icon name="plusBare" size={11} /></button>
                     )}
                   </span>
                   <span className="item">{i.item}</span>
@@ -548,7 +548,7 @@ function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
                             onClick={() => bumpStepStart(i, +5)}
                             aria-label={t("startMinLater")}
                             title={t("startMinLater")}
-                          ><Icon name="plus" size={11} /></button>
+                          ><Icon name="plusBare" size={11} /></button>
                         </span>
                       )}
                     </span>

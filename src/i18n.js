@@ -179,7 +179,7 @@ const S = {
   editToShift:    { en: "Edit to shift the rest of the timeline", pl: "Edytuj, aby przesunąć resztę harmonogramu" },
   reset:          { en: "Reset",              pl: "Resetuj" },
   resetAllAdjustments: { en: "Reset all timing adjustments?", pl: "Zresetować wszystkie korekty czasu?" },
-  complete:       { en: "complete · press",   pl: "ukończonych · naciśnij" },
+  complete:       { en: "complete",            pl: "ukończonych" },
   toMarkAsDone:   { en: "to mark as done",    pl: "aby oznaczyć jako gotowe" },
 
   // ─── Shopping list ───
