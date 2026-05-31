@@ -64,6 +64,7 @@ const S = {
   shoppingList:   { en: "Shopping list",      pl: "Lista zakupów" },
   addToShoppingList: { en: "Add to shopping list", pl: "Dodaj do listy zakupów" },
   print:          { en: "Print",              pl: "Drukuj" },
+  shareRecipe:    { en: "Share",              pl: "Udostępnij" },
   pdf:            { en: "PDF",                pl: "PDF" },
   edit:           { en: "Edit",               pl: "Edytuj" },
   delete:         { en: "Delete",             pl: "Usuń" },

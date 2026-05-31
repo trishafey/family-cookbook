@@ -244,6 +244,36 @@ function SourceLink({ recipe }) {
 // page so the badge is recognisable everywhere.
 const ORIGIN_ICONS = { heirloom: "tomato", newToFamily: "sprout", lab: "beaker" };
 
+// Share via the platform share sheet on mobile (Web Share API) and
+// fall back to copying the link on desktop. The URL is the routed
+// /recipe/:id path so the recipient lands directly on this page.
+async function shareRecipe(recipe) {
+  const url = `${window.location.origin}/recipe/${encodeURIComponent(recipe.id)}`;
+  const data = {
+    title: recipe.title,
+    text: recipe.subtitle || `${recipe.title} — from the family cookbook`,
+    url,
+  };
+  try {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      await navigator.share(data);
+      return;
+    }
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(url);
+      alert("Link copied to clipboard.");
+      return;
+    }
+    window.prompt("Copy this link:", url);
+  } catch (err) {
+    // User cancelled the share sheet, or the API rejected — both
+    // are non-errors from the cook's POV.
+    if (err && err.name !== "AbortError") {
+      console.error("share failed", err);
+    }
+  }
+}
+
 function OriginBadge({ origin, size = 11 }) {
   const { tOrigin } = useLang();
   if (!origin || !ORIGIN_ICONS[origin]) return null;
@@ -1022,6 +1052,9 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
             </button>
             <button className="btn ghost" onClick={() => window.print()}>
               <Icon name="print" /> {t("print")}
+            </button>
+            <button className="btn ghost" onClick={() => shareRecipe(recipe)}>
+              <Icon name="share" /> {t("shareRecipe")}
             </button>
             <button className="btn ghost" onClick={() => alert("PDF export — coming soon.")}>
               <Icon name="download" /> {t("pdf")}

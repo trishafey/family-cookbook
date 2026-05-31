@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRecipes, useAuth, useFavorites, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary } from "./helpers.jsx";
+import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary } from "./helpers.jsx";
 import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
@@ -25,9 +25,18 @@ function App() {
   // outlive the browser session, which is undesirable here — we don't
   // want to drop returning visitors straight into the last recipe
   // they opened days ago.
-  const [view, setView] = useStorage("nav:view", "browse");
-  const [recipeId, setRecipeId] = useStorage("nav:recipeId", null);
-  const [editingId, setEditingId] = useStorage("nav:editingId", null);
+  // URL-backed routing — view + recipeId + editingId are derived
+  // from window.location so the browser back button works and
+  // every recipe is a shareable link. The setView / setRecipeId /
+  // setEditingId helpers below preserve the existing call-site
+  // API so the rest of this file is unchanged.
+  const [route, setRoute] = useRouting();
+  const view = route.view;
+  const recipeId = route.recipeId;
+  const editingId = route.editingId;
+  const setView = (newView) => setRoute(s => ({ ...s, view: newView }));
+  const setRecipeId = (id) => setRoute(s => ({ ...s, recipeId: id }));
+  const setEditingId = (id) => setRoute(s => ({ ...s, editingId: id }));
 
   // ─── Recipe collection ───
   // Server-of-record is the D1 cookbook via /api/recipes; useRecipes caches
@@ -226,11 +235,15 @@ function App() {
       const { error } = await res.json().catch(() => ({}));
       throw new Error(error || `Save failed (${res.status})`);
     }
+    // Server returns the final id after slug-collision handling
+    // (e.g. a second "Apple Pie" lands at apple-pie-2). Use that
+    // when navigating so the URL matches what was actually stored.
+    const result = await res.json().catch(() => ({}));
+    const savedId = result?.id || draft.id;
     if (isLegacy) setExtraRecipes(arr => arr.filter(x => x.id !== draft.id));
     await refreshRecipes();
-    setView("recipe");
-    setRecipeId(draft.id);
-    setEditingId(null);
+    setRoute({ view: "recipe", recipeId: savedId, editingId: null });
+    return savedId;
   };
 
   const onEditRecipe = (r) => {

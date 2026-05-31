@@ -2,7 +2,7 @@
 // AI extraction is mocked: paste text, hit "extract", a stub parses into fields.
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Icon, logEvent, signInUrl } from "./helpers.jsx";
+import { Icon, logEvent, signInUrl, slugify } from "./helpers.jsx";
 import { Modal } from "./ui.jsx";
 import { FLAGS } from "./config/flags.js";
 import { COURSES, OCCASIONS, DIETS, ORIGINS, RECIPES as SEED_RECIPES } from "./data.js";
@@ -903,12 +903,23 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     const out = { ...draft, total: draft.total || (draft.prep + draft.cook) };
     out.steps = groupStepsBySection(out.steps);
     if (!out.link?.url) delete out.link;
+    // For new recipes, derive a slug ID from the title so the URL
+    // reads as /recipe/babcia-apple-pie instead of /recipe/recipe-1740…
+    // Existing recipes keep their id — any shared URLs to them
+    // stay valid. Worker handles collisions by appending -2, -3, etc.
+    if (!editing) {
+      const slug = slugify(draft.title);
+      if (slug) out.id = slug;
+    }
     setSaveError(null);
     setSaving(true);
     try {
-      await onSave(out);
-      // Log only when this is a fresh add, not an edit of an existing recipe.
-      if (!initialRecipe) logEvent("add-recipe", out.id, { method: addMethod || "manual" });
+      const savedOut = await onSave(out);
+      // savedOut is the id the server actually persisted (may have
+      // had a -2 suffix added on collision). Fall back to out.id
+      // if onSave doesn't return.
+      const savedId = (typeof savedOut === "string" && savedOut) || out.id;
+      if (!initialRecipe) logEvent("add-recipe", savedId, { method: addMethod || "manual" });
       onClose();
     } catch (err) {
       setSaveError(err.message || "Save failed");

@@ -386,6 +386,93 @@ export function signInUrl(returnTo) {
 // Cloudflare Access's built-in logout URL — clears the session cookie.
 export const SIGN_OUT_URL = "/cdn-cgi/access/logout";
 
+// ─── URL routing ─────────────────────────────────────────────
+// Backs view + recipeId + editingId with the browser URL so the
+// back button works and any recipe page is a shareable link.
+// Maintains the existing setView / setRecipeId / setEditingId
+// call sites — the seam is just a different state source.
+//
+// To add a new route: extend parsePath + buildPath. Everything
+// else (history pushing, popstate handling, initial hydration)
+// works for free.
+function parsePath(p) {
+  if (!p || p === "/") return { view: "browse", recipeId: null, editingId: null };
+  const recipe = p.match(/^\/recipe\/([^\/]+)\/?$/);
+  if (recipe) return { view: "recipe", recipeId: decodeURIComponent(recipe[1]), editingId: null };
+  const edit = p.match(/^\/edit\/([^\/]+)\/?$/);
+  if (edit) return { view: "edit", recipeId: null, editingId: decodeURIComponent(edit[1]) };
+  if (p === "/add" || p === "/add/") return { view: "add", recipeId: null, editingId: null };
+  if (p === "/meal" || p === "/meal/") return { view: "meal", recipeId: null, editingId: null };
+  if (p === "/meal-plan" || p === "/meal-plan/") return { view: "meal-plan", recipeId: null, editingId: null };
+  if (p === "/lab" || p === "/lab/") return { view: "lab", recipeId: null, editingId: null };
+  if (p === "/admin/ai-usage" || p === "/admin/ai-usage/") return { view: "admin-ai-usage", recipeId: null, editingId: null };
+  // Unknown path → fall back to browse instead of 404ing the SPA.
+  return { view: "browse", recipeId: null, editingId: null };
+}
+
+function buildPath({ view, recipeId, editingId }) {
+  switch (view) {
+    case "recipe":          return recipeId ? `/recipe/${encodeURIComponent(recipeId)}` : "/";
+    case "edit":            return editingId ? `/edit/${encodeURIComponent(editingId)}` : "/";
+    case "add":             return "/add";
+    case "meal":            return "/meal";
+    case "meal-plan":       return "/meal-plan";
+    case "lab":             return "/lab";
+    case "admin-ai-usage":  return "/admin/ai-usage";
+    case "browse":
+    default:                return "/";
+  }
+}
+
+export function useRouting() {
+  const [route, setRoute] = useState(() =>
+    typeof window === "undefined" ? { view: "browse", recipeId: null, editingId: null } : parsePath(window.location.pathname)
+  );
+  // Skip the push effect once when state updates *because of* a
+  // popstate event — otherwise we'd push a duplicate entry every
+  // time the user hits back.
+  const skipNextPush = useRef(false);
+
+  useEffect(() => {
+    const onPop = () => {
+      skipNextPush.current = true;
+      setRoute(parsePath(window.location.pathname));
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  useEffect(() => {
+    if (skipNextPush.current) { skipNextPush.current = false; return; }
+    const target = buildPath(route);
+    if (target !== window.location.pathname) {
+      window.history.pushState({}, "", target);
+    }
+  }, [route.view, route.recipeId, route.editingId]);
+
+  return [route, setRoute];
+}
+
+// ─── Slug helper ─────────────────────────────────────────────
+// Turn a recipe title into a clean URL-safe ID. Strips accents,
+// lowercases, hyphenates whitespace, drops punctuation. Caps at
+// 64 chars so the URL stays manageable. The server appends a
+// numeric suffix on collision so two "Apple Pie"s coexist as
+// /recipe/apple-pie and /recipe/apple-pie-2.
+export function slugify(s) {
+  return (s || "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 64);
+}
+
 // Best-effort behavioural event log. Fire-and-forget — failures
 // (offline, anonymous user, 500) are swallowed so analytics never
 // breaks the surface that triggered them.

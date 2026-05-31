@@ -11,6 +11,23 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="theme-color" content="#f6efe4" />
 
+<!-- Open Graph defaults for shared links. Until per-recipe SSR
+     lands, every shared URL unfurls with the cookbook-level
+     identity. Per-recipe OG can be a follow-on Worker change
+     that intercepts /recipe/:id, looks up the title + photo,
+     and injects the appropriate meta tags. -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="The Family Cookbook" />
+<meta property="og:title" content="The Family Cookbook" />
+<meta property="og:description" content="A family recipe cookbook — heirloom recipes, new additions, and everything in between." />
+<meta property="og:image" content="https://heirloomcookbook.net/images/heirloom-tomato-app.png" />
+<meta property="og:url" content="https://heirloomcookbook.net/" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="The Family Cookbook" />
+<meta name="twitter:description" content="A family recipe cookbook — heirloom recipes, new additions, and everything in between." />
+<meta name="twitter:image" content="https://heirloomcookbook.net/images/heirloom-tomato-app.png" />
+<meta name="description" content="A family recipe cookbook — heirloom recipes, new additions, and everything in between." />
+
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,0..100;1,9..144,300..900,0..100&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />

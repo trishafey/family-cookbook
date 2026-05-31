@@ -622,34 +622,51 @@ app.post("/api/admin/recipes", async (c) => {
   }
 
   const now = Date.now();
-  try {
-    await c.env.DB.prepare(
-      `INSERT INTO recipes
-         (id, title, subtitle, author, cuisine, course, photo, blob, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(
-      draft.id,
-      draft.title,
-      draft.subtitle ?? null,
-      draft.author ?? null,
-      draft.cuisine ?? null,
-      draft.course ?? null,
-      draft.photo ?? null,
-      JSON.stringify(draft),
-      email,
-      now,
-      now
-    ).run();
-  } catch (err) {
-    // Most common cause: PRIMARY KEY conflict (someone reused an id).
-    return c.json({ error: String(err.message || err) }, 409);
+  // Collision-retry: if the caller's id is taken, append -2 / -3 /
+  // … until one works. Keeps URLs readable when two recipes share
+  // a title ("Apple Pie" → /recipe/apple-pie, /recipe/apple-pie-2).
+  // Cap attempts so a buggy client can't hammer the DB forever.
+  const baseId = draft.id;
+  let finalId = baseId;
+  let attempt = 0;
+  while (attempt < 25) {
+    const tryId = attempt === 0 ? baseId : `${baseId}-${attempt + 1}`;
+    const finalDraft = { ...draft, id: tryId };
+    try {
+      await c.env.DB.prepare(
+        `INSERT INTO recipes
+           (id, title, subtitle, author, cuisine, course, photo, blob, created_by, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        finalDraft.id,
+        finalDraft.title,
+        finalDraft.subtitle ?? null,
+        finalDraft.author ?? null,
+        finalDraft.cuisine ?? null,
+        finalDraft.course ?? null,
+        finalDraft.photo ?? null,
+        JSON.stringify(finalDraft),
+        email,
+        now,
+        now
+      ).run();
+      finalId = tryId;
+      // Fire-and-forget translation. Cook doesn't wait for it;
+      // the next /api/recipes refresh after a few seconds will include it.
+      c.executionCtx.waitUntil(translateAndStore(c.env, finalId, finalDraft, "en", "pl"));
+      return c.json({ ok: true, id: finalId });
+    } catch (err) {
+      const msg = String(err?.message || err);
+      // SQLite uniqueness violation phrasing — fall through to retry.
+      if (/UNIQUE constraint|already exists|PRIMARY KEY/i.test(msg)) {
+        attempt++;
+        continue;
+      }
+      // Anything else is a real error.
+      return c.json({ error: msg }, 500);
+    }
   }
-
-  // Fire-and-forget translation to Polish. The cook doesn't wait for it;
-  // the next /api/recipes refresh after a few seconds will include it.
-  c.executionCtx.waitUntil(translateAndStore(c.env, draft.id, draft, "en", "pl"));
-
-  return c.json({ ok: true, id: draft.id });
+  return c.json({ error: "Too many slug collisions — please rename the recipe." }, 409);
 });
 
 // Update an existing recipe. Partial updates allowed — anything not in
