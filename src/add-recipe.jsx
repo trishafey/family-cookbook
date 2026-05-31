@@ -543,7 +543,7 @@ function StepsEditor({ steps, onChange }) {
               </div>
             </div>
           ))}
-          <button type="button" className="btn ghost sm" onClick={() => addStepTo(sec.name)}>
+          <button type="button" className="btn add-section-btn" onClick={() => addStepTo(sec.name)}>
             <Icon name="plus" size={14} /> {t("addStep")}
           </button>
         </div>

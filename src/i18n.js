@@ -350,7 +350,6 @@ const S = {
   // Shopping list
   toBuyShort:     { en: "to buy",             pl: "do kupienia" },
   onHand:         { en: "on hand",            pl: "na półce" },
-  tapToMark:      { en: "Tap to mark what's already in your pantry.", pl: "Dotknij, aby oznaczyć, co już masz w spiżarni." },
   copyNeeded:     { en: "Copy needed",        pl: "Skopiuj do kupienia" },
   download:       { en: "Download",           pl: "Pobierz" },
   done:           { en: "Done",               pl: "Gotowe" },

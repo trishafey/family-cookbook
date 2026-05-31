@@ -77,17 +77,12 @@ export function ShoppingList({ open, onClose, payload }) {
       }
       size="lg"
       footer={
-        <>
-          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-            {t("tapToMark")}
-          </span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn ghost sm" onClick={copyList}><Icon name="copy" size={15} /> {t("copyNeeded")}</button>
+        <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+          <button className="btn ghost sm" onClick={copyList}><Icon name="copy" size={15} /> {t("copyNeeded")}</button>
             <button className="btn ghost sm" onClick={downloadList}><Icon name="download" size={15} /> {t("download")}</button>
             <button className="btn sm" onClick={printList}><Icon name="print" size={15} /> {t("print")}</button>
             <button className="btn primary sm" onClick={onClose}>{t("done")}</button>
-          </div>
-        </>
+        </div>
       }
     >
       <div className="shop-list">

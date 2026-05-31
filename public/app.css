@@ -3432,3 +3432,15 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
   }
   .per-recipe-stats .stat-val { font-size: 18px; }
 }
+
+/* iOS Safari auto-zooms whenever a form control has font-size
+   under 16px. The zoom-out gesture after every step (typing in
+   a step body, an ingredient, a nutrition value, …) is
+   relentless on touch devices. Bump every form control to at
+   least 16px on coarse-pointer devices to suppress the zoom;
+   desktop (fine pointer) keeps the existing inherited sizes. */
+@media (pointer: coarse) {
+  input, textarea, select {
+    font-size: max(16px, 1em);
+  }
+}
