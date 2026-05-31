@@ -498,22 +498,22 @@ function PerRecipeView({ rec, onCookMode }) {
           <div className="eyebrow" style={{ color }}>{recipe.course} · {recipe.cuisine}</div>
           <h2 style={{ margin: "6px 0 10px" }}>{recipe.title}</h2>
           <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)" }}>{recipe.subtitle}</div>
-          <div style={{ marginTop: 16, padding: 14, background: "var(--paper-2)", borderRadius: "var(--radius)", display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ flex: "1 1 200px", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16 }}>
+          <div className="per-recipe-stats" style={{ marginTop: 16, padding: 14, background: "var(--paper-2)", borderRadius: "var(--radius)" }}>
+            <div className="stats-grid">
               <div>
                 <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Start at</div>
-                <div style={{ fontFamily: "var(--serif)", fontSize: 22, color }}>{fmtTime(startTime)}</div>
+                <div className="stat-val" style={{ fontFamily: "var(--serif)", color }}>{fmtTime(startTime)}</div>
               </div>
               <div>
                 <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Total</div>
-                <div style={{ fontFamily: "var(--serif)", fontSize: 22 }}>{fmtDuration(recipe.total)}</div>
+                <div className="stat-val" style={{ fontFamily: "var(--serif)" }}>{fmtDuration(recipe.total)}</div>
               </div>
               <div>
                 <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Difficulty</div>
-                <div style={{ fontFamily: "var(--serif)", fontSize: 22, fontStyle: "italic" }}>{recipe.difficulty}</div>
+                <div className="stat-val" style={{ fontFamily: "var(--serif)", fontStyle: "italic" }}>{recipe.difficulty}</div>
               </div>
             </div>
-            <button className="btn primary" style={{ flexShrink: 0 }} onClick={() => onCookMode(recipe, recipe.steps, recipe.ingredients)}>
+            <button className="btn primary cook-btn" onClick={() => onCookMode(recipe, recipe.steps, recipe.ingredients)}>
               <Icon name="play" /> Cook this
             </button>
           </div>

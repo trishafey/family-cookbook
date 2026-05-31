@@ -25,6 +25,7 @@ const FEATURE_LABELS = {
   "polish-recipe":  "Clean up recipe",
   "nutrition":      "Nutrition estimate",
   "hero-image":     "Generate hero photo",
+  "translate":      "Translation (EN→PL)",
 };
 
 const ADD_METHOD_LABELS = {

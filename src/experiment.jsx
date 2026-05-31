@@ -611,7 +611,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
           {latestDraft && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
-                className="btn ghost sm"
+                className="btn ghost ai sm"
                 onClick={suggestNext}
                 disabled={suggesting || !authEmail}
                 aria-busy={suggesting}
@@ -620,7 +620,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
                 <Icon name="sparkle" size={13} /> {suggesting ? "Thinking…" : "What to try next"}
               </button>
               <button
-                className="btn ghost sm"
+                className="btn ghost ai sm"
                 onClick={polishForCookbook}
                 disabled={polishing || !authEmail}
                 aria-busy={polishing}

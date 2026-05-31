@@ -816,7 +816,7 @@ function PairingSuggestionModal({ suggestion, forRecipe, onClose, onSaveRecipe, 
             <div style={{ display: "flex", gap: 8 }}>
               {!made ? (
                 <>
-                  <button className="btn ghost" onClick={sendToLab}>
+                  <button className="btn ghost ai" onClick={sendToLab}>
                     <Icon name="sparkle" size={14} /> Send to The Lab
                   </button>
                   <button className="btn primary" onClick={() => setMade(true)}>
@@ -825,7 +825,7 @@ function PairingSuggestionModal({ suggestion, forRecipe, onClose, onSaveRecipe, 
                 </>
               ) : (
                 <>
-                  <button className="btn ghost" onClick={sendToLab}>
+                  <button className="btn ghost ai" onClick={sendToLab}>
                     <Icon name="sparkle" size={14} /> Send to The Lab
                   </button>
                   <button className="btn" onClick={onClose}>Not worthy</button>

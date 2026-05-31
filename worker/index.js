@@ -158,19 +158,25 @@ function authedEmail(c) {
 // PII note: `user_email` is logged because the family cookbook
 // is family-scoped (≤ 5 users). If this ever broadens past
 // family, swap to a hashed identifier.
-function logAiEvent(c, feature, recipeId, meta, ok = true) {
-  const email = authedEmail(c);
-  if (!email) return;
+// Low-level insert into ai_events. Used directly when there's no
+// Hono context to read the email from (background tasks like
+// translateAndStore that run after a save returns). Returns a
+// promise so callers can pass it to waitUntil.
+function recordAiEvent(env, email, feature, recipeId, meta, ok = true) {
+  if (!email) return Promise.resolve();
   const created = new Date().toISOString();
   const metaStr = meta ? JSON.stringify(meta) : null;
-  c.executionCtx.waitUntil(
-    c.env.DB.prepare(
-      "INSERT INTO ai_events (created_at, user_email, feature, recipe_id, ok, meta) VALUES (?, ?, ?, ?, ?, ?)"
-    )
-      .bind(created, email, feature, recipeId || null, ok ? 1 : 0, metaStr)
-      .run()
-      .catch((err) => console.error("ai_events insert failed", err))
-  );
+  return env.DB.prepare(
+    "INSERT INTO ai_events (created_at, user_email, feature, recipe_id, ok, meta) VALUES (?, ?, ?, ?, ?, ?)"
+  )
+    .bind(created, email, feature, recipeId || null, ok ? 1 : 0, metaStr)
+    .run()
+    .catch((err) => console.error("ai_events insert failed", err));
+}
+
+function logAiEvent(c, feature, recipeId, meta, ok = true) {
+  const email = authedEmail(c);
+  c.executionCtx.waitUntil(recordAiEvent(c.env, email, feature, recipeId, meta, ok));
 }
 
 // Pull model name + token usage out of an OpenAI response so the
@@ -509,7 +515,7 @@ const AI_TRANSLATE_SCHEMA = {
 
 const LANG_NAME = { en: "English", pl: "Polish" };
 
-async function translateAndStore(env, recipeId, recipe, fromLang, toLang) {
+async function translateAndStore(env, recipeId, recipe, fromLang, toLang, savedBy = null) {
   if (!env.OPENAI_API_KEY || fromLang === toLang) return;
 
   // Strip down the input so the model only sees what it needs to translate.
@@ -542,6 +548,9 @@ async function translateAndStore(env, recipeId, recipe, fromLang, toLang) {
 
   if (!openaiRes.ok) {
     console.error("translate failed", openaiRes.status, await openaiRes.text());
+    if (savedBy) {
+      await recordAiEvent(env, savedBy, "translate", recipeId, { fromLang, toLang, status: openaiRes.status }, false);
+    }
     return;
   }
 
@@ -552,6 +561,17 @@ async function translateAndStore(env, recipeId, recipe, fromLang, toLang) {
   let parsed;
   try { parsed = JSON.parse(content); }
   catch { console.error("translate returned malformed JSON"); return; }
+
+  // Log the successful translate to ai_events. Background task,
+  // so we use recordAiEvent directly (no Hono context here) and
+  // bill the savedBy email — the cook who triggered the save.
+  if (savedBy) {
+    await recordAiEvent(env, savedBy, "translate", recipeId, {
+      ...aiTokens(result),
+      fromLang,
+      toLang,
+    });
+  }
 
   // Merge into the existing translations blob — a recipe might have
   // a Polish translation already and we don't want to clobber it
@@ -582,6 +602,99 @@ async function translateAndStore(env, recipeId, recipe, fromLang, toLang) {
 // translation in parallel via waitUntil so the response returns fast,
 // and the family sees the new translations within ~10 seconds on
 // the next refresh.
+// Slugify mirror of the client helper (src/helpers.jsx). Kept
+// in sync by convention — both should produce identical output
+// so a title slugged on the client and on the server collide
+// the same way.
+function workerSlugify(s) {
+  return (s || "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 64);
+}
+
+// One-shot migration: re-slug any recipes whose id looks like a
+// timestamp (recipe-1740…) to a title-based slug. Owner-only.
+// Use ?dry=1 to preview the plan before executing.
+//
+// Caveat: re-slugging changes recipes.id, which is the PK. Any
+// link previously shared to /recipe/<old-id> will stop resolving.
+// That's intentional — the cost of cleaner URLs going forward.
+app.post("/api/admin/migrate/reslug", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!ADMIN_EMAILS.includes(email)) return c.json({ error: "owner only" }, 403);
+
+  const dry = c.req.query("dry") === "1";
+
+  const { results: rows } = await c.env.DB.prepare(
+    "SELECT id, title FROM recipes"
+  ).all();
+
+  // Only re-slug ids that look like the old timestamp scheme.
+  // Anything matching a real slug (kebab-case, no leading "recipe-")
+  // is already fine and gets left alone.
+  const TIMESTAMP_ID = /^recipe-\d+$/;
+
+  const usedIds = new Set(rows.map(r => r.id));
+  const plan = [];
+
+  for (const row of rows) {
+    if (!TIMESTAMP_ID.test(row.id)) continue;
+    const base = workerSlugify(row.title);
+    if (!base) { plan.push({ from: row.id, to: null, reason: "empty slug" }); continue; }
+    let candidate = base;
+    let attempt = 2;
+    while (usedIds.has(candidate)) {
+      candidate = `${base}-${attempt++}`;
+    }
+    usedIds.add(candidate);
+    plan.push({ from: row.id, to: candidate });
+  }
+
+  if (dry) {
+    return c.json({ dryRun: true, total: plan.length, plan });
+  }
+
+  let executed = 0;
+  const errors = [];
+  for (const item of plan) {
+    if (!item.to) continue;
+    try {
+      const row = await c.env.DB.prepare("SELECT blob FROM recipes WHERE id = ?").bind(item.from).first();
+      if (!row?.blob) continue;
+      const blob = JSON.parse(row.blob);
+      blob.id = item.to;
+      // Update the recipe row first. FKs in this schema don't have
+      // ON UPDATE CASCADE, so we follow up with manual updates to
+      // every child table that references recipe_id.
+      await c.env.DB.prepare("UPDATE recipes SET id = ?, blob = ? WHERE id = ?")
+        .bind(item.to, JSON.stringify(blob), item.from)
+        .run();
+      await c.env.DB.prepare("UPDATE comments SET recipe_id = ? WHERE recipe_id = ?")
+        .bind(item.to, item.from).run();
+      await c.env.DB.prepare("UPDATE favorites SET recipe_id = ? WHERE recipe_id = ?")
+        .bind(item.to, item.from).run().catch(() => {});
+      await c.env.DB.prepare("UPDATE ai_events SET recipe_id = ? WHERE recipe_id = ?")
+        .bind(item.to, item.from).run().catch(() => {});
+      await c.env.DB.prepare("UPDATE user_events SET recipe_id = ? WHERE recipe_id = ?")
+        .bind(item.to, item.from).run().catch(() => {});
+      executed++;
+    } catch (err) {
+      errors.push({ from: item.from, to: item.to, error: String(err?.message || err) });
+    }
+  }
+
+  return c.json({ dryRun: false, total: plan.length, executed, errors });
+});
+
 app.get("/api/admin/translate-missing", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
@@ -599,7 +712,7 @@ app.get("/api/admin/translate-missing", async (c) => {
     const existing = row.translations ? JSON.parse(row.translations) : {};
     if (existing.pl) { skipped.push(row.id); continue; }
     const recipe = JSON.parse(row.blob);
-    c.executionCtx.waitUntil(translateAndStore(c.env, row.id, recipe, "en", "pl"));
+    c.executionCtx.waitUntil(translateAndStore(c.env, row.id, recipe, "en", "pl", email));
     queued.push(row.id);
   }
 
@@ -653,7 +766,7 @@ app.post("/api/admin/recipes", async (c) => {
       finalId = tryId;
       // Fire-and-forget translation. Cook doesn't wait for it;
       // the next /api/recipes refresh after a few seconds will include it.
-      c.executionCtx.waitUntil(translateAndStore(c.env, finalId, finalDraft, "en", "pl"));
+      c.executionCtx.waitUntil(translateAndStore(c.env, finalId, finalDraft, "en", "pl", email));
       return c.json({ ok: true, id: finalId });
     } catch (err) {
       const msg = String(err?.message || err);
@@ -722,7 +835,7 @@ app.patch("/api/admin/recipes/:id", async (c) => {
       now,
       id
     ).run();
-    c.executionCtx.waitUntil(translateAndStore(c.env, id, merged, "en", "pl"));
+    c.executionCtx.waitUntil(translateAndStore(c.env, id, merged, "en", "pl", email));
   } else {
     await c.env.DB.prepare(
       `UPDATE recipes
@@ -783,7 +896,7 @@ app.post("/api/admin/recipes/:id/reset-from-seed", async (c) => {
     id,
   ).run();
 
-  c.executionCtx.waitUntil(translateAndStore(c.env, id, seed, "en", "pl"));
+  c.executionCtx.waitUntil(translateAndStore(c.env, id, seed, "en", "pl", email));
 
   return c.json({ ok: true, id });
 });

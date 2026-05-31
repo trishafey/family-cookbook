@@ -3396,7 +3396,26 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
 
 /* Per-recipe view inside the meal plan page: stack the photo
    above the content on narrow viewports instead of trying to
-   force a 240px + 1fr grid that crushes the title and stats. */
+   force a 240px + 1fr grid that crushes the title and stats.
+   Inside the content, the stats card lays out as a 2-column
+   grid (stats group + Cook this button) on desktop and stacks
+   to a single column on narrow screens. The stat values are
+   sized down a touch on mobile so "3h 30m" doesn't wrap. */
+.per-recipe-stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+}
+.per-recipe-stats .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  min-width: 0;
+}
+.per-recipe-stats .stat-val { font-size: 22px; line-height: 1.1; }
+.per-recipe-stats .cook-btn { justify-self: end; }
+
 @media (max-width: 720px) {
   .per-recipe-head {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -3404,4 +3423,12 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
   .per-recipe-head > div:first-child {
     max-width: 240px;
   }
+  .per-recipe-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .per-recipe-stats .cook-btn {
+    justify-self: stretch;
+    justify-content: center;
+  }
+  .per-recipe-stats .stat-val { font-size: 18px; }
 }
