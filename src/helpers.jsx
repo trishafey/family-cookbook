@@ -447,7 +447,7 @@ export function applyFilters(recipes, { q, courses, diets, occasions, authors, c
 }
 
 // ───── Icons ─────
-export const Icon = ({ name, size = 16 }) => {
+export const Icon = ({ name, size = 18 }) => {
   // Botanical icon set. Stroke-width 1.2 for a finer, more
   // illustrative line than the previous 1.7. Some glyphs embed
   // animation hook classes (.nod, .sweep, .vine, .bloom, .grow,
@@ -577,7 +577,7 @@ export const Icon = ({ name, size = 16 }) => {
 export const Pill = ({ children, kind = "", onClick, removable }) => (
   <span className={`pill ${kind}`} onClick={onClick}>
     {children}
-    {removable && <span className="x" onClick={onClick}><Icon name="x" size={10} /></span>}
+    {removable && <span className="x" onClick={onClick}><Icon name="x" size={12} /></span>}
   </span>
 );
 

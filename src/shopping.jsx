@@ -82,9 +82,9 @@ export function ShoppingList({ open, onClose, payload }) {
             {t("tapToMark")}
           </span>
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn ghost sm" onClick={copyList}><Icon name="copy" size={13} /> {t("copyNeeded")}</button>
-            <button className="btn ghost sm" onClick={downloadList}><Icon name="download" size={13} /> {t("download")}</button>
-            <button className="btn sm" onClick={printList}><Icon name="print" size={13} /> {t("print")}</button>
+            <button className="btn ghost sm" onClick={copyList}><Icon name="copy" size={15} /> {t("copyNeeded")}</button>
+            <button className="btn ghost sm" onClick={downloadList}><Icon name="download" size={15} /> {t("download")}</button>
+            <button className="btn sm" onClick={printList}><Icon name="print" size={15} /> {t("print")}</button>
             <button className="btn primary sm" onClick={onClose}>{t("done")}</button>
           </div>
         </>
@@ -101,7 +101,7 @@ export function ShoppingList({ open, onClose, payload }) {
                 return (
                   <li key={k} className={isHave ? "have" : ""} onClick={() => toggleHave(i)}>
                     <div className="check">
-                      {isHave && <Icon name="check" size={13} />}
+                      {isHave && <Icon name="check" size={15} />}
                     </div>
                     <div className="item">{i.item}</div>
                     <div className="qty">{formatIngredientQty(i)}</div>

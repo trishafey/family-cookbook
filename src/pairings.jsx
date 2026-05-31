@@ -622,7 +622,7 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
             aria-busy={generating}
             title={cached ? "Regenerate with AI (pinned items kept)" : "Generate AI pairings (pinned items kept)"}
           >
-            <Icon name="sparkle" size={11} /> {generating ? (cached ? "Regenerating…" : "Generating…") : (cached ? "Regenerate" : "Generate with AI")}
+            <Icon name="sparkle" size={13} /> {generating ? (cached ? "Regenerating…" : "Generating…") : (cached ? "Regenerate" : "Generate with AI")}
           </button>
         )}
       </div>
@@ -640,7 +640,7 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
           No pairings yet — let the AI suggest some.
         </div>
         <button className="btn ai" onClick={() => generate(false)} disabled={generating} aria-busy={generating}>
-          <Icon name="sparkle" size={13} /> {generating ? "Generating pairings…" : "Generate pairings"}
+          <Icon name="sparkle" size={15} /> {generating ? "Generating pairings…" : "Generate pairings"}
         </button>
         {genError && (
           <div style={{ marginTop: 12, fontSize: 13, color: "#933" }}>{genError}</div>
@@ -663,7 +663,7 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
                   aria-label={pinned ? "Unpin pairing" : "Pin pairing (keep on regenerate)"}
                   title={pinned ? "Pinned — will be kept on regenerate" : "Pin — keep on regenerate"}
                 >
-                  <Icon name="pin" size={11} />
+                  <Icon name="pin" size={13} />
                 </button>
               )}
             </div>
@@ -682,7 +682,7 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
         {suggestions.map((s, i) => (
           <div key={i} className={`pairing-tile suggestion ${s.pinned ? "pinned" : ""}`} onClick={() => setActiveSugg(s)}>
             <div className="photo" style={{ background: `linear-gradient(135deg, ${s.photoTone}, ${s.photoTone}cc)` }}>
-              <div className="ribbon ai"><Icon name="sparkle" size={9} /> New suggestion</div>
+              <div className="ribbon ai"><Icon name="sparkle" size={11} /> New suggestion</div>
               {authEmail && (
                 <button
                   type="button"
@@ -691,7 +691,7 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
                   aria-label={s.pinned ? "Unpin suggestion" : "Pin suggestion (keep on regenerate)"}
                   title={s.pinned ? "Pinned — will be kept on regenerate" : "Pin — keep on regenerate"}
                 >
-                  <Icon name="pin" size={11} />
+                  <Icon name="pin" size={13} />
                 </button>
               )}
               <div className="suggestion-mark">{s.title.split(" ").slice(0, 1).map(w => w[0]).join("")}</div>
@@ -791,7 +791,7 @@ function PairingSuggestionModal({ suggestion, forRecipe, onClose, onSaveRecipe, 
       title={suggestion.title}
       subtitle={
         <>
-          <span className="ai-sparkle"><Icon name="sparkle" size={11} /> Kitchen AI suggestion</span>
+          <span className="ai-sparkle"><Icon name="sparkle" size={13} /> Kitchen AI suggestion</span>
           {" · "}{suggestion.kind} for {forRecipe.title}
         </>
       }
@@ -800,7 +800,7 @@ function PairingSuggestionModal({ suggestion, forRecipe, onClose, onSaveRecipe, 
         savedFeedback ? (
           <>
             <span style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--accent-2)" }}>
-              <Icon name="check" size={12} />{" "}
+              <Icon name="check" size={14} />{" "}
               {savedFeedback === "cookbook"
                 ? "Added to the cookbook — find it on the home page."
                 : "Saved to The Lab — iterate on it whenever you're ready."}
@@ -817,20 +817,20 @@ function PairingSuggestionModal({ suggestion, forRecipe, onClose, onSaveRecipe, 
               {!made ? (
                 <>
                   <button className="btn ghost" onClick={sendToLab}>
-                    <Icon name="sparkle" size={12} /> Send to The Lab
+                    <Icon name="sparkle" size={14} /> Send to The Lab
                   </button>
                   <button className="btn primary" onClick={() => setMade(true)}>
-                    <Icon name="check" size={12} /> I made it
+                    <Icon name="check" size={14} /> I made it
                   </button>
                 </>
               ) : (
                 <>
                   <button className="btn ghost" onClick={sendToLab}>
-                    <Icon name="sparkle" size={12} /> Send to The Lab
+                    <Icon name="sparkle" size={14} /> Send to The Lab
                   </button>
                   <button className="btn" onClick={onClose}>Not worthy</button>
                   <button className="btn accent" onClick={saveToCookbook}>
-                    <Icon name="bookmark" size={12} /> Save to cookbook
+                    <Icon name="bookmark" size={14} /> Save to cookbook
                   </button>
                 </>
               )}
@@ -850,7 +850,7 @@ function PairingSuggestionModal({ suggestion, forRecipe, onClose, onSaveRecipe, 
             {suggestion.blurb}
           </div>
           <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <span className="recipe-tag time"><Icon name="clock" size={11} /> {fmtDuration(suggestion.time)}</span>
+            <span className="recipe-tag time"><Icon name="clock" size={13} /> {fmtDuration(suggestion.time)}</span>
             <span className="recipe-tag diff"><span className="dot" /> Easy</span>
             <span className="recipe-tag"><span className="dot" style={{ background: "var(--accent-2)" }} /> {suggestion.kind}</span>
           </div>
@@ -906,11 +906,11 @@ function PairingRecipeModal({ pair, forRecipe, onClose, onOpenRecipe, onBuildMea
           <div style={{ display: "flex", gap: 8 }}>
             {onBuildMeal && (
               <button className="btn ghost" onClick={() => onBuildMeal(pair)}>
-                <Icon name="bowl" size={12} /> Build meal
+                <Icon name="bowl" size={14} /> Build meal
               </button>
             )}
             <button className="btn primary" onClick={() => onOpenRecipe(pair)}>
-              <Icon name="chevR" size={12} /> View full recipe
+              <Icon name="chevR" size={14} /> View full recipe
             </button>
           </div>
         </>

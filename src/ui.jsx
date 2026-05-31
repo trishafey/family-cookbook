@@ -106,11 +106,11 @@ export function Scaler({ value, onChange, min = 0.5, max = 99, step = 1, fmt = (
   return (
     <div className="scaler">
       <button onClick={() => onChange(Math.max(min, +(value - step).toFixed(2)))} aria-label="Decrease">
-        <Icon name="minus" size={13} />
+        <Icon name="minus" size={15} />
       </button>
       <div className="val">{fmt(value)}</div>
       <button onClick={() => onChange(Math.min(max, +(value + step).toFixed(2)))} aria-label="Increase">
-        <Icon name="plus" size={13} />
+        <Icon name="plus" size={15} />
       </button>
     </div>
   );

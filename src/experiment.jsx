@@ -243,7 +243,7 @@ function TastingNoteEditor({ value, onSave, disabled }) {
         disabled={disabled}
         title={disabled ? "Sign in to add tasting notes" : "Add a tasting note"}
       >
-        <Icon name="plus" size={10} /> Tasting note
+        <Icon name="plus" size={12} /> Tasting note
       </button>
     );
   }
@@ -267,7 +267,7 @@ function TastingNoteEditor({ value, onSave, disabled }) {
   return (
     <div className="lab-tasting saved" onClick={() => !disabled && setEditing(true)}>
       <div className="head">
-        <Icon name="bookmark" size={10} /> <span>Tasting note</span>
+        <Icon name="bookmark" size={12} /> <span>Tasting note</span>
       </div>
       <div className="note">{value}</div>
     </div>
@@ -584,14 +584,14 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
                       onClick={(ev) => { ev.stopPropagation(); promote(e); }}
                       title="Add to cookbook"
                     >
-                      <Icon name="bookmark" size={11} /> Promote
+                      <Icon name="bookmark" size={13} /> Promote
                     </button>
                     <button
                       className="btn ghost sm"
                       onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}
                       title="Discard"
                     >
-                      <Icon name="x" size={11} />
+                      <Icon name="x" size={13} />
                     </button>
                   </div>
                 )}
@@ -617,7 +617,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
                 aria-busy={suggesting}
                 title="Ask the AI what to try next"
               >
-                <Icon name="sparkle" size={11} /> {suggesting ? "Thinking…" : "What to try next"}
+                <Icon name="sparkle" size={13} /> {suggesting ? "Thinking…" : "What to try next"}
               </button>
               <button
                 className="btn ghost sm"
@@ -626,14 +626,14 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
                 aria-busy={polishing}
                 title="Polish this draft for the cookbook — distils tasting notes into final tips"
               >
-                <Icon name="sparkle" size={11} /> {polishing ? "Polishing…" : "Polish with AI"}
+                <Icon name="sparkle" size={13} /> {polishing ? "Polishing…" : "Polish with AI"}
               </button>
               <button className="btn sm" onClick={() => saveAsExperiment(latestDraft)}>
-                <Icon name="bookmark" size={12} /> {active ? "Save edits" : "Save as experiment"}
+                <Icon name="bookmark" size={14} /> {active ? "Save edits" : "Save as experiment"}
               </button>
               {active?.status === "pending" && (
                 <button className="btn accent sm" onClick={() => promote(active)}>
-                  <Icon name="check" size={12} /> Promote to cookbook
+                  <Icon name="check" size={14} /> Promote to cookbook
                 </button>
               )}
             </div>
@@ -653,7 +653,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
             <div className="head">
               <span className="label">What to try next</span>
               <button className="dismiss" onClick={() => setSuggestions(null)} aria-label="Dismiss suggestions">
-                <Icon name="x" size={11} />
+                <Icon name="x" size={13} />
               </button>
             </div>
             <div className="cards">
@@ -664,7 +664,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
                   onClick={() => { setSuggestions(null); send(s.prompt); }}
                   title={s.why}
                 >
-                  <div className="label"><Icon name="sparkle" size={10} /> {s.label}</div>
+                  <div className="label"><Icon name="sparkle" size={12} /> {s.label}</div>
                   <div className="why">{s.why}</div>
                 </button>
               ))}
@@ -689,7 +689,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
                       glance without re-reading the whole recipe. */}
                   {t.diff && (
                     <div className={`lab-diff ${t.polished ? "polished" : ""}`}>
-                      <Icon name={t.polished ? "check" : "sparkle"} size={9} />
+                      <Icon name={t.polished ? "check" : "sparkle"} size={11} />
                       <span>{t.polished ? "Polished for the cookbook" : t.diff}</span>
                     </div>
                   )}
@@ -729,7 +729,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
             <div className="chips">
               {quickPrompts.map((p, i) => (
                 <button key={i} className="chip" onClick={() => send(p)}>
-                  <Icon name="sparkle" size={10} /> {p}
+                  <Icon name="sparkle" size={12} /> {p}
                 </button>
               ))}
             </div>
@@ -749,12 +749,12 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
               {attachments.map((a, i) => (
                 <div key={i} className="lab-attachment" style={{ backgroundImage: `url(${a.url})` }}>
                   <button onClick={() => removeAttachment(i)} aria-label="Remove photo">
-                    <Icon name="x" size={11} />
+                    <Icon name="x" size={13} />
                   </button>
                 </div>
               ))}
               <div className="lab-attachment-hint">
-                <Icon name="sparkle" size={11} /> AI will read what you have and suggest a recipe.
+                <Icon name="sparkle" size={13} /> AI will read what you have and suggest a recipe.
               </div>
             </div>
           )}
@@ -805,7 +805,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
                       role="menuitem"
                       onClick={() => { setAttachMenu(false); cameraInputRef.current?.click(); }}
                     >
-                      <Icon name="camera" size={15} />
+                      <Icon name="camera" size={17} />
                       <span>
                         <span className="t">Take a photo</span>
                         <span className="s">Use your device camera</span>
@@ -823,7 +823,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
                         }
                       }}
                     >
-                      <Icon name="image" size={15} />
+                      <Icon name="image" size={17} />
                       <span>
                         <span className="t">Photo from device</span>
                         <span className="s">Pick from your library</span>
@@ -833,7 +833,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
                       role="menuitem"
                       onClick={() => { setAttachMenu(false); fileInputRef.current?.click(); }}
                     >
-                      <Icon name="file" size={15} />
+                      <Icon name="file" size={17} />
                       <span>
                         <span className="t">Attach a file</span>
                         <span className="s">PDF, doc, recipe screenshot</span>
@@ -844,7 +844,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
               )}
             </div>
             <button className="btn primary sm" onClick={() => send()} disabled={(!text.trim() && attachments.length === 0) || thinking}>
-              <Icon name="sparkle" size={11} /> Send
+              <Icon name="sparkle" size={13} /> Send
             </button>
           </div>
         </div>
@@ -858,11 +858,11 @@ function LabRecipeCard({ draft }) {
   return (
     <div className="lab-recipe-card">
       <div className="head">
-        <div className="ai-tag"><Icon name="sparkle" size={9} /> Draft recipe</div>
+        <div className="ai-tag"><Icon name="sparkle" size={11} /> Draft recipe</div>
         <h4>{draft.title}</h4>
         <div className="sub">{draft.blurb}</div>
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <span className="recipe-tag time"><Icon name="clock" size={11} /> {fmtDuration(draft.time || 30)}</span>
+          <span className="recipe-tag time"><Icon name="clock" size={13} /> {fmtDuration(draft.time || 30)}</span>
           <span className="recipe-tag"><span className="dot" style={{ background: "var(--accent-2)" }} /> Serves {draft.servings || 4}</span>
         </div>
       </div>

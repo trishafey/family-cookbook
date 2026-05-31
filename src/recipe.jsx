@@ -164,7 +164,7 @@ function AIAdjustBox({ recipe, scaler, applied, setApplied, authEmail }) {
     <details className="ai-adjust">
       <summary className="header">
         <span className="header-text">
-          <Icon name="sparkle" size={11} /> Adjust with AI
+          <Icon name="sparkle" size={13} /> Adjust with AI
         </span>
         <span className="chev">›</span>
       </summary>
@@ -172,7 +172,7 @@ function AIAdjustBox({ recipe, scaler, applied, setApplied, authEmail }) {
         <div className="chips">
           {chips.slice(0, 6).map((c, i) => (
             <button key={i} className="chip" onClick={() => triggerChip(c)} disabled={running}>
-              <Icon name="sparkle" size={9} /> {c.label}
+              <Icon name="sparkle" size={11} /> {c.label}
             </button>
           ))}
         </div>
@@ -188,7 +188,7 @@ function AIAdjustBox({ recipe, scaler, applied, setApplied, authEmail }) {
             {running ? "Adjusting…" : (authEmail ? "⌘⏎ to apply" : "Sign in to use the AI")}
           </span>
           <button className="btn primary sm" onClick={triggerFree} disabled={!text.trim() || running || !authEmail}>
-            <Icon name="sparkle" size={11} /> Apply
+            <Icon name="sparkle" size={13} /> Apply
           </button>
         </div>
         {error && (
@@ -199,10 +199,10 @@ function AIAdjustBox({ recipe, scaler, applied, setApplied, authEmail }) {
         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
           {applied.map((a, i) => (
             <div className="applied" key={i}>
-              <Icon name="check" size={14} style={{ color: "var(--accent-2)", flexShrink: 0, marginTop: 2 }} />
+              <Icon name="check" size={16} style={{ color: "var(--accent-2)", flexShrink: 0, marginTop: 2 }} />
               <div style={{ flex: 1 }}>{a.summary}</div>
               <button className="x" onClick={() => setApplied(applied.filter((_, j) => j !== i))} aria-label="Dismiss">
-                <Icon name="x" size={11} />
+                <Icon name="x" size={13} />
               </button>
             </div>
           ))}
@@ -231,7 +231,7 @@ function SourceLink({ recipe }) {
       title={title}
       style={{ color: "var(--accent)", textDecoration: "none" }}
     >
-      <Icon name="link" size={11} /> Original recipe
+      <Icon name="link" size={13} /> Original recipe
     </a>
   );
 }
@@ -265,7 +265,7 @@ function TagRow({ recipe, scaled }) {
         {tDifficulty(recipe.difficulty)}
       </span>
       <span className="recipe-tag time">
-        <Icon name="clock" size={13} /> {fmtDuration(scaled.totalTime)}
+        <Icon name="clock" size={15} /> {fmtDuration(scaled.totalTime)}
       </span>
       <span className="recipe-tag">
         {tCourse(recipe.course)}
@@ -279,12 +279,12 @@ function TagRow({ recipe, scaled }) {
       {recipe.diet.slice(0, 3).map(d => (
         <span key={d} className="recipe-tag diet">
           {DIET_ICON[d]
-            ? <Icon name={DIET_ICON[d]} size={13} />
+            ? <Icon name={DIET_ICON[d]} size={15} />
             : <span className="dot" />}{" "}
           {tDiet(d)}
         </span>
       ))}
-      <span className="recipe-tag author"><Icon name="chef" size={13} /> {t("by")} {recipe.author}</span>
+      <span className="recipe-tag author"><Icon name="chef" size={15} /> {t("by")} {recipe.author}</span>
     </div>
   );
 }
@@ -335,13 +335,13 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
           <div className="label">{t("servings")}</div>
           <div className="servings-control">
             <button onClick={() => bumpServings(-1)} aria-label="Fewer servings" disabled={currentServings <= 1}>
-              <Icon name="minus" size={11} />
+              <Icon name="minus" size={13} />
             </button>
             <span className="val servings-val">
               {currentServings}
             </span>
             <button onClick={() => bumpServings(1)} aria-label="More servings">
-              <Icon name="plus" size={11} />
+              <Icon name="plus" size={13} />
             </button>
           </div>
         </div>
@@ -364,7 +364,7 @@ function StatsStrip({ recipe, scaler, scaled, finalNutrition, showNutrition, set
       {!simpleMode && (
         <div style={{ padding: "8px 14px", borderTop: "1px solid var(--rule)", textAlign: "center", background: "var(--paper-2)" }}>
           <button className="btn ghost sm" onClick={() => setShowNutrition(!showNutrition)} style={{ fontSize: 11 }}>
-            <Icon name={showNutrition ? "chevD" : "chevR"} size={11} />
+            <Icon name={showNutrition ? "chevD" : "chevR"} size={13} />
             {showNutrition ? t("hideNutrition") : t("showNutrition")}
           </button>
         </div>
@@ -426,7 +426,7 @@ function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
                         className="qty-bump"
                         onClick={(e) => { e.preventDefault(); scaler.setWeight(Math.max(0.5, +(scaler.weight - 0.5).toFixed(1))); }}
                         aria-label={`Decrease ${recipe.weightUnit || "lb"}`}
-                      ><Icon name="minus" size={9} /></button>
+                      ><Icon name="minus" size={11} /></button>
                     )}
                     {formatIngredientQty(i)}
                     {isWeightAnchor && (
@@ -435,7 +435,7 @@ function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
                         className="qty-bump"
                         onClick={(e) => { e.preventDefault(); scaler.setWeight(+(scaler.weight + 0.5).toFixed(1)); }}
                         aria-label={`Increase ${recipe.weightUnit || "lb"}`}
-                      ><Icon name="plus" size={9} /></button>
+                      ><Icon name="plus" size={11} /></button>
                     )}
                   </span>
                   <span className="item">{i.item}</span>
@@ -529,7 +529,7 @@ function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
                       onClick={() => setLightbox({ src: s.photo, alt: `Photo for step: ${s.t}` })}
                       title="View photo for this step"
                     >
-                      <Icon name="camera" size={11} /> view photo
+                      <Icon name="camera" size={13} /> view photo
                     </button>
                   )}
                   {doneBy && schedule && (
@@ -542,13 +542,13 @@ function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
                             onClick={() => bumpStepStart(i, -5)}
                             aria-label={t("startMinEarlier")}
                             title={t("startMinEarlier")}
-                          ><Icon name="minus" size={9} /></button>
+                          ><Icon name="minus" size={11} /></button>
                           <button
                             type="button"
                             onClick={() => bumpStepStart(i, +5)}
                             aria-label={t("startMinLater")}
                             title={t("startMinLater")}
-                          ><Icon name="plus" size={9} /></button>
+                          ><Icon name="plus" size={11} /></button>
                         </span>
                       )}
                     </span>
@@ -632,11 +632,11 @@ function FamilySaysBlock({ recipe, scaler, applied, setApplied, onSaveRecipe, au
     if (!authEmail) return null;
     return (
       <div className="family-says empty">
-        <div className="icon"><Icon name="sparkle" size={14} /></div>
+        <div className="icon"><Icon name="sparkle" size={16} /></div>
         <div className="body">
           <div className="label">AI summary · what the family does differently</div>
           <button className="btn ghost sm" onClick={() => generate(false)} disabled={generating} aria-busy={generating}>
-            <Icon name="sparkle" size={11} /> {generating ? "Reading the notes…" : "Summarise with AI"}
+            <Icon name="sparkle" size={13} /> {generating ? "Reading the notes…" : "Summarise with AI"}
           </button>
           {error && <div style={{ marginTop: 6, fontSize: 12, color: "#933" }}>{error}</div>}
         </div>
@@ -646,7 +646,7 @@ function FamilySaysBlock({ recipe, scaler, applied, setApplied, onSaveRecipe, au
 
   return (
     <div className="family-says">
-      <div className="icon"><Icon name="sparkle" size={14} /></div>
+      <div className="icon"><Icon name="sparkle" size={16} /></div>
       <div className="body">
         <div className="label-row">
           <span className="label">AI summary · what the family does differently</span>
@@ -657,7 +657,7 @@ function FamilySaysBlock({ recipe, scaler, applied, setApplied, onSaveRecipe, au
               disabled={generating}
               title="Regenerate from the latest comments"
             >
-              <Icon name="sparkle" size={10} /> {generating ? "Regenerating…" : "Regenerate"}
+              <Icon name="sparkle" size={12} /> {generating ? "Regenerating…" : "Regenerate"}
             </button>
           )}
         </div>
@@ -666,7 +666,7 @@ function FamilySaysBlock({ recipe, scaler, applied, setApplied, onSaveRecipe, au
           <div className="tweaks">
             {cached.tweaks.map((tw, i) => (
               <button key={i} className="tweak-chip" onClick={() => applyTweak(tw)} title={tw.summary}>
-                <Icon name="sparkle" size={9} /> {tw.label}
+                <Icon name="sparkle" size={11} /> {tw.label}
               </button>
             ))}
           </div>
@@ -812,7 +812,7 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
                 <div className="head">
                   <span className="name">{c.name}</span>
                   <span className="date">{c.date}</span>
-                  {c.rating > 0 && <StarRow value={c.rating} readOnly size={13} />}
+                  {c.rating > 0 && <StarRow value={c.rating} readOnly size={15} />}
                   {mine && deleteComment && (
                     <button
                       type="button"
@@ -823,7 +823,7 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
                       }}
                       title={t("deleteYourNote")}
                       style={{ marginLeft: 8, color: "#C42807" }}
-                    ><Icon name="x" size={12} /></button>
+                    ><Icon name="x" size={14} /></button>
                   )}
                 </div>
                 <div className="text">{c.text}</div>
@@ -850,11 +850,11 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
               <label style={{ fontSize: 12, color: "var(--ink-3)" }}>{t("ratingOptional")}</label>
               <StarRow value={cRating} onChange={setCRating} />
               <label className="btn ghost sm" style={{ cursor: uploadingPhoto ? "wait" : "pointer", marginLeft: "auto" }}>
-                <Icon name="camera" size={12} /> {uploadingPhoto ? t("uploading") : cPhoto ? t("photoAttached") : t("addPhoto")}
+                <Icon name="camera" size={14} /> {uploadingPhoto ? t("uploading") : cPhoto ? t("photoAttached") : t("addPhoto")}
                 <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingPhoto || posting} onChange={(e) => uploadCommentPhoto(e.target.files?.[0])} />
               </label>
               {cPhoto && (
-                <button type="button" className="btn ghost icon-only" onClick={() => setCPhoto(null)} title={t("removePhoto")}><Icon name="x" size={12} /></button>
+                <button type="button" className="btn ghost icon-only" onClick={() => setCPhoto(null)} title={t("removePhoto")}><Icon name="x" size={14} /></button>
               )}
             </div>
             {cPhoto && <img src={cPhoto} alt="" style={{ maxWidth: 180, borderRadius: 4, border: "1px solid var(--rule)" }} />}
@@ -905,7 +905,7 @@ function SourcePhotosReveal({ recipe }) {
           display: "inline-flex", alignItems: "center", gap: 6,
         }}
       >
-        <Icon name="camera" size={11} /> {t("viewOriginal")}
+        <Icon name="camera" size={13} /> {t("viewOriginal")}
       </button>
 
       {open && (

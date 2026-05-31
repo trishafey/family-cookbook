@@ -113,7 +113,7 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
         {hasOvernight && (
           <div className="overnight-suggestion">
             <div className="head">
-              <Icon name="clock" size={14} />
+              <Icon name="clock" size={16} />
               <strong>{t("needsHeadStartTitle")}</strong>
             </div>
             <p>
@@ -305,12 +305,12 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
           </div>
           <div style={{ marginTop: 16, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
             <button className="btn primary sm" onClick={() => setCookOpen(true)}>
-              <Icon name="play" size={12} /> Cook this meal
+              <Icon name="play" size={14} /> Cook this meal
             </button>
             <button className="btn sm" onClick={() => onShop(recipes.map(r => ({ recipe: r, ings: r.ingredients })))}>
-              <Icon name="bowl" size={12} /> {t("shoppingList")}
+              <Icon name="bowl" size={14} /> {t("shoppingList")}
             </button>
-            <button className="btn ghost sm"><Icon name="print" size={12} /> {t("print")}</button>
+            <button className="btn ghost sm"><Icon name="print" size={14} /> {t("print")}</button>
             {hasOverrides && (
               <button className="btn ghost sm" onClick={resetOverrides} title="Clear all time adjustments and snap back to the planned schedule">
                 Reset adjustments
@@ -335,7 +335,7 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
 
       <div className="meal-plan-tabs">
         <button className={tab === "combined" ? "on" : ""} onClick={() => setTab("combined")}>
-          <Icon name="list" size={13} /> {t("combinedTimeline")}
+          <Icon name="list" size={15} /> {t("combinedTimeline")}
           <span className="num">{combined.length}</span>
         </button>
         {perRecipe.map(({ recipe, color }) => (
@@ -427,7 +427,7 @@ function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
             )}
             {showBreak && (
               <div className="timeline-break">
-                <Icon name="clock" size={14} />
+                <Icon name="clock" size={16} />
                 <div>
                   <strong>{breakHuman} {t("untilYourNextStep")}</strong>
                   <span style={{ marginLeft: 6, color: "var(--ink-3)" }}>{t("takeABreak")}</span>
@@ -435,7 +435,7 @@ function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
               </div>
             )}
             <div className="timeline-marker">
-              <Icon name="clock" size={13} /> {g.key}
+              <Icon name="clock" size={15} /> {g.key}
               {bumpStep && (
                 <span className="time-bump">
                   <button
@@ -443,13 +443,13 @@ function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
                     onClick={() => g.items.forEach(it => bumpStep(it.recipe.id, it.si, -5))}
                     aria-label="Shift this time slot 5 minutes earlier"
                     title="Shift this time slot 5 minutes earlier"
-                  ><Icon name="minus" size={10} /></button>
+                  ><Icon name="minus" size={12} /></button>
                   <button
                     type="button"
                     onClick={() => g.items.forEach(it => bumpStep(it.recipe.id, it.si, 5))}
                     aria-label="Shift this time slot 5 minutes later"
                     title="Shift this time slot 5 minutes later"
-                  ><Icon name="plus" size={10} /></button>
+                  ><Icon name="plus" size={12} /></button>
                 </span>
               )}
             </div>
@@ -695,7 +695,7 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
             className="btn ai"
             onClick={() => setHelpOpen(o => !o)}
           >
-            <Icon name="sparkle" size={13} /> {helpOpen ? "Hide help" : "Need help with this step?"}
+            <Icon name="sparkle" size={15} /> {helpOpen ? "Hide help" : "Need help with this step?"}
           </button>
           {helpOpen && (
             <div style={{ marginTop: 12 }}>

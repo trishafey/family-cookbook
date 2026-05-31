@@ -167,7 +167,7 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
           {hasOverrides && (
             <button type="button" className="btn ghost sm" onClick={resetAdjustments} title={t("resetAllAdjustments")}>{t("reset")}</button>
           )}
-          <button className="btn" onClick={onClose}><Icon name="x" size={14} /> {t("exit")}</button>
+          <button className="btn" onClick={onClose}><Icon name="x" size={16} /> {t("exit")}</button>
         </div>
       </div>
 
@@ -263,12 +263,12 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
                 className="btn ai"
                 onClick={() => setHelpOpen(o => !o)}
               >
-                <Icon name="sparkle" size={13} /> {helpOpen ? "Hide help" : "Need help with this step?"}
+                <Icon name="sparkle" size={15} /> {helpOpen ? "Hide help" : "Need help with this step?"}
               </button>
             )}
             {onSaveRecipe && (
               <label className="btn" style={{ cursor: "pointer" }} title="Snap a photo of this step as you cook">
-                <Icon name="camera" size={13} />
+                <Icon name="camera" size={15} />
                 {capturingIdx === idx ? "Uploading…" : (curPhoto ? "Replace photo" : "Take photo")}
                 <input
                   type="file"

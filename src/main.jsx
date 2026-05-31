@@ -310,7 +310,7 @@ function App() {
               value={query}
               onChange={(e) => { setQuery(e.target.value); if (view !== "browse") setView("browse"); }}
             />
-            {query && <button className="btn ghost icon-only" onClick={() => setQuery("")}><Icon name="x" size={12} /></button>}
+            {query && <button className="btn ghost icon-only" onClick={() => setQuery("")}><Icon name="x" size={14} /></button>}
             {!simpleMode && (
               <button
                 className="btn ghost icon-only search-filter-btn"
@@ -318,24 +318,24 @@ function App() {
                 title={t("filters")}
                 aria-label={t("filters")}
               >
-                <Icon name="filter" size={14} />
+                <Icon name="filter" size={16} />
               </button>
             )}
           </div>
           <div className="nav-actions">
             {!simpleMode && FLAGS.lab && (
             <button className="btn ghost sm" onClick={() => setView("lab")} title={t("kitchenExp")}>
-              <Icon name="experiment" size={13} /> <span className="btn-label">{t("theLab")}</span>
+              <Icon name="experiment" size={15} /> <span className="btn-label">{t("theLab")}</span>
             </button>
             )}
             {!simpleMode && (
               <button className="btn ghost sm" onClick={() => setView("meal")} title={t("buildMeal")}>
-                <Icon name="build" size={13} /> <span className="btn-label">{t("buildMeal")}</span>
+                <Icon name="build" size={15} /> <span className="btn-label">{t("buildMeal")}</span>
                 {selection.length > 0 && <span style={{ marginLeft: 4, padding: "1px 6px", background: "var(--accent)", color: "var(--paper)", borderRadius: 999, fontSize: 10, fontWeight: 600 }}>{selection.length}</span>}
               </button>
             )}
             <button className="btn primary sm" onClick={() => setView("add")} title={t("addRecipe")}>
-              <Icon name="plus" size={13} /> <span className="btn-label">{t("addRecipe")}</span>
+              <Icon name="plus" size={15} /> <span className="btn-label">{t("addRecipe")}</span>
             </button>
             {authEmail ? (
               <AvatarMenu
@@ -346,7 +346,7 @@ function App() {
               />
             ) : (
               <a className="btn sm sign-in" href={signInUrl()} title={t("signIn")}>
-                <Icon name="chef" size={13} /> <span className="btn-label">{t("signIn")}</span>
+                <Icon name="chef" size={15} /> <span className="btn-label">{t("signIn")}</span>
               </a>
             )}
           </div>

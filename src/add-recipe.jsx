@@ -293,7 +293,7 @@ function IngredientsEditor({ ingredients, onChange }) {
             />
             {sections.length > 1 && (
               <button type="button" className="btn ghost icon-only" onClick={() => deleteSection(sec.name)} title={t("deleteSection")}>
-                <Icon name="x" size={12} />
+                <Icon name="x" size={14} />
               </button>
             )}
           </div>
@@ -317,7 +317,7 @@ function IngredientsEditor({ ingredients, onChange }) {
                 <input value={i.item} placeholder={t("ingredientPh")}
                   onChange={(e) => update(i._idx, { item: e.target.value })} />
                 <button type="button" className="btn ghost icon-only" onClick={() => remove(i._idx)}>
-                  <Icon name="x" size={12} />
+                  <Icon name="x" size={14} />
                 </button>
               </div>
               {/* Intuitive measure ("by eye", "to taste", "a glug").
@@ -351,12 +351,12 @@ function IngredientsEditor({ ingredients, onChange }) {
             </div>
           ))}
           <button type="button" className="btn ghost sm" onClick={() => addIngredientTo(sec.name)}>
-            <Icon name="plus" size={12} /> {t("addIngredient")}
+            <Icon name="plus" size={14} /> {t("addIngredient")}
           </button>
         </div>
       ))}
       <button type="button" className="btn add-section-btn" onClick={addSection}>
-        <Icon name="plus" size={13} /> {t("addSection")}
+        <Icon name="plus" size={15} /> {t("addSection")}
       </button>
     </div>
   );
@@ -481,7 +481,7 @@ function StepsEditor({ steps, onChange }) {
                 aria-label={t("sectionName")}
               />
               <button type="button" className="btn ghost icon-only" onClick={() => deleteSection(sec.name)} title={t("deleteSection")}>
-                <Icon name="x" size={12} />
+                <Icon name="x" size={14} />
               </button>
             </div>
           )}
@@ -489,10 +489,10 @@ function StepsEditor({ steps, onChange }) {
             <div key={s._idx} className="step-row">
               <div className="reorder-stack">
                 <button type="button" onClick={() => moveStep(s._idx, -1)} disabled={s._idx === 0} aria-label={t("moveUp")} title={t("moveUp")}>
-                  <Icon name="chevU" size={12} />
+                  <Icon name="chevU" size={14} />
                 </button>
                 <button type="button" onClick={() => moveStep(s._idx, +1)} disabled={s._idx === steps.length - 1} aria-label={t("moveDown")} title={t("moveDown")}>
-                  <Icon name="chevD" size={12} />
+                  <Icon name="chevD" size={14} />
                 </button>
               </div>
               <div className="step-fields">
@@ -518,12 +518,12 @@ function StepsEditor({ steps, onChange }) {
                         onClick={() => update(s._idx, { photo: null })}
                         aria-label="Remove photo"
                       >
-                        <Icon name="x" size={10} />
+                        <Icon name="x" size={12} />
                       </button>
                     </div>
                   ) : (
                     <label className="step-add-photo" title="Upload a photo from your files">
-                      <Icon name="camera" size={11} />
+                      <Icon name="camera" size={13} />
                       {uploadingIdx === s._idx ? "Uploading…" : "Add photo"}
                       <input
                         type="file"
@@ -537,19 +537,19 @@ function StepsEditor({ steps, onChange }) {
                     </label>
                   )}
                   <button type="button" className="btn ghost icon-only step-remove" onClick={() => remove(s._idx)} aria-label={t("remove")}>
-                    <Icon name="x" size={12} />
+                    <Icon name="x" size={14} />
                   </button>
                 </div>
               </div>
             </div>
           ))}
           <button type="button" className="btn ghost sm" onClick={() => addStepTo(sec.name)}>
-            <Icon name="plus" size={12} /> {t("addStep")}
+            <Icon name="plus" size={14} /> {t("addStep")}
           </button>
         </div>
       ))}
       <button type="button" className="btn add-section-btn" onClick={addSection}>
-        <Icon name="plus" size={13} /> {t("addSection")}
+        <Icon name="plus" size={15} /> {t("addSection")}
       </button>
     </div>
   );
@@ -1001,20 +1001,20 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
       <div className="add-tabs">
         {FLAGS.extractText && (
         <button className={mode === "ai" ? "on" : ""} onClick={() => setMode("ai")}>
-          <Icon name="sparkle" size={12} /> {t("pasteAndAi")}
+          <Icon name="sparkle" size={14} /> {t("pasteAndAi")}
         </button>
         )}
         {FLAGS.extractImage && (
         <button className={mode === "photo" ? "on" : ""} onClick={() => setMode("photo")}>
-          <Icon name="camera" size={12} /> {t("photoOfCookbook")}
+          <Icon name="camera" size={14} /> {t("photoOfCookbook")}
         </button>
         )}
         <button className={mode === "manual" ? "on" : ""} onClick={() => setMode("manual")}>
-          <Icon name="edit" size={12} /> {t("manualEntry")}
+          <Icon name="edit" size={14} /> {t("manualEntry")}
         </button>
         {FLAGS.extractUrl && (
         <button className={mode === "url" ? "on" : ""} onClick={() => setMode("url")}>
-          <Icon name="link" size={12} /> {t("linkToUrl")}
+          <Icon name="link" size={14} /> {t("linkToUrl")}
         </button>
         )}
       </div>
@@ -1024,7 +1024,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
         <div style={{ maxWidth: 760 }}>
           <div className="ai-drop">
             <div className="ai-sparkle" style={{ marginBottom: 12 }}>
-              <Icon name="sparkle" size={12} /> {t("aiExtraction")}
+              <Icon name="sparkle" size={14} /> {t("aiExtraction")}
             </div>
             <textarea
               placeholder={t("aiPastePlaceholder")}
@@ -1033,7 +1033,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
             />
             <div style={{ display: "flex", gap: 8, marginTop: 16, alignItems: "center" }}>
               <button className="btn accent" disabled={!aiText.trim() || extracting} aria-busy={extracting} onClick={runAI}>
-                {extracting ? t("extracting") : <><Icon name="sparkle" size={13} /> {t("extractRecipe")}</>}
+                {extracting ? t("extracting") : <><Icon name="sparkle" size={15} /> {t("extractRecipe")}</>}
               </button>
               <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
                 {t("aiPasteHelper")}
@@ -1144,7 +1144,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   className={`btn sm ${draft.origin === o ? "primary" : "ghost"}`}
                   onClick={() => setDraft({ ...draft, origin: o })}
                 >
-                  <Icon name={o === "heirloom" ? "tomato" : o === "newToFamily" ? "sprout" : "beaker"} size={12} /> {tOrigin(o)}
+                  <Icon name={o === "heirloom" ? "tomato" : o === "newToFamily" ? "sprout" : "beaker"} size={14} /> {tOrigin(o)}
                 </button>
               ))}
             </div>
@@ -1198,7 +1198,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   aria-busy={estimatingNutrition}
                   title={t("estimateNutritionHint")}
                 >
-                  <Icon name="sparkle" size={10} /> {estimatingNutrition ? t("estimating") : t("estimateWithAI")}
+                  <Icon name="sparkle" size={12} /> {estimatingNutrition ? t("estimating") : t("estimateWithAI")}
                 </button>
                 {nutritionError && (
                   <span style={{ fontSize: 11, color: "#933" }}>{nutritionError}</span>
@@ -1305,13 +1305,13 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   />
                   <button type="button" className="btn ghost icon-only" onClick={() => {
                     setDraft({ ...draft, tips: (draft.tips || []).filter((_, i) => i !== idx) });
-                  }}><Icon name="x" size={12} /></button>
+                  }}><Icon name="x" size={14} /></button>
                 </div>
               ))}
               <button type="button" className="btn ghost sm" onClick={() => {
                 setDraft({ ...draft, tips: [...(draft.tips || []), ""] });
               }}>
-                <Icon name="plus" size={12} /> {t("addTip")}
+                <Icon name="plus" size={14} /> {t("addTip")}
               </button>
             </div>
           </div>
@@ -1335,7 +1335,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                 <div style={{ width: 100, height: 80, backgroundImage: `url(${draft.photo})`, backgroundSize: "cover", backgroundPosition: "center", border: "1px solid var(--rule)", borderRadius: 4 }} />
                 <div style={{ flex: 1 }}>
                   <label className="btn sm" style={{ cursor: authEmail && !uploadingPhoto ? "pointer" : "not-allowed", opacity: authEmail && !uploadingPhoto ? 1 : 0.5 }}>
-                    <Icon name="camera" size={12} /> {uploadingPhoto ? t("uploading") : t("uploadPhoto")}
+                    <Icon name="camera" size={14} /> {uploadingPhoto ? t("uploading") : t("uploadPhoto")}
                     <input
                       type="file"
                       accept="image/*"
@@ -1353,7 +1353,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                     type="button"
                     title={t("aiGenerateHint")}
                   >
-                    <Icon name="sparkle" size={12} /> {generatingPhoto ? t("generating") : t("aiGenerateFromTitle")}
+                    <Icon name="sparkle" size={14} /> {generatingPhoto ? t("generating") : t("aiGenerateFromTitle")}
                   </button>
                   {photoError && (
                     <div style={{ marginTop: 6, fontSize: 12, color: "#933" }}>{photoError}</div>
@@ -1509,7 +1509,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   rear camera directly. Each tap appends another shot
                   to the queue. */}
               <label className="btn" style={{ cursor: extracting ? "not-allowed" : "pointer", opacity: extracting ? 0.5 : 1 }}>
-                <Icon name="camera" size={13} /> {t("takePhoto")}
+                <Icon name="camera" size={15} /> {t("takePhoto")}
                 <input
                   type="file"
                   accept="image/*"
@@ -1541,12 +1541,12 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                 >
                   {extracting
                     ? t("extracting")
-                    : <><Icon name="sparkle" size={13} /> {t("extractRecipeN").replace("{n}", pendingImages.length)}</>}
+                    : <><Icon name="sparkle" size={15} /> {t("extractRecipeN").replace("{n}", pendingImages.length)}</>}
                 </button>
               )}
             </div>
             <div style={{ marginTop: 20, fontSize: 12, color: "var(--ink-3)" }}>
-              <span className="ai-sparkle"><Icon name="sparkle" size={11} /> AI-parsed</span> · {t("multiPagePhotoHelper")}
+              <span className="ai-sparkle"><Icon name="sparkle" size={13} /> AI-parsed</span> · {t("multiPagePhotoHelper")}
             </div>
           </div>
         </div>
@@ -1556,7 +1556,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
         <div style={{ maxWidth: 720 }}>
           <div className="ai-drop">
             <div className="ai-sparkle" style={{ marginBottom: 12 }}>
-              <Icon name="sparkle" size={12} /> {t("linkToUrl")}
+              <Icon name="sparkle" size={14} /> {t("linkToUrl")}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input
@@ -1568,7 +1568,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                 disabled={extracting}
               />
               <button className="btn accent" onClick={runFromUrl} disabled={!aiUrl.trim() || extracting} aria-busy={extracting}>
-                {extracting ? t("extracting") : <><Icon name="sparkle" size={13} /> {t("fetchAndParse")}</>}
+                {extracting ? t("extracting") : <><Icon name="sparkle" size={15} /> {t("fetchAndParse")}</>}
               </button>
             </div>
             <div style={{ marginTop: 16, fontSize: 13, color: "var(--ink-3)" }}>

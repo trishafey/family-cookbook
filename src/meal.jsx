@@ -48,7 +48,7 @@ export function BuildAMeal({ recipes, selection, clearSelection, toggleSelect, o
               <div key={r.id} style={{ display: "flex", gap: 12, alignItems: "center", padding: "8px 16px 8px 8px", background: "var(--paper)", border: "1px solid var(--rule)", borderRadius: 999 }}>
                 <span style={{ width: 24, height: 24, borderRadius: 999, background: "var(--accent)", color: "var(--paper)", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 600, fontFamily: "var(--mono)" }}>{i + 1}</span>
                 <span style={{ fontFamily: "var(--serif)", fontSize: 15 }}>{r.title}</span>
-                <button className="btn ghost icon-only" onClick={() => toggleSelect(r)}><Icon name="x" size={12} /></button>
+                <button className="btn ghost icon-only" onClick={() => toggleSelect(r)}><Icon name="x" size={14} /></button>
               </div>
             ))}
           </div>

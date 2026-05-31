@@ -38,7 +38,7 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
           onTouchStart={(e) => e.stopPropagation()}
           aria-label={isFavorite ? t("removeFromFavorites") : t("addToFavorites")}
           aria-pressed={isFavorite}>
-          <Icon name={isFavorite ? "heartFill" : "heart"} size={13} />
+          <Icon name={isFavorite ? "heartFill" : "heart"} size={15} />
         </button>
         }
         {selectionMode && selected &&
@@ -56,12 +56,12 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
         <div className="tags">
           {recipe.origin && (
             <span className="recipe-tag origin" data-origin={recipe.origin} style={{ fontSize: 10, padding: "3px 8px" }}>
-              <Icon name={recipe.origin === "heirloom" ? "tomato" : recipe.origin === "newToFamily" ? "sprout" : "beaker"} size={13} />
+              <Icon name={recipe.origin === "heirloom" ? "tomato" : recipe.origin === "newToFamily" ? "sprout" : "beaker"} size={15} />
             </span>
           )}
           {recipe.diet.slice(0, 2).map((d) => (
             <Pill key={d} kind="olive">
-              {DIET_ICON[d] && <Icon name={DIET_ICON[d]} size={13} />} {tDiet(d)}
+              {DIET_ICON[d] && <Icon name={DIET_ICON[d]} size={15} />} {tDiet(d)}
             </Pill>
           ))}
           <Pill kind="slate">{recipe.cuisine}</Pill>
@@ -74,7 +74,7 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
               const rated = (recipe.liveComments || []).filter(c => c.rating > 0);
               if (rated.length === 0) return null;
               const avg = rated.reduce((s, c) => s + c.rating, 0) / rated.length;
-              return <><Icon name="starFill" size={10} /> {avg.toFixed(1)}</>;
+              return <><Icon name="starFill" size={12} /> {avg.toFixed(1)}</>;
             })()}
           </span>
           <span>{tOccasion(recipe.occasion)}</span>
@@ -147,7 +147,7 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
               : c.v;
             return (
               <button key={`${c.k}-${c.v}`} className="filter-pill on" onClick={() => removeChip(c.k, c.v)}>
-                {display} <Icon name="x" size={10} />
+                {display} <Icon name="x" size={12} />
               </button>
             );
           })}
@@ -165,7 +165,7 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
         <button key={c} className="filter-pill" onClick={() => setFilters((f) => ({ ...f, courses: [c] }))}>{tCourse(c)}</button>
         )}
           <button className="btn ghost sm" style={{ marginLeft: "auto" }} onClick={openFilters}>
-            <Icon name="filter" size={13} /> {t("filters")}
+            <Icon name="filter" size={15} /> {t("filters")}
           </button>
         </div>
       }

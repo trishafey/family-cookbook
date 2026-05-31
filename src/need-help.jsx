@@ -133,7 +133,7 @@ export function NeedHelp({ recipe, recipes, currentStep, compact, defaultOpen, a
   return (
     <details className="need-help" open={open} onToggle={(e) => setOpen(e.target.open)}>
       <summary className="head" onClick={(e) => { e.preventDefault(); setOpen(o => !o); }}>
-        <div className="icon"><Icon name="sparkle" size={15} /></div>
+        <div className="icon"><Icon name="sparkle" size={17} /></div>
         <div className="text">
           <div className="t">
             {isMeal ? "Ask the kitchen AI about this meal." : "Need help? Ask the kitchen AI."}
@@ -152,7 +152,7 @@ export function NeedHelp({ recipe, recipes, currentStep, compact, defaultOpen, a
         <div className="quick-prompts">
           {prompts.map((p, i) => (
             <button key={i} className="chip" onClick={() => submit(p.t)}>
-              <Icon name="sparkle" size={10} /> {p.label}
+              <Icon name="sparkle" size={12} /> {p.label}
             </button>
           ))}
         </div>
@@ -170,7 +170,7 @@ export function NeedHelp({ recipe, recipes, currentStep, compact, defaultOpen, a
             disabled={!authEmail}
           />
           <button className="btn ai sm" disabled={!text.trim() || thinking || !authEmail} aria-busy={thinking} onClick={() => submit()}>
-            <Icon name="sparkle" size={11} /> Ask
+            <Icon name="sparkle" size={13} /> Ask
           </button>
         </div>
 
