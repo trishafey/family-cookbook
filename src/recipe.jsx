@@ -1154,6 +1154,9 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <button className="btn ghost" onClick={() => window.print()}>
           <Icon name="print" /> {t("print")}
         </button>
+        <button className="btn ghost" onClick={() => shareRecipe(recipe)}>
+          <Icon name="share" /> {t("shareRecipe")}
+        </button>
         {authEmail && (
           <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
             <Icon name="edit" /> {t("edit")}
@@ -1247,6 +1250,9 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
         </button>
         <button className="btn ghost" onClick={() => window.print()}>
           <Icon name="print" /> {t("print")}
+        </button>
+        <button className="btn ghost" onClick={() => shareRecipe(recipe)}>
+          <Icon name="share" /> {t("shareRecipe")}
         </button>
         {authEmail && (
           <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
