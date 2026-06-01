@@ -1232,7 +1232,13 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .meal-plan-modal-body {
   display: flex; flex-direction: column; gap: 20px;
   padding: 24px;
+  min-width: 0;
 }
+/* Flex items default to min-width: auto, which lets grid/input
+   content force tracks wider than the modal. Pin every direct
+   child to the column width so cards align flush with the date
+   field above. */
+.meal-plan-modal-body > * { min-width: 0; max-width: 100%; box-sizing: border-box; }
 .meal-plan-modal-body .when {
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
 }
@@ -1253,11 +1259,12 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
    above it. The start-time field gets the warm accent colour
    so it visually echoes the "you'll start at" framing. */
 .meal-plan-modal-body .plan-times {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px;
   padding: 14px 16px;
   background: var(--paper-2);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
+  box-sizing: border-box; width: 100%;
 }
 .meal-plan-modal-body .plan-time {
   display: flex; flex-direction: column; gap: 6px; min-width: 0;
