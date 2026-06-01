@@ -2499,7 +2499,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .ai-sparkle {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 11px; font-family: var(--mono); letter-spacing: 0.06em;
-  color: var(--accent-2); text-transform: uppercase;
+  color: var(--accent-cool); text-transform: uppercase;
 }
 
 /* Add recipe page */
@@ -2510,7 +2510,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   width: fit-content;
   margin-bottom: 24px;
 }
-.add-tabs button { padding: 8px 14px; font-size: 13px; border-radius: 4px; color: var(--ink-3); font-weight: 500; }
+.add-tabs button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; border-radius: 4px; color: var(--ink-3); font-weight: 500; }
 .add-tabs button.on { background: var(--paper); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
 
 .ai-drop {
@@ -3438,10 +3438,14 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
    a step body, an ingredient, a nutrition value, …) is
    relentless on touch devices. Bump every form control to at
    least 16px on coarse-pointer devices to suppress the zoom;
-   desktop (fine pointer) keeps the existing inherited sizes. */
+   desktop (fine pointer) keeps the existing inherited sizes.
+   `!important` is required to win specificity battles with the
+   many component-scoped overrides that set 13–15px sizes
+   under their own breakpoints (.input-row input, .ai-drop
+   textarea, .need-help textarea, etc.). */
 @media (pointer: coarse) {
   input, textarea, select {
-    font-size: max(16px, 1em);
+    font-size: 16px !important;
   }
 }
 

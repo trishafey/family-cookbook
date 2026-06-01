@@ -350,7 +350,7 @@ function IngredientsEditor({ ingredients, onChange }) {
               </div>
             </div>
           ))}
-          <button type="button" className="btn ghost sm" onClick={() => addIngredientTo(sec.name)}>
+          <button type="button" className="btn add-section-btn" onClick={() => addIngredientTo(sec.name)}>
             <Icon name="plus" size={14} /> {t("addIngredient")}
           </button>
         </div>
@@ -1319,7 +1319,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   }}><Icon name="x" size={14} /></button>
                 </div>
               ))}
-              <button type="button" className="btn ghost sm" onClick={() => {
+              <button type="button" className="btn add-section-btn" onClick={() => {
                 setDraft({ ...draft, tips: [...(draft.tips || []), ""] });
               }}>
                 <Icon name="plus" size={14} /> {t("addTip")}
@@ -1480,9 +1480,6 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           >
             <Icon name="camera" size={48} />
             <h3 style={{ marginTop: 16 }}>{t("snapPhotoOfCookbook")}</h3>
-            <div style={{ color: "var(--ink-3)", marginTop: 8, fontFamily: "var(--serif)" }}>
-              {t("takePhotoHelper")}
-            </div>
 
             {pendingImages.length > 0 && (
               <div style={{ marginTop: 24, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
