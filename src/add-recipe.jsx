@@ -1159,7 +1159,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
             />
             <div className="extract-row" style={{ marginTop: 16 }}>
               <button className="btn ai" disabled={!aiText.trim() || extracting} aria-busy={extracting} onClick={runAI}>
-                {extracting ? t("extracting") : <><Icon name="sparkle" size={15} /> {t("extractRecipe")}</>}
+                {extracting ? <><Icon name="sparkle" size={15} /> {t("extracting")}</> : <><Icon name="sparkle" size={15} /> {t("extractRecipe")}</>}
               </button>
               <span className="extract-helper">
                 {t("aiPasteHelper")}
@@ -1653,7 +1653,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   aria-busy={extracting}
                 >
                   {extracting
-                    ? t("extracting")
+                    ? <><Icon name="sparkle" size={15} /> {t("extracting")}</>
                     : <><Icon name="sparkle" size={15} /> {t("extractRecipeN").replace("{n}", pendingImages.length)}</>}
                 </button>
               )}
@@ -1681,7 +1681,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                 disabled={extracting}
               />
               <button className="btn accent" onClick={runFromUrl} disabled={!aiUrl.trim() || extracting} aria-busy={extracting}>
-                {extracting ? t("extracting") : <><Icon name="sparkle" size={15} /> {t("fetchAndParse")}</>}
+                {extracting ? <><Icon name="sparkle" size={15} /> {t("extracting")}</> : <><Icon name="sparkle" size={15} /> {t("fetchAndParse")}</>}
               </button>
             </div>
             <div style={{ marginTop: 16, fontSize: 13, color: "var(--ink-3)" }}>
