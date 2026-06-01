@@ -157,10 +157,6 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
 
   return (
     <div className="cookmode-overlay" data-screen-label={`03 Cook mode: ${recipe.title}`}>
-      {/* Timers also render here so the cook sees the banner
-          without leaving cook mode. The app-level banner is
-          covered by this overlay. */}
-      <TimerBanner />
       <div className="cookmode-head">
         <div className="where">
           <span className="accent">{recipe.author}'s</span> {recipe.title}
@@ -177,6 +173,12 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
           <button className="btn" onClick={onClose}><Icon name="x" size={16} /> {t("exit")}</button>
         </div>
       </div>
+
+      {/* Timers render here so the cook sees the banner without
+          leaving cook mode (the page-level banner is covered by
+          the overlay). Sits directly under the cookmode-head,
+          flush to the modal edges. */}
+      <TimerBanner />
 
       <div className="cookmode-body">
         {/* Sidebar: timeline & ingredients */}

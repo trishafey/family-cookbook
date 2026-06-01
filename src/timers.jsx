@@ -97,10 +97,15 @@ export function useTimers() {
 
   const start = useCallback(({ label, mins, recipeId, stepIdx }) => {
     const cur = readStore();
-    // If a timer for the same step is already running, just
-    // bring it forward (don't double-up). Cooks often re-tap.
-    const existing = cur.find(t => t.recipeId === recipeId && t.stepIdx === stepIdx && !t.firedAt);
-    if (existing) return existing.id;
+    // Dedupe re-taps on the SAME saved recipe — but only when
+    // recipeId is real. A null recipeId (add-recipe form before
+    // first save) used to collide with any other null-recipe
+    // timer at the same stepIdx, silently blocking new timers
+    // from being created in the editor.
+    if (recipeId) {
+      const existing = cur.find(t => t.recipeId === recipeId && t.stepIdx === stepIdx && !t.firedAt);
+      if (existing) return existing.id;
+    }
     const id = `t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const next = [...cur, {
       id, label, recipeId: recipeId || null, stepIdx: stepIdx ?? null,
@@ -250,25 +255,28 @@ function getChimeAudio() {
 // without a gesture (which is how the looping chime fires from
 // the tick interval).
 export function warmAudio() {
-  const a = getChimeAudio();
-  if (!a) return;
-  // Play silently and immediately pause. This is the standard
-  // iOS unlock trick for HTMLAudioElement.
-  const prevVolume = a.volume;
-  a.volume = 0;
-  const p = a.play();
-  if (p && typeof p.then === "function") {
-    p.then(() => {
-      a.pause();
-      a.currentTime = 0;
+  // Wrap the whole thing — older Safari throws synchronously
+  // from .play() in some states, and we never want that to
+  // bubble up to a click handler and abort the rest of its
+  // body (e.g. the startTimer() call that follows).
+  try {
+    const a = getChimeAudio();
+    if (!a) return;
+    const prevVolume = a.volume;
+    a.volume = 0;
+    const p = a.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => {
+        try { a.pause(); a.currentTime = 0; } catch {}
+        a.volume = prevVolume;
+      }).catch(() => {
+        a.volume = prevVolume;
+      });
+    } else {
+      try { a.pause(); a.currentTime = 0; } catch {}
       a.volume = prevVolume;
-    }).catch(() => {
-      a.volume = prevVolume;
-    });
-  } else {
-    try { a.pause(); a.currentTime = 0; } catch {}
-    a.volume = prevVolume;
-  }
+    }
+  } catch {}
 }
 
 export function playChime() {
@@ -301,24 +309,37 @@ export function maybeChime(timers) {
 // ─────────────────────────────────────────────────────────────
 
 export function TimerTicker() {
-  const { timers, fire } = useTimers();
+  const { fire } = useTimers();
   const firedIdsRef = useRef(new Set());
   useEffect(() => {
-    const now = Date.now();
-    for (const t of timers) {
-      if (t.firedAt || t.paused) continue;
-      if (remainingMs(t, now) <= 0 && !firedIdsRef.current.has(t.id)) {
-        firedIdsRef.current.add(t.id);
-        fire(t.id);
+    // We drive the expiry check from a dedicated setInterval
+    // rather than a useEffect([timers]) — `timers` only changes
+    // when something WRITES to the store (start/pause/etc.), so
+    // a useEffect-based check never observes the natural
+    // countdown and chimes never fired. Re-reading the store
+    // every 250ms is cheap (a JSON.parse of a short string) and
+    // guarantees we notice when a timer crosses zero.
+    const check = () => {
+      const list = readStore();
+      const now = Date.now();
+      for (const t of list) {
+        if (t.firedAt || t.paused) continue;
+        if (remainingMs(t, now) <= 0 && !firedIdsRef.current.has(t.id)) {
+          firedIdsRef.current.add(t.id);
+          fire(t.id);
+        }
       }
-    }
-    // Forget fired ids that no longer exist so re-fire works
-    // correctly if a cook starts the same step twice.
-    const live = new Set(timers.map(t => t.id));
-    for (const id of firedIdsRef.current) {
-      if (!live.has(id)) firedIdsRef.current.delete(id);
-    }
-    maybeChime(timers);
-  }, [timers, fire]);
+      // Reap fired ids that no longer exist so re-fire works
+      // correctly if a cook starts the same step twice.
+      const live = new Set(list.map(t => t.id));
+      for (const id of firedIdsRef.current) {
+        if (!live.has(id)) firedIdsRef.current.delete(id);
+      }
+      maybeChime(list);
+    };
+    check();
+    const id = setInterval(check, 250);
+    return () => clearInterval(id);
+  }, [fire]);
   return null;
 }

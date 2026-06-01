@@ -3625,6 +3625,20 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
   padding: 8px 28px;
   overflow-x: auto;
 }
+/* When the banner is dropped inside a Modal body (e.g.
+   MealCookMode), pull it out to the modal edges and flush
+   against the modal head — the modal-body's 24px padding
+   otherwise leaves a visible inset. */
+.modal-body > .timer-banner:first-child {
+  margin: -24px -24px 16px;
+}
+/* In cookmode, the banner sits directly below cookmode-head
+   with no horizontal padding from a parent — drop its own
+   border-bottom so it doesn't double-line with the head's
+   border-bottom above it. */
+.cookmode-overlay > .timer-banner {
+  border-bottom-color: var(--rule);
+}
 .timer-chip {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 10px 6px 6px;
