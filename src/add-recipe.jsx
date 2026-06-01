@@ -1042,11 +1042,11 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               value={aiText}
               onChange={(e) => setAiText(e.target.value)}
             />
-            <div style={{ display: "flex", gap: 8, marginTop: 16, alignItems: "center" }}>
-              <button className="btn accent" disabled={!aiText.trim() || extracting} aria-busy={extracting} onClick={runAI}>
+            <div className="extract-row" style={{ marginTop: 16 }}>
+              <button className="btn ai" disabled={!aiText.trim() || extracting} aria-busy={extracting} onClick={runAI}>
                 {extracting ? t("extracting") : <><Icon name="sparkle" size={15} /> {t("extractRecipe")}</>}
               </button>
-              <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+              <span className="extract-helper">
                 {t("aiPasteHelper")}
               </span>
             </div>
@@ -1141,7 +1141,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   className={`btn sm ${draft.origin === o ? "primary" : "ghost"}`}
                   onClick={() => setDraft({ ...draft, origin: o })}
                 >
-                  <Icon name={o === "heirloom" ? "heirloom" : o === "newToFamily" ? "vegan" : "experiment"} size={14} /> {tOrigin(o)}
+                  <Icon name={o === "heirloom" ? "heirloom" : o === "newToFamily" ? "vegan" : "experiment"} size={16} /> {tOrigin(o)}
                 </button>
               ))}
             </div>
@@ -1528,7 +1528,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               </label>
               {pendingImages.length > 0 && (
                 <button
-                  className="btn accent"
+                  className="btn ai"
                   onClick={runFromImages}
                   disabled={extracting}
                   aria-busy={extracting}
