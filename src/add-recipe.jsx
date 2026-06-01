@@ -1052,20 +1052,6 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
             </div>
           </div>
 
-          <div style={{ marginTop: 32, fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)" }}>
-            Or try one of these:
-          </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-            {[
-              "Aunt Sandy's pavlova",
-              "Grandpa's clam chowder",
-              "30-minute weeknight tacos",
-            ].map(s => (
-              <button key={s} className="btn ghost sm" onClick={() => setAiText(`${s}\n\n2 cups flour\n3 eggs\n1 cup sugar\n\nPreheat oven to 350°F. Whisk eggs and sugar. Fold in flour. Bake 25 minutes until golden.`)}>
-                {s}
-              </button>
-            ))}
-          </div>
         </div>
       )}
 
@@ -1155,7 +1141,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                   className={`btn sm ${draft.origin === o ? "primary" : "ghost"}`}
                   onClick={() => setDraft({ ...draft, origin: o })}
                 >
-                  <Icon name={o === "heirloom" ? "tomato" : o === "newToFamily" ? "sprout" : "beaker"} size={14} /> {tOrigin(o)}
+                  <Icon name={o === "heirloom" ? "heirloom" : o === "newToFamily" ? "vegan" : "experiment"} size={14} /> {tOrigin(o)}
                 </button>
               ))}
             </div>

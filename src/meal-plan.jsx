@@ -74,13 +74,39 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
       }
     >
       <div className="meal-plan-modal-body">
-        <div className="when">
-          <div>
-            <label>{t("date")}</label>
-            <input type="date" value={dateStr} onChange={(e) => updateDate(e.target.value)} />
+        <div>
+          <label>{t("date")}</label>
+          <input type="date" value={dateStr} onChange={(e) => updateDate(e.target.value)} />
+        </div>
+
+        {/* Start-and-eat card: replaces the bare TIME field. Both
+            values are editable — editing AND EAT AT moves the
+            finish time directly; editing YOU'LL START AT shifts
+            the finish time by the same delta so the schedule
+            length stays the same. */}
+        <div className="plan-times">
+          <div className="plan-time">
+            <label>{t("youllStartAt")}</label>
+            <input
+              type="time"
+              value={`${String(earliestStartByDate.getHours()).padStart(2, "0")}:${String(earliestStartByDate.getMinutes()).padStart(2, "0")}`}
+              onChange={(e) => {
+                const [h, m] = e.target.value.split(":").map(Number);
+                if (Number.isNaN(h) || Number.isNaN(m)) return;
+                const newStart = new Date(earliestStartByDate);
+                newStart.setHours(h, m, 0, 0);
+                const delta = newStart.getTime() - earliestStartByDate.getTime();
+                setFinishTime(new Date(finishTime.getTime() + delta));
+              }}
+            />
+            {earliestOffset < 0 && (
+              <div className="day-hint">
+                {earliestStartByDate.toLocaleDateString(locale, { weekday: "long" })}
+              </div>
+            )}
           </div>
-          <div>
-            <label>{t("time")}</label>
+          <div className="plan-time">
+            <label>{t("andEatAt")}</label>
             <input type="time" value={timeStr} onChange={(e) => updateTime(e.target.value)} />
           </div>
         </div>
@@ -134,20 +160,6 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: "14px 16px", background: "var(--paper-2)", border: "1px solid var(--rule)", borderRadius: "var(--radius)" }}>
-          <div>
-            <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>{t("youllStartAt")}</div>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 24, color: "var(--accent)", marginTop: 4 }}>
-              {earliestOffset < 0
-                ? `${earliestStartByDate.toLocaleDateString(locale, { weekday: "long" })} ${fmtTime(earliestStartByDate)}`
-                : fmtTime(earliestStartByDate)}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>{t("andEatAt")}</div>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 24, color: "var(--ink)", marginTop: 4 }}>{fmtTime(finishTime)}</div>
-          </div>
-        </div>
       </div>
     </Modal>
   );

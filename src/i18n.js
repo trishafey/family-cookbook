@@ -262,7 +262,7 @@ const S = {
     en: "Paste anything — a recipe email from your mom, a copy/paste from a blog, a screenshot of a cookbook page. We'll pull out the title, ingredients, steps, and timing, then let you review and tidy up before saving.",
     pl: "Wklej cokolwiek — e-mail z przepisem od mamy, kopię z bloga, zrzut z książki kucharskiej. Wyciągniemy tytuł, składniki, kroki i czasy, a Ty sprawdzisz i poprawisz przed zapisem.",
   },
-  snapPhotoOfCookbook: { en: "Snap a photo of a cookbook page", pl: "Zrób zdjęcie strony książki kucharskiej" },
+  snapPhotoOfCookbook: { en: "Snap or upload a photo", pl: "Zrób lub wgraj zdjęcie" },
   takePhotoHelper:{
     en: "Take a photo (or pick from camera roll). AI will read the page and pull out the recipe.",
     pl: "Zrób zdjęcie (lub wybierz z galerii). AI odczyta stronę i wyciągnie przepis.",
