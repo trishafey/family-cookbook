@@ -419,13 +419,23 @@ function App() {
 
       {/* ───── Meal-selection banner (sticky under nav while items
            are queued but the cook isn't in the meal builder) ───── */}
-      {selection.length > 0 && view !== "meal" && (
+      {selection.length > 0 && view !== "meal" && view !== "meal-plan" && (
         <div className="meal-banner">
           <span className="count">{selection.length}</span>
           <span className="label">
             {selection.length === 1 ? t("recipeOnMenu") : t("recipesOnMenu")}
           </span>
-          <button className="btn sm" onClick={() => setView("meal")}>
+          <button
+            className="btn sm"
+            onClick={() => {
+              // If the cook has already planned a finish time
+              // for this selection, jump straight to the results
+              // page. Otherwise, drop them in the meal builder
+              // to pick recipes / hit Plan & cook together.
+              if (mealPlan) setView("meal-plan");
+              else setView("meal");
+            }}
+          >
             {t("reviewMeal")}
           </button>
         </div>

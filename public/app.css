@@ -1473,12 +1473,13 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .timeline-row .step-card .duration {
   font-family: var(--mono); font-size: 11px;
-  color: var(--ink-3); white-space: nowrap;
+  color: var(--ink-3);
   padding-top: 2px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .timeline-row .step-card .precision {
   font-family: var(--mono); font-size: 10px;
-  margin-left: 6px;
 }
 
 /* color tokens per recipe — applied via inline style or .timeline-row[data-recipe="0"] etc */
@@ -3533,22 +3534,18 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
 .per-recipe-stats .stat-val { font-size: 22px; line-height: 1.1; }
 .per-recipe-stats .cook-btn { justify-self: end; }
 
-/* Start cooking / Shopping list / Print row — always inline.
-   On narrow widths the buttons shrink (smaller padding + font,
-   centred content) so all three fit on one line instead of
-   wrapping or stacking. "Reset adjustments" (rare; only when
-   overrides exist) wraps onto its own line via flex-basis: 100%. */
+/* Start cooking / Shopping list / Print row.
+   Buttons keep their natural width and flow left-to-right,
+   wrapping onto a second line if the row can't fit them all.
+   No text truncation on narrow viewports — readability over
+   cramming-onto-one-line. */
 .meal-actions-row {
   margin-top: 16px;
-  display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap;
+  display: flex; gap: 8px; flex-wrap: wrap;
+  justify-content: flex-start;
 }
-.meal-actions-row .btn.sm { white-space: nowrap; }
-.meal-actions-row .reset-btn { flex-basis: 100%; text-align: right; }
-@media (max-width: 600px) {
-  .meal-actions-row { gap: 4px; flex-wrap: nowrap; }
-  .meal-actions-row .btn.sm { padding: 6px 8px; font-size: 11px; flex: 1 1 0; min-width: 0; justify-content: center; }
-  .meal-actions-row .btn.sm svg { flex-shrink: 0; }
-}
+.meal-actions-row .btn { white-space: nowrap; }
+.meal-actions-row .reset-btn { flex-basis: 100%; text-align: left; }
 
 @media (max-width: 720px) {
   .per-recipe-head {

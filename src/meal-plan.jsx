@@ -501,7 +501,8 @@ function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
                       <div className="step-desc">{it.step.d}</div>
                     </div>
                     <div className="duration">
-                      {fmtDuration(it.step.mins)}
+                      <span>{fmtDuration(it.step.mins)}</span>
+                      <span className={`precision precision-${it.step.precision}`}>● {it.step.precision}</span>
                       {it.step.mins > 0 && (
                         <button
                           type="button"
@@ -512,7 +513,6 @@ function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
                           <Icon name="timer" size={12} /> {t("startTimer")}
                         </button>
                       )}
-                      <div className={`precision precision-${it.step.precision}`} style={{ marginTop: 4 }}>● {it.step.precision}</div>
                     </div>
                   </div>
                 </div>
