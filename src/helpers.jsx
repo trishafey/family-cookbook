@@ -258,6 +258,14 @@ export function localizeRecipe(r, lang) {
 // recipes can be missing arrays or nested objects; rendering crashes
 // rather than degrading without this.
 export function normalizeRecipe(r) {
+  const steps = r.steps || [];
+  // Recompute total from prep + sum-of-step-durations so every
+  // downstream consumer (browse cards, build-a-meal, meal plan,
+  // recipe page) sees the same number. The stored `total` field
+  // could be stale from an early-version save or differ from
+  // prep+steps if the form let it drift. This matches what the
+  // recipe page actually displays in its TOTAL stat.
+  const stepsTotal = steps.reduce((s, x) => s + (x.mins || 0), 0);
   return {
     ...r,
     diet: r.diet || [],
@@ -265,10 +273,11 @@ export function normalizeRecipe(r) {
     comments: r.comments || [],
     liveComments: r.liveComments || [],
     ingredients: r.ingredients || [],
-    steps: r.steps || [],
+    steps,
     nutrition: { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodium: 0, ...(r.nutrition || {}) },
     servingsDefault: r.servingsDefault || 1,
     difficulty: r.difficulty || "Easy",
+    total: (r.prep || 0) + stepsTotal,
   };
 }
 
