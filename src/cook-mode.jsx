@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useStorage, scheduleForFinish, fmtTime, fmtDuration, formatQty, formatIngredientQty, Icon, logEvent } from "./helpers.jsx";
-import { useTimers } from "./timers.jsx";
+import { useTimers, warmAudio } from "./timers.jsx";
+import { TimerBanner } from "./timer-banner.jsx";
 import { TimeOfDayInput, Lightbox } from "./ui.jsx";
 import { NeedHelp } from "./need-help.jsx";
 import { useLang } from "./i18n.js";
@@ -156,6 +157,10 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
 
   return (
     <div className="cookmode-overlay" data-screen-label={`03 Cook mode: ${recipe.title}`}>
+      {/* Timers also render here so the cook sees the banner
+          without leaving cook mode. The app-level banner is
+          covered by this overlay. */}
+      <TimerBanner />
       <div className="cookmode-head">
         <div className="where">
           <span className="accent">{recipe.author}'s</span> {recipe.title}
@@ -260,13 +265,16 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
             {cur.mins > 0 && (
               <button
                 type="button"
-                className="btn ai cook-start-timer"
-                onClick={() => startTimer({
-                  label: cur.t ? `${recipe.title} — ${cur.t}` : `${recipe.title} step ${idx + 1}`,
-                  mins: cur.mins,
-                  recipeId: recipe.id,
-                  stepIdx: idx,
-                })}
+                className="btn primary cook-start-timer"
+                onClick={() => {
+                  warmAudio();
+                  startTimer({
+                    label: cur.t ? `${recipe.title} — ${cur.t}` : `${recipe.title} step ${idx + 1}`,
+                    mins: cur.mins,
+                    recipeId: recipe.id,
+                    stepIdx: idx,
+                  });
+                }}
                 title={t("startTimer")}
               >
                 <Icon name="timer" size={16} /> {t("startTimer")}

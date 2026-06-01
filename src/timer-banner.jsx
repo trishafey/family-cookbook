@@ -15,8 +15,9 @@ export function TimerBanner() {
         {timers.map(t => {
           const fired = !!t.firedAt;
           const remaining = remainingMs(t);
+          const overdue = remaining < 0;
           return (
-            <div key={t.id} className={`timer-chip ${fired ? "fired" : ""} ${t.paused ? "paused" : ""}`}>
+            <div key={t.id} className={`timer-chip ${fired ? "fired" : ""} ${overdue ? "overdue" : ""} ${t.paused ? "paused" : ""}`}>
               <div className="timer-icon">
                 <Icon name="timer" size={18} />
               </div>
@@ -29,7 +30,7 @@ export function TimerBanner() {
                   <Icon name="minus" size={12} />
                 </button>
                 <button type="button" onClick={() => adjust(t.id, +1)} title="Add 1 minute" aria-label="Add 1 minute">
-                  <Icon name="plus" size={12} />
+                  <Icon name="plusBare" size={12} />
                 </button>
               </div>
               {!fired && (

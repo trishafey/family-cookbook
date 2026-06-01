@@ -144,7 +144,7 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
               <Icon name="filter" size={16} />
             </button>
           </div>
-          <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> {t("addRecipe")}</button>
+          <button className="btn primary" onClick={openAddRecipe}><Icon name="plusBare" /> {t("addRecipe")}</button>
           {!simpleMode && (
             <button className="btn" onClick={openMealBuilder}><Icon name="build" /> {t("buildMeal")}</button>
           )}

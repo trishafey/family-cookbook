@@ -243,7 +243,7 @@ function TastingNoteEditor({ value, onSave, disabled }) {
         disabled={disabled}
         title={disabled ? "Sign in to add tasting notes" : "Add a tasting note"}
       >
-        <Icon name="plus" size={12} /> Tasting note
+        <Icon name="plusBare" size={12} /> Tasting note
       </button>
     );
   }
@@ -552,7 +552,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
         </div>
         <div>
           <button className="btn primary" onClick={startNew}>
-            <Icon name="plus" /> New experiment
+            <Icon name="plusBare" /> New experiment
           </button>
         </div>
       </div>

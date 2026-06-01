@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Icon, logEvent, signInUrl, slugify, parseQty, formatQty } from "./helpers.jsx";
-import { useTimers } from "./timers.jsx";
+import { useTimers, warmAudio } from "./timers.jsx";
 import { Modal } from "./ui.jsx";
 import { FLAGS } from "./config/flags.js";
 import { COURSES, OCCASIONS, DIETS, ORIGINS, RECIPES as SEED_RECIPES } from "./data.js";
@@ -442,12 +442,12 @@ function IngredientsEditor({ ingredients, onChange, groupOrder, onGroupOrderChan
             </div>
           ))}
           <button type="button" className="btn add-section-btn" onClick={() => addIngredientTo(sec.name)}>
-            <Icon name="plus" size={14} /> {t("addIngredient")}
+            <Icon name="plusBare" size={14} /> {t("addIngredient")}
           </button>
         </div>
       ))}
       <button type="button" className="btn add-section-btn" onClick={addSection}>
-        <Icon name="plus" size={15} /> {t("addSection")}
+        <Icon name="plusBare" size={15} /> {t("addSection")}
       </button>
     </div>
   );
@@ -627,12 +627,15 @@ function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange, reci
                     <button
                       type="button"
                       className="start-timer-link"
-                      onClick={() => startTimer({
-                        label: s.t ? `${recipeTitle ? recipeTitle + " — " : ""}${s.t}` : `${recipeTitle || "Step"} ${s._idx + 1}`,
-                        mins: s.mins,
-                        recipeId: recipeId || null,
-                        stepIdx: s._idx,
-                      })}
+                      onClick={() => {
+                        warmAudio();
+                        startTimer({
+                          label: s.t ? `${recipeTitle ? recipeTitle + " — " : ""}${s.t}` : `${recipeTitle || "Step"} ${s._idx + 1}`,
+                          mins: s.mins,
+                          recipeId: recipeId || null,
+                          stepIdx: s._idx,
+                        });
+                      }}
                       title={t("startTimer")}
                     >
                       <Icon name="timer" size={12} /> {t("startTimer")}
@@ -676,12 +679,12 @@ function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange, reci
             </div>
           ))}
           <button type="button" className="btn add-section-btn" onClick={() => addStepTo(sec.name)}>
-            <Icon name="plus" size={14} /> {t("addStep")}
+            <Icon name="plusBare" size={14} /> {t("addStep")}
           </button>
         </div>
       ))}
       <button type="button" className="btn add-section-btn" onClick={addSection}>
-        <Icon name="plus" size={15} /> {t("addSection")}
+        <Icon name="plusBare" size={15} /> {t("addSection")}
       </button>
     </div>
   );
@@ -1446,7 +1449,7 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               <button type="button" className="btn add-section-btn" onClick={() => {
                 setDraft({ ...draft, tips: [...(draft.tips || []), ""] });
               }}>
-                <Icon name="plus" size={14} /> {t("addTip")}
+                <Icon name="plusBare" size={14} /> {t("addTip")}
               </button>
             </div>
           </div>

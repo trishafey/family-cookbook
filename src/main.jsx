@@ -393,7 +393,7 @@ function App() {
               </button>
             )}
             <button className="btn primary sm" onClick={() => setView("add")} title={t("addRecipe")}>
-              <Icon name="plus" size={15} /> <span className="btn-label">{t("addRecipe")}</span>
+              <Icon name="plusBare" size={15} /> <span className="btn-label">{t("addRecipe")}</span>
             </button>
             {authEmail ? (
               <AvatarMenu

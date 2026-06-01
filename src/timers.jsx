@@ -196,6 +196,34 @@ function playBellTone(ctx, freq, when, gain = 0.18) {
   osc.stop(when + 1.25);
 }
 
+// Unlock the audio context inside a user gesture. iOS Safari
+// (and increasingly desktop browsers) require that the
+// AudioContext is both CREATED and RESUMED within a synchronous
+// user-gesture handler, otherwise later programmatic playChime()
+// calls from the tick interval will be silently blocked. Call
+// this from the Start timer button onClick.
+export function warmAudio() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === "suspended") {
+    // .resume() returns a Promise; we ignore failures because
+    // some browsers reject it outside a gesture and there's
+    // nothing useful to do about it.
+    ctx.resume().catch(() => {});
+  }
+  // Schedule a near-silent blip so the audio graph actually runs
+  // — on some iPads the context resumes but the first real tone
+  // still gets dropped if nothing has played yet.
+  try {
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    env.gain.value = 0.0001;
+    osc.connect(env).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.02);
+  } catch {}
+}
+
 export function playChime() {
   const ctx = getCtx();
   if (!ctx) return;

@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Icon, fmtDuration, fmtTime, formatQty, formatIngredientQty, logEvent, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage, applySectionOrder } from "./helpers.jsx";
-import { useTimers, playChime } from "./timers.jsx";
+import { useTimers, playChime, warmAudio } from "./timers.jsx";
 import { convertIngredient } from "./units.js";
 import { useLang } from "./i18n.js";
 import { TimeOfDayInput, PrintOnly, Lightbox } from "./ui.jsx";
@@ -539,9 +539,10 @@ function StepsList({ steps, sectionOrder, doneBy, schedule, finishTime, bumpStep
   const { start: startTimer } = useTimers();
   const handleStartTimer = (step, idx) => {
     if (!step.mins) return;
-    // Pre-warm the audio context inside the user gesture so the
-    // chime can ring later without an autoplay block.
-    try { playChime.warm?.(); } catch {}
+    // Unlock the audio context inside this user gesture so the
+    // chime can ring later (iOS Safari blocks audio that wasn't
+    // bootstrapped from a tap/click).
+    warmAudio();
     const label = step.t
       ? `${recipeTitle ? recipeTitle + " — " : ""}${step.t}`
       : `${recipeTitle || ""} step ${idx + 1}`;
