@@ -28,6 +28,31 @@ const UNICODE_FRACTIONS = {
   "⅙": 1/6, "⅚": 5/6,
   "⅛": 0.125, "⅜": 0.375, "⅝": 0.625, "⅞": 0.875,
 };
+// Predictive-recipe suggestions for the search bar. Returns up
+// to N recipes whose title / author / cuisine contains the
+// query, ranked by where the match lands: title prefix beats
+// title-includes beats other-field-includes. Empty array if the
+// query is too short or nothing matches.
+export function recipeSuggestions(query, recipes, limit = 6) {
+  const q = (query || "").trim().toLowerCase();
+  if (q.length < 2 || !recipes?.length) return [];
+  const out = [];
+  for (const r of recipes) {
+    const title = (r.title || "").toLowerCase();
+    const author = (r.author || "").toLowerCase();
+    const cuisine = (r.cuisine || "").toLowerCase();
+    let rank = -1;
+    if (title.startsWith(q)) rank = 0;
+    else if (title.includes(q)) rank = 1;
+    else if (author.includes(q) || cuisine.includes(q)) rank = 2;
+    if (rank >= 0) out.push({ recipe: r, rank });
+  }
+  return out
+    .sort((a, b) => a.rank - b.rank || a.recipe.title.localeCompare(b.recipe.title))
+    .slice(0, limit)
+    .map(x => x.recipe);
+}
+
 export function parseQty(str) {
   if (str == null) return null;
   const s = String(str).trim();

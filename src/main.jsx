@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary } from "./helpers.jsx";
+import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions } from "./helpers.jsx";
 import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
@@ -19,22 +19,60 @@ import { AdminAIUsage } from "./admin-ai-usage.jsx";
 import { TimerTicker } from "./timers.jsx";
 import { TimerBanner } from "./timer-banner.jsx";
 
-// Collapsible nav search — renders as a bare icon button until
-// the cook taps it, then slides open into the full search bar
-// with a width transition. Auto-focuses the input on expand and
-// collapses again when blurred with no query.
-function NavSearch({ query, setQuery, placeholder, simpleMode, onOpenFilters, filtersLabel }) {
-  const [expanded, setExpanded] = useState(false);
-  const inputRef = useRef(null);
+// Track viewport ≥ 720px (tablet + desktop). NavSearch uses
+// this to gate the collapsing behaviour — mobile always shows
+// the full search bar, tablet/desktop collapses to an icon.
+function useIsTabletUp() {
+  const [val, setVal] = useState(() =>
+    typeof window === "undefined" ? true : window.matchMedia("(min-width: 720px)").matches
+  );
   useEffect(() => {
-    if (expanded) inputRef.current?.focus();
-  }, [expanded]);
-  // Keep open while there's a query so the cook can see what
-  // they're filtering by; auto-collapse on blur when empty.
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 720px)");
+    const handler = (e) => setVal(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return val;
+}
+
+// Nav search bar.
+//   - Mobile (<720px): always shown expanded, full width.
+//   - Tablet/desktop: starts collapsed as an outlined icon
+//     button; clicking expands with a smooth width transition.
+//     Auto-collapses on blur when the input is empty.
+// Predictive recipe matches drop down beneath the input while
+// the cook is typing; clicking one opens the recipe.
+function NavSearch({ query, setQuery, placeholder, mobilePlaceholder, simpleMode, onOpenFilters, filtersLabel, recipes, onOpenRecipe }) {
+  const isTabletUp = useIsTabletUp();
+  // On tablet/desktop the bar starts collapsed; on mobile it's
+  // always expanded.
+  const [expanded, setExpanded] = useState(!isTabletUp);
+  const inputRef = useRef(null);
+  const wrapRef = useRef(null);
+  const [focused, setFocused] = useState(false);
+  // Re-sync when the breakpoint flips (rotating an iPad, etc.).
+  useEffect(() => {
+    if (!isTabletUp) setExpanded(true);
+  }, [isTabletUp]);
+  useEffect(() => {
+    if (expanded && isTabletUp) inputRef.current?.focus();
+  }, [expanded, isTabletUp]);
+  // Close suggestions when clicking outside the search wrapper.
+  useEffect(() => {
+    if (!focused) return;
+    const onDown = (e) => {
+      if (!wrapRef.current?.contains(e.target)) setFocused(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [focused]);
   const handleBlur = () => {
-    if (!query) setExpanded(false);
+    // Only collapse on tablet/desktop, and only when empty.
+    if (isTabletUp && !query) setExpanded(false);
   };
-  if (!expanded) {
+  // Tablet/desktop collapsed pill — outlined icon button.
+  if (isTabletUp && !expanded) {
     return (
       <div className="search collapsed">
         <button
@@ -48,26 +86,66 @@ function NavSearch({ query, setQuery, placeholder, simpleMode, onOpenFilters, fi
       </div>
     );
   }
+  const suggestions = focused ? recipeSuggestions(query, recipes) : [];
+  // Pick the right placeholder for the viewport — the long
+  // "Search by recipe, cook, cuisine, or ingredient…" gets
+  // truncated mid-word on narrow phones.
+  const ph = !isTabletUp && mobilePlaceholder ? mobilePlaceholder : placeholder;
   return (
-    <div className="search">
-      <Icon name="search" />
-      <input
-        ref={inputRef}
-        placeholder={placeholder}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onBlur={handleBlur}
-      />
-      {query && <button className="btn ghost icon-only" onClick={() => setQuery("")}><Icon name="x" size={14} /></button>}
-      {!simpleMode && (
-        <button
-          className="btn ghost icon-only search-filter-btn"
-          onClick={onOpenFilters}
-          title={filtersLabel}
-          aria-label={filtersLabel}
-        >
-          <Icon name="filter" size={16} />
-        </button>
+    <div className="search-wrap" ref={wrapRef}>
+      <div className="search">
+        <Icon name="search" />
+        <input
+          ref={inputRef}
+          placeholder={ph}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={handleBlur}
+        />
+        {query && <button className="btn ghost icon-only" onClick={() => setQuery("")}><Icon name="x" size={14} /></button>}
+        {!simpleMode && (
+          <button
+            className="btn ghost icon-only search-filter-btn"
+            onClick={onOpenFilters}
+            title={filtersLabel}
+            aria-label={filtersLabel}
+          >
+            <Icon name="filter" size={16} />
+          </button>
+        )}
+      </div>
+      {suggestions.length > 0 && (
+        <div className="search-suggestions" role="listbox">
+          {suggestions.map(r => (
+            <button
+              key={r.id}
+              type="button"
+              role="option"
+              className="search-suggestion"
+              onMouseDown={(e) => {
+                // mousedown so we fire BEFORE the input's blur
+                // tears down the suggestions list.
+                e.preventDefault();
+                onOpenRecipe?.(r);
+                setFocused(false);
+                setQuery("");
+              }}
+            >
+              {r.photoCard || r.photo ? (
+                <span
+                  className="thumb"
+                  style={{ backgroundImage: `url(${r.photoCard || r.photo})` }}
+                  aria-hidden
+                />
+              ) : null}
+              <span className="text">
+                <span className="title">{r.title}</span>
+                <span className="sub">{r.author ? `by ${r.author}` : r.cuisine}</span>
+              </span>
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -376,9 +454,12 @@ function App() {
             query={query}
             setQuery={(v) => { setQuery(v); if (view !== "browse") setView("browse"); }}
             placeholder={t("searchPlaceholder")}
+            mobilePlaceholder={t("searchPlaceholderShort")}
             simpleMode={simpleMode}
             onOpenFilters={() => setFiltersOpen(true)}
             filtersLabel={t("filters")}
+            recipes={recipes}
+            onOpenRecipe={openRecipe}
           />
           <div className="nav-actions">
             {!simpleMode && FLAGS.lab && (

@@ -1,7 +1,87 @@
 // Browse / home page — the first thing the user sees.
 
-import { useState, useEffect, useMemo } from "react";
-import { Icon, Pill, fmtDuration } from "./helpers.jsx";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Icon, Pill, fmtDuration, recipeSuggestions } from "./helpers.jsx";
+
+// Home masthead search bar — always expanded (no collapse) and
+// shows predictive matches in a dropdown while typing. Uses the
+// shorter placeholder on narrow viewports so the long
+// description doesn't get cut off mid-word.
+function HomeSearch({ query, setQuery, openFilters, recipes, onOpenRecipe, placeholder, mobilePlaceholder, filtersLabel }) {
+  const [focused, setFocused] = useState(false);
+  const wrapRef = useRef(null);
+  const [isNarrow, setIsNarrow] = useState(() =>
+    typeof window === "undefined" ? false : window.matchMedia("(max-width: 640px)").matches
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 640px)");
+    const h = (e) => setIsNarrow(e.matches);
+    mq.addEventListener("change", h);
+    return () => mq.removeEventListener("change", h);
+  }, []);
+  useEffect(() => {
+    if (!focused) return;
+    const onDown = (e) => { if (!wrapRef.current?.contains(e.target)) setFocused(false); };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [focused]);
+  const suggestions = focused ? recipeSuggestions(query, recipes) : [];
+  const ph = isNarrow && mobilePlaceholder ? mobilePlaceholder : placeholder;
+  return (
+    <div className="search-wrap home-search-wrap" ref={wrapRef}>
+      <div className="search home-search">
+        <Icon name="search" />
+        <input
+          placeholder={ph}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setFocused(true)}
+        />
+        {query && <button className="btn ghost icon-only" onClick={() => setQuery("")}><Icon name="x" size={14} /></button>}
+        <button
+          className="btn ghost icon-only search-filter-btn"
+          onClick={openFilters}
+          title={filtersLabel}
+          aria-label={filtersLabel}
+        >
+          <Icon name="filter" size={16} />
+        </button>
+      </div>
+      {suggestions.length > 0 && (
+        <div className="search-suggestions" role="listbox">
+          {suggestions.map(r => (
+            <button
+              key={r.id}
+              type="button"
+              role="option"
+              className="search-suggestion"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onOpenRecipe?.(r);
+                setFocused(false);
+                setQuery("");
+              }}
+            >
+              {r.photoCard || r.photo ? (
+                <span
+                  className="thumb"
+                  style={{ backgroundImage: `url(${r.photoCard || r.photo})` }}
+                  aria-hidden
+                />
+              ) : null}
+              <span className="text">
+                <span className="title">{r.title}</span>
+                <span className="sub">{r.author ? `by ${r.author}` : r.cuisine}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 import { FLAGS } from "./config/flags.js";
 import { useLang } from "./i18n.js";
 import { OCCASIONS, DIET_ICON } from "./data.js";
@@ -127,23 +207,16 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
             : <>The <em style={{ color: "var(--accent)" }}>Family</em> Cookbook</>}
         </h1>
         <div className="home-search-row">
-          <div className="search home-search">
-            <Icon name="search" />
-            <input
-              placeholder={t("searchPlaceholder")}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            {query && <button className="btn ghost icon-only" onClick={() => setQuery("")}><Icon name="x" size={14} /></button>}
-            <button
-              className="btn ghost icon-only search-filter-btn"
-              onClick={openFilters}
-              title={t("filters")}
-              aria-label={t("filters")}
-            >
-              <Icon name="filter" size={16} />
-            </button>
-          </div>
+          <HomeSearch
+            query={query}
+            setQuery={setQuery}
+            openFilters={openFilters}
+            recipes={allRecipes || []}
+            onOpenRecipe={openRecipe}
+            placeholder={t("searchPlaceholder")}
+            mobilePlaceholder={t("searchPlaceholderShort")}
+            filtersLabel={t("filters")}
+          />
           <button className="btn primary" onClick={openAddRecipe}><Icon name="plusBare" /> {t("addRecipe")}</button>
           {!simpleMode && (
             <button className="btn" onClick={openMealBuilder}><Icon name="build" /> {t("buildMeal")}</button>

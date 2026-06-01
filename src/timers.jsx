@@ -96,13 +96,17 @@ export function useTimers() {
   }, []);
 
   const start = useCallback(({ label, mins, recipeId, stepIdx }) => {
-    // Every tap creates a fresh timer. Cooks sometimes start the
-    // same step multiple times in a row (testing in the editor,
-    // or kicking off staggered batches in cook mode); silently
-    // returning an existing timer's id felt like the button was
-    // broken. Duplicates can be cleared via the chip's dismiss
-    // button if they're unwanted.
     const cur = readStore();
+    // Dedupe re-taps so a cook hitting the same Start timer
+    // twice doesn't end up with two duplicate countdowns. Only
+    // applies when recipeId is real — a null recipeId (add-recipe
+    // form before first save) used to collide with any other
+    // null-recipe timer at the same stepIdx and silently block
+    // new timers from being created in the editor.
+    if (recipeId) {
+      const existing = cur.find(t => t.recipeId === recipeId && t.stepIdx === stepIdx && !t.firedAt);
+      if (existing) return existing.id;
+    }
     const id = `t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const next = [...cur, {
       id, label, recipeId: recipeId || null, stepIdx: stepIdx ?? null,

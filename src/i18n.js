@@ -23,6 +23,10 @@ const S = {
     en: "Search by recipe, cook, cuisine, or ingredient…",
     pl: "Szukaj przepisu, kucharza, kuchni lub składnika…",
   },
+  searchPlaceholderShort: {
+    en: "Search recipes…",
+    pl: "Szukaj przepisów…",
+  },
 
   // ─── Home / browse ───
   filteringBy:    { en: "Filtering by",       pl: "Filtrowanie według" },

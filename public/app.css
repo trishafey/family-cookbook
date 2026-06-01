@@ -145,19 +145,66 @@ h4 { font-size: 17px; line-height: 1.3; }
               flex-basis 0.32s cubic-bezier(.4, 0, .2, 1),
               padding 0.2s ease;
 }
-/* Collapsed: nav search shrinks to an icon-only button. Width
-   animates smoothly to/from the expanded state. */
+/* Collapsed: tablet/desktop nav search shrinks to an outlined
+   icon button (mobile never collapses). Width animates smoothly
+   to/from the expanded state. */
 .search.collapsed {
   flex: 0 0 40px; max-width: 40px;
   padding: 4px;
-  background: transparent; border-color: transparent;
+  background: var(--paper);
+  border-color: var(--rule);
 }
-.search.collapsed:hover { background: var(--paper-2); border-color: var(--rule); }
+.search.collapsed:hover { background: var(--paper-2); border-color: var(--ink-3); }
 .search .search-toggle {
   width: 32px; height: 32px;
   display: grid; place-items: center;
   background: transparent; border: 0; padding: 0; cursor: pointer;
   color: var(--ink);
+}
+/* Micro-animation on click — the search icon's .vine handle
+   completes one curl cycle when the bar is focused or the
+   collapsed button is tapped. */
+.search:focus-within .vine,
+.search .search-toggle:active .vine {
+  animation: ic-curl 0.7s ease-out 1;
+}
+/* Wrapper that contains the input row + suggestions panel.
+   Position relative so the dropdown anchors below the input. */
+.search-wrap { position: relative; flex: 1 1 480px; max-width: 480px; min-width: 0; }
+.search-wrap .search { flex: 1 1 auto; max-width: none; }
+.search-suggestions {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.10);
+  max-height: 380px; overflow-y: auto;
+  z-index: 70;
+}
+.search-suggestion {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 8px 12px;
+  background: transparent; border: 0; cursor: pointer;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+}
+.search-suggestion:last-child { border-bottom: 0; }
+.search-suggestion:hover { background: var(--paper-2); }
+.search-suggestion .thumb {
+  width: 36px; height: 36px; border-radius: 6px;
+  background-size: cover; background-position: center;
+  flex-shrink: 0;
+}
+.search-suggestion .text {
+  display: flex; flex-direction: column; min-width: 0; flex: 1;
+}
+.search-suggestion .title {
+  font-family: var(--serif); font-size: 15px; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.search-suggestion .sub {
+  font-size: 11px; color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .search:focus-within { border-color: var(--ink-3); background: var(--paper); }
 .search input { flex: 1; min-width: 0; background: none; border: none; outline: none; font-size: 14px; }
@@ -187,9 +234,14 @@ h4 { font-size: 17px; line-height: 1.3; }
   display: flex; gap: 10px; align-items: center;
   justify-content: center; flex-wrap: wrap;
 }
-.home-search { flex: 1 1 360px; max-width: 480px; }
+.home-search-wrap { flex: 1 1 360px; max-width: 480px; }
+.home-search { flex: 1 1 auto; max-width: none; }
 @media (max-width: 640px) {
   .home-title { font-size: 52px; }
+  /* Search bar wraps to its own row on narrow screens and
+     fills the row width so the placeholder doesn't get cut
+     off mid-word. */
+  .home-search-wrap { flex-basis: 100%; max-width: none; }
   .home-search-row .btn { flex: 1 1 auto; justify-content: center; }
 }
 

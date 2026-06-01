@@ -507,7 +507,7 @@ function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
                         <button
                           type="button"
                           className="start-timer-link"
-                          onClick={() => startStepTimer(startTimer, it.step, it.recipe, it.stepIdx)}
+                          onClick={() => startStepTimer(startTimer, it.step, it.recipe, it.si)}
                           title={t("startTimer")}
                         >
                           <Icon name="timer" size={12} /> {t("startTimer")}
@@ -749,7 +749,7 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
                     type="button"
                     className="btn primary sm"
                     style={{ marginTop: 10 }}
-                    onClick={() => startStepTimer(startTimer, it.step, it.recipe, it.stepIdx)}
+                    onClick={() => startStepTimer(startTimer, it.step, it.recipe, it.si)}
                     title={t("startTimer")}
                   >
                     <Icon name="timer" size={14} /> {t("startTimer")}
