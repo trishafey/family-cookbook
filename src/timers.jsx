@@ -160,81 +160,125 @@ export function useTimers() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Sound — synthesised chime via Web Audio API.
-// A short bell tone (1.2s decay) played on a major-third interval
-// (E5 + G#5). Loops every ~3.5s until the cook dismisses; the
-// looping is driven by the App tick, not setInterval, so we
-// never leak timers if the component unmounts mid-ring.
+// Sound — bell chime via HTMLAudioElement.
+//
+// We tried Web Audio (OscillatorNode + GainNode) first; iOS
+// Safari kept blocking the chime even after warmAudio() called
+// ctx.resume() inside a user gesture, presumably because the
+// subsequent playChime() calls from the tick interval don't
+// re-establish a gesture. HTMLAudioElement is a lot more
+// permissive: once .play() resolves once after a user gesture,
+// later .play() calls work even from setInterval / setTimeout.
+//
+// We don't bundle an audio asset — instead a short bell WAV is
+// generated in JS at module load (mixed E5 + G#5 sine waves
+// with an exponential decay envelope), encoded as a Blob, and
+// exposed via a blob: URL. ~30 KB in memory, zero network
+// round-trip, no autoplay-policy nuance from cross-origin
+// sources.
 // ─────────────────────────────────────────────────────────────
 
-let audioCtx = null;
-let lastChimeAt = 0;
 const CHIME_INTERVAL_MS = 3500;
+let lastChimeAt = 0;
+let chimeAudio = null;
 
-function getCtx() {
-  if (audioCtx) return audioCtx;
-  try {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return null;
-    audioCtx = new Ctx();
-    return audioCtx;
-  } catch {
-    return null;
+function makeChimeBlobUrl() {
+  if (typeof window === "undefined") return null;
+  const sampleRate = 22050;
+  const durationSec = 1.5;
+  const numSamples = Math.floor(sampleRate * durationSec);
+  // Generate stereo-folded mono samples for E5 + G#5 with a
+  // tail-ramp envelope. The second tone starts 180ms in to
+  // mirror the original Web Audio version.
+  const samples = new Float32Array(numSamples);
+  const tone = (freq, startSamp, gain = 0.32) => {
+    for (let i = startSamp; i < numSamples; i++) {
+      const tRel = (i - startSamp) / sampleRate;
+      if (tRel < 0) continue;
+      // Exponential decay so the bell rings then quiets.
+      const env = Math.exp(-tRel * 2.6) * gain;
+      samples[i] += Math.sin(2 * Math.PI * freq * tRel) * env;
+    }
+  };
+  tone(659.25, 0);                        // E5
+  tone(830.61, Math.floor(0.18 * sampleRate));  // G#5
+  // Clamp to [-1, 1] in case the mix briefly exceeds 1.0.
+  for (let i = 0; i < numSamples; i++) {
+    if (samples[i] > 1) samples[i] = 1;
+    else if (samples[i] < -1) samples[i] = -1;
   }
+  // PCM 16-bit mono WAV header + body.
+  const bytesPerSample = 2;
+  const dataSize = numSamples * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  const writeStr = (offset, s) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i));
+  };
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true);            // PCM chunk size
+  view.setUint16(20, 1, true);             // format = PCM
+  view.setUint16(22, 1, true);             // channels = mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * bytesPerSample, true); // byte rate
+  view.setUint16(32, bytesPerSample, true); // block align
+  view.setUint16(34, 16, true);            // bits per sample
+  writeStr(36, "data");
+  view.setUint32(40, dataSize, true);
+  for (let i = 0; i < numSamples; i++) {
+    view.setInt16(44 + i * 2, samples[i] * 0x7fff, true);
+  }
+  const blob = new Blob([buffer], { type: "audio/wav" });
+  return URL.createObjectURL(blob);
 }
 
-function playBellTone(ctx, freq, when, gain = 0.18) {
-  const osc = ctx.createOscillator();
-  const env = ctx.createGain();
-  osc.type = "sine";
-  osc.frequency.value = freq;
-  env.gain.setValueAtTime(0, when);
-  env.gain.linearRampToValueAtTime(gain, when + 0.01);
-  env.gain.exponentialRampToValueAtTime(0.0001, when + 1.2);
-  osc.connect(env).connect(ctx.destination);
-  osc.start(when);
-  osc.stop(when + 1.25);
+function getChimeAudio() {
+  if (chimeAudio) return chimeAudio;
+  if (typeof window === "undefined") return null;
+  const url = makeChimeBlobUrl();
+  if (!url) return null;
+  chimeAudio = new Audio(url);
+  chimeAudio.preload = "auto";
+  return chimeAudio;
 }
 
-// Unlock the audio context inside a user gesture. iOS Safari
-// (and increasingly desktop browsers) require that the
-// AudioContext is both CREATED and RESUMED within a synchronous
-// user-gesture handler, otherwise later programmatic playChime()
-// calls from the tick interval will be silently blocked. Call
-// this from the Start timer button onClick.
+// Unlock the audio element inside a user gesture. Once .play()
+// resolves once after a tap/click, later .play() calls work even
+// without a gesture (which is how the looping chime fires from
+// the tick interval).
 export function warmAudio() {
-  const ctx = getCtx();
-  if (!ctx) return;
-  if (ctx.state === "suspended") {
-    // .resume() returns a Promise; we ignore failures because
-    // some browsers reject it outside a gesture and there's
-    // nothing useful to do about it.
-    ctx.resume().catch(() => {});
+  const a = getChimeAudio();
+  if (!a) return;
+  // Play silently and immediately pause. This is the standard
+  // iOS unlock trick for HTMLAudioElement.
+  const prevVolume = a.volume;
+  a.volume = 0;
+  const p = a.play();
+  if (p && typeof p.then === "function") {
+    p.then(() => {
+      a.pause();
+      a.currentTime = 0;
+      a.volume = prevVolume;
+    }).catch(() => {
+      a.volume = prevVolume;
+    });
+  } else {
+    try { a.pause(); a.currentTime = 0; } catch {}
+    a.volume = prevVolume;
   }
-  // Schedule a near-silent blip so the audio graph actually runs
-  // — on some iPads the context resumes but the first real tone
-  // still gets dropped if nothing has played yet.
-  try {
-    const osc = ctx.createOscillator();
-    const env = ctx.createGain();
-    env.gain.value = 0.0001;
-    osc.connect(env).connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.02);
-  } catch {}
 }
 
 export function playChime() {
-  const ctx = getCtx();
-  if (!ctx) return;
-  // Browsers throttle audio until the first user gesture. If
-  // the context is suspended, try to resume; if it fails we
-  // silently no-op (the chime just won't sound until the next
-  // user interaction).
-  if (ctx.state === "suspended") ctx.resume().catch(() => {});
-  const now = ctx.currentTime;
-  playBellTone(ctx, 659.25, now);          // E5
-  playBellTone(ctx, 830.61, now + 0.18);   // G#5
+  const a = getChimeAudio();
+  if (!a) return;
+  try {
+    a.currentTime = 0;
+    const p = a.play();
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  } catch {}
   lastChimeAt = Date.now();
 }
 
