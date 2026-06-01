@@ -244,6 +244,7 @@ function App() {
   const filtered = useMemo(() => applyFilters(recipes, { q: query, ...filters }), [recipes, query, filters]);
 
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Analytics: log search queries (debounced) and filter applies.
   // For filters we compare to the previous snapshot and emit one
@@ -489,6 +490,18 @@ function App() {
               </a>
             )}
           </div>
+          {/* Hamburger — visible only below the nav-actions
+              breakpoint. Tapping it opens the mobile-menu sheet
+              with the same nav targets as the inline buttons,
+              plus the avatar's settings options. */}
+          <button
+            className="nav-hamburger"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Menu"
+          >
+            <Icon name="menu" size={22} />
+            {selection.length > 0 && <span className="hamburger-badge">{selection.length}</span>}
+          </button>
         </div>
       </nav>
 
@@ -649,6 +662,19 @@ function App() {
         setFilters={setFilters}
       />
 
+      <MobileMenuDrawer
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        authEmail={authEmail}
+        simpleMode={simpleMode}
+        onToggleSimpleMode={() => setSimpleMode(m => !m)}
+        onOpenAdd={() => setView("add")}
+        onOpenMeal={() => setView("meal")}
+        onOpenLab={() => setView("lab")}
+        onOpenAdminAIUsage={() => setView("admin-ai-usage")}
+        selectionCount={selection.length}
+      />
+
       {cookState && (
         <CookMode
           recipe={cookState.recipe}
@@ -721,6 +747,107 @@ function App() {
 // system, and the family-scoped cookbook makes a single allowlist
 // fine. Add to this array if more admins need access.
 const ADMIN_EMAILS = ["patricia.fejdasz@gmail.com"];
+
+// Mobile hamburger drawer. Reorganises everything the desktop
+// nav surfaces as inline buttons (Lab / Build a meal / Add
+// recipe + the avatar menu) into a single slide-in sheet so the
+// top bar can stay just logo + search + hamburger on narrow
+// viewports.
+//
+// Sections (top → bottom):
+//   1. Account — avatar disc with the cook's initial + email
+//      address; tier badge will slot in here once Phase 4 lands.
+//   2. Make — primary actions (Add recipe, Build a meal, Lab).
+//   3. Settings — Simple mode toggle, admin shortcuts.
+//   4. Footer — Sign in / Sign out.
+function MobileMenuDrawer({
+  open, onClose,
+  authEmail, simpleMode, onToggleSimpleMode,
+  onOpenAdd, onOpenMeal, onOpenLab, onOpenAdminAIUsage,
+  selectionCount,
+}) {
+  const { t } = useLang();
+  const isAdmin = authEmail && ADMIN_EMAILS.includes(authEmail);
+  const initial = (authEmail?.[0] || "?").toUpperCase();
+  const go = (fn) => { onClose(); fn?.(); };
+  if (!open) return null;
+  return (
+    <>
+      <div className="mobile-menu-scrim" onClick={onClose} />
+      <aside className="mobile-menu" role="dialog" aria-label="Menu">
+        <header className="mobile-menu-head">
+          {authEmail ? (
+            <>
+              <div className="mobile-menu-avatar" aria-hidden>{initial}</div>
+              <div className="mobile-menu-identity">
+                <div className="email">{authEmail}</div>
+                <div className="sub">{t("signedIn") || "Signed in"}</div>
+              </div>
+            </>
+          ) : (
+            <div className="mobile-menu-identity">
+              <div className="email">{t("notSignedIn") || "Not signed in"}</div>
+            </div>
+          )}
+          <button className="mobile-menu-close" onClick={onClose} aria-label="Close menu">
+            <Icon name="x" size={18} />
+          </button>
+        </header>
+
+        {!simpleMode && (
+          <section className="mobile-menu-section">
+            <div className="mobile-menu-section-title">{t("make") || "Make"}</div>
+            <button className="mobile-menu-item primary" onClick={() => go(onOpenAdd)}>
+              <Icon name="plusBare" size={18} />
+              <span>{t("addRecipe")}</span>
+            </button>
+            <button className="mobile-menu-item" onClick={() => go(onOpenMeal)}>
+              <Icon name="build" size={18} />
+              <span>{t("buildMeal")}</span>
+              {selectionCount > 0 && <span className="badge">{selectionCount}</span>}
+            </button>
+            {FLAGS.lab && (
+              <button className="mobile-menu-item" onClick={() => go(onOpenLab)}>
+                <Icon name="experiment" size={18} />
+                <span>{t("theLab")}</span>
+              </button>
+            )}
+          </section>
+        )}
+
+        {authEmail && (
+          <section className="mobile-menu-section">
+            <div className="mobile-menu-section-title">{t("settings") || "Settings"}</div>
+            <button className="mobile-menu-item" onClick={() => go(onToggleSimpleMode)}>
+              <Icon name={simpleMode ? "favourite" : "book"} size={18} />
+              <span>{simpleMode ? t("simpleModeOn") : t("simpleModeOff")}</span>
+            </button>
+            {isAdmin && (
+              <button className="mobile-menu-item" onClick={() => go(onOpenAdminAIUsage)}>
+                <Icon name="sparkle" size={18} />
+                <span>AI usage</span>
+              </button>
+            )}
+          </section>
+        )}
+
+        <footer className="mobile-menu-foot">
+          {authEmail ? (
+            <a className="mobile-menu-item" href={SIGN_OUT_URL}>
+              <Icon name="chef" size={18} />
+              <span>{t("signOut")}</span>
+            </a>
+          ) : (
+            <a className="mobile-menu-item primary" href={signInUrl()}>
+              <Icon name="chef" size={18} />
+              <span>{t("signIn")}</span>
+            </a>
+          )}
+        </footer>
+      </aside>
+    </>
+  );
+}
 
 function AvatarMenu({ email, simpleMode, onToggleSimpleMode, onAdminAIUsage }) {
   const [open, setOpen] = useState(false);

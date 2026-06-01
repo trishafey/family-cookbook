@@ -132,13 +132,114 @@ h4 { font-size: 17px; line-height: 1.3; }
   flex-wrap: wrap;
 }
 /* Below the tablet breakpoint the search bar always renders
-   expanded (full width). Re-order so the logo + nav-actions sit
-   together on row 1 and the search wraps onto row 2 instead of
-   pushing the action icons down to row 3. */
+   expanded (full width) and the inline nav-actions cluster
+   collapses into a hamburger menu. Row 1: logo + hamburger.
+   Row 2: search bar spans the full row. */
+.nav-hamburger { display: none; }
 @media (max-width: 720px) {
   .nav-inner .search-wrap,
   .nav-inner .search:not(.collapsed) { order: 2; flex-basis: 100%; }
-  .nav-inner .nav-actions { order: 1; margin-left: auto; }
+  .nav-inner .nav-actions { display: none; }
+  .nav-inner .nav-hamburger {
+    display: flex; align-items: center; justify-content: center;
+    margin-left: auto; order: 1;
+    position: relative;
+    width: 40px; height: 40px;
+    background: var(--paper); border: 1px solid var(--rule);
+    border-radius: var(--radius); cursor: pointer; color: var(--ink);
+  }
+  .nav-inner .nav-hamburger:hover { background: var(--paper-2); border-color: var(--ink-3); }
+  .nav-inner .nav-hamburger .hamburger-badge {
+    position: absolute; top: -4px; right: -4px;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    display: grid; place-items: center;
+    background: var(--accent); color: var(--paper);
+    border-radius: 999px; font-size: 10px; font-weight: 600;
+    font-family: var(--mono);
+  }
+}
+
+/* ─── Mobile menu drawer ─────────────────────────────────── */
+.mobile-menu-scrim {
+  position: fixed; inset: 0; z-index: 250;
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(2px);
+  animation: fade-in 0.18s ease-out;
+}
+.mobile-menu {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 251;
+  width: min(86vw, 360px);
+  background: var(--paper);
+  border-left: 1px solid var(--rule);
+  display: flex; flex-direction: column;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.10);
+  animation: slide-in-right 0.22s cubic-bezier(.32, .72, 0, 1);
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slide-in-right { from { transform: translateX(8%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.mobile-menu-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+}
+.mobile-menu-avatar {
+  flex-shrink: 0;
+  width: 44px; height: 44px; border-radius: 999px;
+  background: var(--accent); color: var(--paper);
+  display: grid; place-items: center;
+  font-family: var(--serif); font-size: 18px; font-weight: 500;
+  box-shadow: 0 2px 6px rgba(176, 74, 42, 0.30);
+}
+.mobile-menu-identity { flex: 1; min-width: 0; }
+.mobile-menu-identity .email {
+  font-size: 13px; color: var(--ink); font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mobile-menu-identity .sub {
+  font-size: 11px; color: var(--ink-3);
+  letter-spacing: 0.05em; text-transform: uppercase; margin-top: 2px;
+}
+.mobile-menu-close {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  background: transparent; border: 0; cursor: pointer; color: var(--ink-3);
+  border-radius: 6px;
+}
+.mobile-menu-close:hover { background: var(--paper); color: var(--ink); }
+.mobile-menu-section {
+  padding: 12px 8px 8px;
+  border-bottom: 1px solid var(--rule);
+}
+.mobile-menu-section-title {
+  font-size: 10px; color: var(--ink-3);
+  letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;
+  padding: 0 8px 6px;
+}
+.mobile-menu-item {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 11px 12px;
+  background: transparent; border: 0; border-radius: 8px;
+  cursor: pointer; color: var(--ink); text-decoration: none;
+  font-family: var(--sans); font-size: 14px; text-align: left;
+}
+.mobile-menu-item:hover { background: var(--paper-2); }
+.mobile-menu-item.primary {
+  background: var(--ink); color: var(--paper);
+  margin-bottom: 4px;
+}
+.mobile-menu-item.primary:hover { filter: brightness(1.1); }
+.mobile-menu-item .badge {
+  margin-left: auto;
+  min-width: 20px; padding: 2px 7px;
+  background: var(--accent); color: var(--paper);
+  border-radius: 999px; font-size: 11px; font-weight: 600;
+  font-family: var(--mono);
+}
+.mobile-menu-foot {
+  margin-top: auto;
+  padding: 12px 8px env(safe-area-inset-bottom, 12px);
+  border-top: 1px solid var(--rule);
 }
 .brand { display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 0; }
 .brand .brand-logo { display: block; width: 150px; height: auto; padding: 20px; box-sizing: content-box; }
