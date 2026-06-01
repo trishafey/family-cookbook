@@ -315,7 +315,7 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
               </span>
             )}
           </div>
-          <div style={{ marginTop: 16, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          <div className="meal-actions-row">
             <button className="btn primary sm" onClick={() => setCookOpen(true)}>
               <Icon name="play" size={14} /> Cook this meal
             </button>
