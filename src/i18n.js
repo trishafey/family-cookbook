@@ -259,8 +259,8 @@ const S = {
     pl: "Przed zapisem sprawdzisz każde pole. AI uzupełnia brakujące — nigdy nie nadpisuje Twojego.",
   },
   aiPastePlaceholder: {
-    en: "Paste anything — a recipe email from your mom, a copy/paste from a blog, a screenshot of a cookbook page. We'll pull out the title, ingredients, steps, and timing, then let you review and tidy up before saving.",
-    pl: "Wklej cokolwiek — e-mail z przepisem od mamy, kopię z bloga, zrzut z książki kucharskiej. Wyciągniemy tytuł, składniki, kroki i czasy, a Ty sprawdzisz i poprawisz przed zapisem.",
+    en: "Paste anything — type a recipe from memory, a recipe emailed from your mom, copy/paste from a blog, or paste a link to a recipe. We'll pull out the title, ingredients, steps, and timing, then let you review and tidy up before saving.",
+    pl: "Wklej cokolwiek — wpisz przepis z pamięci, przepis przesłany e-mailem od mamy, skopiuj z bloga lub wklej link do przepisu. Wyciągniemy tytuł, składniki, kroki i czasy, a Ty sprawdzisz i poprawisz przed zapisem.",
   },
   snapPhotoOfCookbook: { en: "Snap or upload a photo", pl: "Zrób lub wgraj zdjęcie" },
   takePhotoHelper:{
