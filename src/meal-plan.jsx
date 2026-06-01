@@ -334,21 +334,26 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
               </span>
             )}
           </div>
-          <div className="meal-actions-row">
-            <button className="btn primary sm cook-btn" onClick={() => setCookOpen(true)}>
-              <Icon name="play" size={14} /> {t("startCooking")}
-            </button>
-            <button className="btn sm" onClick={() => onShop(recipes.map(r => ({ recipe: r, ings: r.ingredients })))}>
-              <Icon name="bowl" size={14} /> {t("shoppingList")}
-            </button>
-            <button className="btn ghost sm"><Icon name="print" size={14} /> {t("print")}</button>
-            {hasOverrides && (
-              <button className="btn ghost sm reset-btn" onClick={resetOverrides} title="Clear all time adjustments and snap back to the planned schedule">
-                Reset adjustments
-              </button>
-            )}
-          </div>
         </div>
+      </div>
+
+      {/* Action row sits below the header on all viewports so
+          tablet/desktop don't crowd Start cooking + Shopping
+          list + Print into the right-hand clock column. Lands
+          between the title block and the recipe legend. */}
+      <div className="meal-actions-row">
+        <button className="btn primary sm cook-btn" onClick={() => setCookOpen(true)}>
+          <Icon name="play" size={14} /> {t("startCooking")}
+        </button>
+        <button className="btn sm" onClick={() => onShop(recipes.map(r => ({ recipe: r, ings: r.ingredients })))}>
+          <Icon name="bowl" size={14} /> {t("shoppingList")}
+        </button>
+        <button className="btn ghost sm"><Icon name="print" size={14} /> {t("print")}</button>
+        {hasOverrides && (
+          <button className="btn ghost sm reset-btn" onClick={resetOverrides} title="Clear all time adjustments and snap back to the planned schedule">
+            Reset adjustments
+          </button>
+        )}
       </div>
 
       {/* Recipe legend */}
