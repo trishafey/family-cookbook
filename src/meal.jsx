@@ -24,25 +24,15 @@ export function BuildAMeal({ recipes, selection, clearSelection, toggleSelect, o
             Pick the courses, we'll merge the shopping lists and stagger the cook times.
           </div>
         </div>
-        <div className="rhs">
-          {selection.length > 0 && (
-            <>
-              <button className="btn" onClick={clearSelection}>Clear ({selection.length})</button>
-              <button className="btn" onClick={() => onShop(selected.map(r => ({ recipe: r, ings: r.ingredients })))}>
-                <Icon name="bowl" /> Combined shopping list
-              </button>
-              <button className="btn primary" onClick={() => onPlanMeal(selected)}>
-                <Icon name="clock" /> Plan & cook together
-              </button>
-            </>
-          )}
-        </div>
       </div>
 
       {/* Selected slot */}
       {selected.length > 0 ? (
         <div style={{ background: "var(--paper-2)", border: "1px solid var(--rule)", borderRadius: "var(--radius-lg)", padding: 24, marginBottom: 32 }}>
-          <div className="eyebrow" style={{ color: "var(--accent)" }}>Your menu</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <div className="eyebrow" style={{ color: "var(--accent)" }}>Your menu</div>
+            <button className="btn ghost sm" onClick={clearSelection}>Clear ({selection.length})</button>
+          </div>
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginTop: 16 }}>
             {selected.map((r, i) => (
               <div key={r.id} style={{ display: "flex", gap: 12, alignItems: "center", padding: "8px 16px 8px 8px", background: "var(--paper)", border: "1px solid var(--rule)", borderRadius: 999 }}>
