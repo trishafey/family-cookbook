@@ -165,27 +165,38 @@ export function useTimers() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Sound — bell chime via HTMLAudioElement.
+// Sound — belt-and-braces approach because iOS is hostile.
 //
-// We tried Web Audio (OscillatorNode + GainNode) first; iOS
-// Safari kept blocking the chime even after warmAudio() called
-// ctx.resume() inside a user gesture, presumably because the
-// subsequent playChime() calls from the tick interval don't
-// re-establish a gesture. HTMLAudioElement is a lot more
-// permissive: once .play() resolves once after a user gesture,
-// later .play() calls work even from setInterval / setTimeout.
+// What iOS Safari does that breaks the obvious solutions:
+//   1. HTMLAudioElement is "unlocked" only when .play() resolves
+//      inside a user gesture. Then later .play() calls work…
+//      UNTIL the audio session is idle for some period (or the
+//      tab backgrounds), at which point iOS revokes the unlock
+//      and subsequent .play() calls are silently rejected.
+//   2. Web Audio's AudioContext stays resumed longer but ALSO
+//      gets suspended during background / idle on iOS Safari.
 //
-// We don't bundle an audio asset — instead a short bell WAV is
-// generated in JS at module load (mixed E5 + G#5 sine waves
-// with an exponential decay envelope), encoded as a Blob, and
-// exposed via a blob: URL. ~30 KB in memory, zero network
-// round-trip, no autoplay-policy nuance from cross-origin
-// sources.
+// Symptom reported: chime plays when user clicks +/- on a timer
+// (a fresh user gesture re-primes audio) but not when the timer
+// naturally elapses 5 minutes later (idle for the whole wait).
+//
+// Fix: two layers.
+//   A. Keep the audio session ACTIVE while any timer is running.
+//      We do this by playing a tiny silent loop on a SECOND
+//      HTMLAudioElement — iOS treats the page as "currently
+//      producing audio" so it doesn't revoke the unlock.
+//   B. When the real chime needs to ring, try BOTH HTMLAudio
+//      and Web Audio in parallel. Whichever path is still
+//      unlocked wins; if both, the cook just hears them once
+//      (they're the same tone).
 // ─────────────────────────────────────────────────────────────
 
 const CHIME_INTERVAL_MS = 3500;
 let lastChimeAt = 0;
 let chimeAudio = null;
+let silentAudio = null;
+let silentLoopRunning = false;
+let webAudioCtx = null;
 
 function makeChimeBlobUrl() {
   if (typeof window === "undefined") return null;
@@ -250,42 +261,156 @@ function getChimeAudio() {
   return chimeAudio;
 }
 
-// Unlock the audio element inside a user gesture. Once .play()
-// resolves once after a tap/click, later .play() calls work even
-// without a gesture (which is how the looping chime fires from
-// the tick interval).
-export function warmAudio() {
-  // Wrap the whole thing — older Safari throws synchronously
-  // from .play() in some states, and we never want that to
-  // bubble up to a click handler and abort the rest of its
-  // body (e.g. the startTimer() call that follows).
+// Tiny silent WAV — 0.4 s of digital silence. Looped to keep
+// the iOS audio session "active" while any timer is running so
+// the chime unlock doesn't get revoked during the wait.
+function makeSilentBlobUrl() {
+  if (typeof window === "undefined") return null;
+  const sampleRate = 22050;
+  const numSamples = Math.floor(sampleRate * 0.4);
+  const dataSize = numSamples * 2;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  const ws = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+  ws(0, "RIFF"); view.setUint32(4, 36 + dataSize, true); ws(8, "WAVE");
+  ws(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true); view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true); ws(36, "data"); view.setUint32(40, dataSize, true);
+  // Samples are already zeroed by ArrayBuffer init.
+  return URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
+}
+
+function getSilentAudio() {
+  if (silentAudio) return silentAudio;
+  if (typeof window === "undefined") return null;
+  const url = makeSilentBlobUrl();
+  if (!url) return null;
+  silentAudio = new Audio(url);
+  silentAudio.loop = true;
+  silentAudio.volume = 0.001;  // not exactly 0, some iOS versions disable inaudible streams
+  silentAudio.preload = "auto";
+  return silentAudio;
+}
+
+function getWebAudioCtx() {
+  if (webAudioCtx) return webAudioCtx;
+  if (typeof window === "undefined") return null;
   try {
-    const a = getChimeAudio();
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    webAudioCtx = new Ctx();
+    return webAudioCtx;
+  } catch {
+    return null;
+  }
+}
+
+function playWebAudioBell(ctx, freq, when, gain = 0.18) {
+  const osc = ctx.createOscillator();
+  const env = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.value = freq;
+  env.gain.setValueAtTime(0, when);
+  env.gain.linearRampToValueAtTime(gain, when + 0.01);
+  env.gain.exponentialRampToValueAtTime(0.0001, when + 1.2);
+  osc.connect(env).connect(ctx.destination);
+  osc.start(when);
+  osc.stop(when + 1.25);
+}
+
+// Called whenever there's at least one running timer — starts
+// the silent keep-alive loop if it isn't already going. Safe to
+// call repeatedly. iOS treats a page with a playing media stream
+// as "currently producing audio" so it won't revoke the audio
+// unlock during the long wait for a kitchen timer to elapse.
+export function ensureKeepalive() {
+  if (silentLoopRunning) return;
+  try {
+    const a = getSilentAudio();
     if (!a) return;
-    const prevVolume = a.volume;
-    a.volume = 0;
     const p = a.play();
     if (p && typeof p.then === "function") {
-      p.then(() => {
-        try { a.pause(); a.currentTime = 0; } catch {}
-        a.volume = prevVolume;
-      }).catch(() => {
-        a.volume = prevVolume;
-      });
+      p.then(() => { silentLoopRunning = true; }).catch(() => {});
     } else {
-      try { a.pause(); a.currentTime = 0; } catch {}
-      a.volume = prevVolume;
+      silentLoopRunning = true;
     }
   } catch {}
 }
 
-export function playChime() {
-  const a = getChimeAudio();
-  if (!a) return;
+export function stopKeepalive() {
+  if (!silentLoopRunning) return;
   try {
-    a.currentTime = 0;
-    const p = a.play();
-    if (p && typeof p.catch === "function") p.catch(() => {});
+    silentAudio?.pause();
+    silentLoopRunning = false;
+  } catch {}
+}
+
+// Unlock every audio path we have inside a user gesture. Called
+// from every Start-timer / +/- button click. Wrapped in try
+// blocks because older Safari throws synchronously from .play()
+// in some states and we never want that to abort the click
+// handler before startTimer() runs.
+export function warmAudio() {
+  // (1) HTMLAudio chime — silent play to unlock.
+  try {
+    const a = getChimeAudio();
+    if (a) {
+      const prevVolume = a.volume;
+      a.volume = 0;
+      const p = a.play();
+      if (p && typeof p.then === "function") {
+        p.then(() => {
+          try { a.pause(); a.currentTime = 0; } catch {}
+          a.volume = prevVolume;
+        }).catch(() => { a.volume = prevVolume; });
+      } else {
+        try { a.pause(); a.currentTime = 0; } catch {}
+        a.volume = prevVolume;
+      }
+    }
+  } catch {}
+  // (2) Web Audio context — resume so later programmatic
+  //     chimes can play. Web Audio context tends to stay resumed
+  //     longer than HTMLAudio unlocks on iOS.
+  try {
+    const ctx = getWebAudioCtx();
+    if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+    // Schedule a near-silent blip so the audio graph actually
+    // starts (iOS sometimes drops the first real tone otherwise).
+    if (ctx) {
+      const osc = ctx.createOscillator();
+      const env = ctx.createGain();
+      env.gain.value = 0.0001;
+      osc.connect(env).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.02);
+    }
+  } catch {}
+  // (3) Start the silent keep-alive loop so iOS thinks we're
+  //     "currently producing audio" and doesn't revoke the
+  //     unlock during the long wait for the timer to elapse.
+  ensureKeepalive();
+}
+
+export function playChime() {
+  // Try both paths — whichever is still unlocked wins.
+  try {
+    const a = getChimeAudio();
+    if (a) {
+      try { a.currentTime = 0; } catch {}
+      const p = a.play();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    }
+  } catch {}
+  try {
+    const ctx = getWebAudioCtx();
+    if (ctx) {
+      if (ctx.state === "suspended") ctx.resume().catch(() => {});
+      const now = ctx.currentTime;
+      playWebAudioBell(ctx, 659.25, now);          // E5
+      playWebAudioBell(ctx, 830.61, now + 0.18);   // G#5
+    }
   } catch {}
   lastChimeAt = Date.now();
 }
@@ -335,6 +460,10 @@ export function TimerTicker() {
       for (const id of firedIdsRef.current) {
         if (!live.has(id)) firedIdsRef.current.delete(id);
       }
+      // Keep iOS audio session alive while there's anything
+      // active; release it when nothing's running so we don't
+      // sit on the audio session forever.
+      if (list.length > 0) ensureKeepalive(); else stopKeepalive();
       maybeChime(list);
     };
     check();
