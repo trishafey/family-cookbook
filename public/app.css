@@ -3444,3 +3444,69 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
     font-size: max(16px, 1em);
   }
 }
+
+/* Meal-selection banner — sticky under the nav while a cook has
+   recipes in the multi-select tray but isn't actively in the
+   meal builder. Replaces the previous floating bottom bubble
+   which occluded other affordances on small screens. */
+.meal-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 28px;
+  background: rgba(176, 74, 42, 0.10);
+  border-bottom: 1px solid rgba(176, 74, 42, 0.18);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 13px;
+}
+.meal-banner .count {
+  font-family: var(--serif);
+  font-size: 22px;
+  color: var(--accent);
+  font-weight: 500;
+  line-height: 1;
+}
+.meal-banner .label {
+  flex: 1;
+  color: var(--ink-2);
+}
+.meal-banner .btn { flex-shrink: 0; }
+
+@media (max-width: 720px) {
+  .meal-banner { padding: 8px 16px; gap: 10px; font-size: 12px; }
+  .meal-banner .count { font-size: 18px; }
+}
+
+/* Back-to-top FAB — sits above the language FAB in the bottom
+   right, same chrome treatment so the two read as a stack. */
+.back-to-top-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 80px;
+  z-index: 80;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s;
+}
+.back-to-top-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+/* When any modal-overlay is in the DOM, suppress both FABs so
+   the modal's own footer buttons aren't covered by the flag /
+   back-to-top chrome. Uses :has() which is supported in Safari
+   15.4+, Chrome 105+, Firefox 121+. */
+body:has(.modal-overlay) .lang-fab,
+body:has(.modal-overlay) .back-to-top-fab {
+  display: none !important;
+}

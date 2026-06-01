@@ -366,6 +366,20 @@ function App() {
         </div>
       </nav>
 
+      {/* ───── Meal-selection banner (sticky under nav while items
+           are queued but the cook isn't in the meal builder) ───── */}
+      {selection.length > 0 && view !== "meal" && (
+        <div className="meal-banner">
+          <span className="count">{selection.length}</span>
+          <span className="label">
+            {selection.length === 1 ? t("recipeOnMenu") : t("recipesOnMenu")}
+          </span>
+          <button className="btn sm" onClick={() => setView("meal")}>
+            {t("reviewMeal")}
+          </button>
+        </div>
+      )}
+
       {/* ───── Main views ───── */}
       {view === "browse" && (
         <Browse
@@ -476,19 +490,6 @@ function App() {
         <AdminAIUsage onClose={backToBrowse} />
       )}
 
-      {/* ───── Floating shopping bar when meal selection has items but you're elsewhere ───── */}
-      {selection.length > 0 && view !== "meal" && (
-        <div className="meal-tray">
-          <span className="count">{selection.length}</span>
-          <span style={{ fontSize: 13 }}>
-            {selection.length === 1 ? t("recipeOnMenu") : t("recipesOnMenu")}
-          </span>
-          <button className="btn sm" style={{ background: "rgba(255,255,255,.12)", color: "var(--paper)", borderColor: "rgba(255,255,255,.2)" }} onClick={() => setView("meal")}>
-            {t("reviewMeal")}
-          </button>
-        </div>
-      )}
-
       {/* ───── Modals & overlays ───── */}
       <ShoppingList open={shopOpen} onClose={() => setShopOpen(false)} payload={shopPayload} />
 
@@ -567,6 +568,7 @@ function App() {
         </TweakSection>
       </TweaksPanel>
 
+      <BackToTopFab />
       <LanguageFab />
     </>
   );
@@ -626,6 +628,42 @@ function AvatarMenu({ email, simpleMode, onToggleSimpleMode, onAdminAIUsage }) {
         </div>
       )}
     </div>
+  );
+}
+
+// Back-to-top FAB. Sits above the language flag in the bottom-
+// right; shows only after the page has been scrolled enough that
+// the cook would actually benefit from a jump back to the top
+// (>= one viewport). Smooth-scrolls on tap.
+function BackToTopFab() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const onScroll = () => {
+      setVisible(window.scrollY > Math.max(400, window.innerHeight * 0.6));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  if (!visible) return null;
+  return (
+    <button
+      className="back-to-top-fab"
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      aria-label="Back to top"
+      title="Back to top"
+    >
+      {/* Botanical curl with leaf accent + chevron pointing up.
+          (User-supplied glyph, mirrored vertically so the arrow
+          points up instead of down.) */}
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
+           fill="none" stroke="currentColor" strokeWidth="1.4"
+           strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 21 C13.5 18.5 11 16 12.5 13.5 C14 11 11 9 12 6" />
+        <path d="M13.2 15.5 C15.5 16 17.5 15.2 17.8 13 C15.5 12.8 13.5 13.5 13.2 15.5 Z" />
+        <path d="M8.5 8 L12 4.5 L15.5 8" />
+      </svg>
+    </button>
   );
 }
 
