@@ -29,11 +29,8 @@ export function BuildAMeal({ recipes, selection, clearSelection, toggleSelect, o
       {/* Selected slot */}
       {selected.length > 0 ? (
         <div style={{ background: "var(--paper-2)", border: "1px solid var(--rule)", borderRadius: "var(--radius-lg)", padding: 24, marginBottom: 32 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            <div className="eyebrow" style={{ color: "var(--accent)" }}>Your menu</div>
-            <button className="btn ghost sm" onClick={clearSelection}>Clear ({selection.length})</button>
-          </div>
-          <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginTop: 16 }}>
+          <div className="eyebrow" style={{ color: "var(--accent)" }}>Your menu</div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginTop: 16 }}>
             {selected.map((r, i) => (
               <div key={r.id} style={{ display: "flex", gap: 12, alignItems: "center", padding: "8px 16px 8px 8px", background: "var(--paper)", border: "1px solid var(--rule)", borderRadius: 999 }}>
                 <span style={{ width: 24, height: 24, borderRadius: 999, background: "var(--accent)", color: "var(--paper)", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 600, fontFamily: "var(--mono)" }}>{i + 1}</span>
@@ -41,6 +38,9 @@ export function BuildAMeal({ recipes, selection, clearSelection, toggleSelect, o
                 <button className="btn ghost icon-only" onClick={() => toggleSelect(r)}><Icon name="x" size={14} /></button>
               </div>
             ))}
+            <button className="btn ghost sm" onClick={clearSelection}>
+              <Icon name="x" size={14} /> Clear
+            </button>
           </div>
           <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap", marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--rule)" }}>
             <div style={{ flex: "1 1 240px", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
