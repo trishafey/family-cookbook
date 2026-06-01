@@ -7,6 +7,24 @@ import { Icon, fmtDuration, fmtTime, logEvent, scheduleForFinish } from "./helpe
 import { Modal } from "./ui.jsx";
 import { useLang } from "./i18n.js";
 import { NeedHelp } from "./need-help.jsx";
+import { useTimers, warmAudio } from "./timers.jsx";
+import { TimerBanner } from "./timer-banner.jsx";
+
+// Shared helper — fires a timer for one step row across the
+// meal-plan surfaces (combined timeline, per-recipe view, meal
+// cook mode). Each step in those views carries its parent
+// recipe context so the chip label reads e.g. "Goulash — Sear
+// the beef" once the timer is in the banner.
+function startStepTimer(starter, step, recipe, stepIdx) {
+  if (!step?.mins) return;
+  warmAudio();
+  starter({
+    label: step.t ? `${recipe.title} — ${step.t}` : `${recipe.title} step ${stepIdx + 1}`,
+    mins: step.mins,
+    recipeId: recipe.id,
+    stepIdx,
+  });
+}
 
 // ─────────────────────────────────────────────────────────────
 // PlanMealModal — entry point. Asks "when do you want this done by"
@@ -172,6 +190,7 @@ const RECIPE_COLORS = ["#b04a2a", "#6e7a3a", "#3a5a6a", "#d68a2a", "#8a3a5a"];
 
 export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, onCookMode, onShop, authEmail }) {
   const { t, locale } = useLang();
+  const { start: startTimer } = useTimers();
   const [tab, setTab] = useState("combined");
   const [cookOpen, setCookOpen] = useState(false);
 
@@ -483,6 +502,16 @@ function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
                     </div>
                     <div className="duration">
                       {fmtDuration(it.step.mins)}
+                      {it.step.mins > 0 && (
+                        <button
+                          type="button"
+                          className="start-timer-link"
+                          onClick={() => startStepTimer(startTimer, it.step, it.recipe, it.stepIdx)}
+                          title={t("startTimer")}
+                        >
+                          <Icon name="timer" size={12} /> {t("startTimer")}
+                        </button>
+                      )}
                       <div className={`precision precision-${it.step.precision}`} style={{ marginTop: 4 }}>● {it.step.precision}</div>
                     </div>
                   </div>
@@ -501,6 +530,8 @@ function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
 }
 
 function PerRecipeView({ rec, onCookMode }) {
+  const { t } = useLang();
+  const { start: startTimer } = useTimers();
   const { recipe, color, schedule, startTime } = rec;
   return (
     <div>
@@ -542,7 +573,19 @@ function PerRecipeView({ rec, onCookMode }) {
               <div className="d">{s.d}</div>
               <div className="meta">
                 <span className={`precision-${s.precision}`}>● {s.precision}</span>
-                <span className="time">{fmtDuration(s.mins)}</span>
+                <span className="time">
+                  {fmtDuration(s.mins)}
+                  {s.mins > 0 && (
+                    <button
+                      type="button"
+                      className="start-timer-link"
+                      onClick={() => startStepTimer(startTimer, s, recipe, i)}
+                      title={t("startTimer")}
+                    >
+                      <Icon name="timer" size={12} /> {t("startTimer")}
+                    </button>
+                  )}
+                </span>
                 <span className="start" style={{ background: `${color}1a`, color }}>
                   ▶ {fmtTime(schedule[i].start)} – {fmtTime(schedule[i].end)}
                 </span>
@@ -566,6 +609,8 @@ function PerRecipeView({ rec, onCookMode }) {
 // and stays simpler for parallel cooking.
 // ─────────────────────────────────────────────────────────────
 function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, authEmail }) {
+  const { t } = useLang();
+  const { start: startTimer } = useTimers();
   const [gIdx, setGIdx] = useState(0);
   const [done, setDone] = useState({});       // keyed by combined-index
   const [helpOpen, setHelpOpen] = useState(false);
@@ -630,6 +675,10 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
         </>
       }
     >
+      {/* Timer chips inside the modal so they're visible while
+          cooking the meal — the page-level banner is covered by
+          the modal overlay. */}
+      <TimerBanner />
       <div style={{ padding: "4px 0" }}>
         {/* Mini-timeline of every step in the meal, grouped visually
             by time slot. Squares in the current slot are highlighted;
@@ -695,6 +744,17 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
                 <p style={{ fontFamily: "var(--serif)", fontSize: curGroup.items.length === 1 ? 17 : 15, lineHeight: 1.55, color: "var(--ink-2)", margin: 0 }}>
                   {it.step.d}
                 </p>
+                {it.step.mins > 0 && (
+                  <button
+                    type="button"
+                    className="btn primary sm"
+                    style={{ marginTop: 10 }}
+                    onClick={() => startStepTimer(startTimer, it.step, it.recipe, it.stepIdx)}
+                    title={t("startTimer")}
+                  >
+                    <Icon name="timer" size={14} /> {t("startTimer")}
+                  </button>
+                )}
               </div>
             );
           })}
