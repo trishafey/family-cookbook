@@ -447,6 +447,17 @@ function App() {
       {/* ───── Top nav ───── */}
       <nav className="nav">
         <div className="nav-inner">
+          {/* Hamburger — DOM position is FIRST so it lands on
+              the left of the logo on mobile. Hidden via CSS on
+              tablet/desktop. */}
+          <button
+            className="nav-hamburger"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Menu"
+          >
+            <Icon name="menu" size={22} />
+            {selection.length > 0 && <span className="hamburger-badge">{selection.length}</span>}
+          </button>
           <div className="brand" onClick={backToBrowse}>
             <img className="brand-logo" src="images/heirloom-tomato-long.png" alt="Heirloom" />
             <img className="brand-mark" src="images/heirloom-tomato-h.PNG" alt="Heirloom" />
@@ -490,18 +501,6 @@ function App() {
               </a>
             )}
           </div>
-          {/* Hamburger — visible only below the nav-actions
-              breakpoint. Tapping it opens the mobile-menu sheet
-              with the same nav targets as the inline buttons,
-              plus the avatar's settings options. */}
-          <button
-            className="nav-hamburger"
-            onClick={() => setMobileMenuOpen(true)}
-            aria-label="Menu"
-          >
-            <Icon name="menu" size={22} />
-            {selection.length > 0 && <span className="hamburger-badge">{selection.length}</span>}
-          </button>
         </div>
       </nav>
 

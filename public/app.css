@@ -142,12 +142,13 @@ h4 { font-size: 17px; line-height: 1.3; }
   .nav-inner .nav-actions { display: none; }
   .nav-inner .nav-hamburger {
     display: flex; align-items: center; justify-content: center;
-    margin-left: auto; order: 1;
+    order: 0;
     position: relative;
-    width: 40px; height: 40px;
+    width: 40px; height: 40px; flex-shrink: 0;
     background: var(--paper); border: 1px solid var(--rule);
     border-radius: var(--radius); cursor: pointer; color: var(--ink);
   }
+  .nav-inner .brand { order: 1; }
   .nav-inner .nav-hamburger:hover { background: var(--paper-2); border-color: var(--ink-3); }
   .nav-inner .nav-hamburger .hamburger-badge {
     position: absolute; top: -4px; right: -4px;
@@ -252,6 +253,7 @@ h4 { font-size: 17px; line-height: 1.3; }
   background: var(--paper-2);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
+  position: relative;
   transition: max-width 0.32s cubic-bezier(.4, 0, .2, 1),
               flex-basis 0.32s cubic-bezier(.4, 0, .2, 1),
               padding 0.2s ease;
@@ -327,12 +329,22 @@ h4 { font-size: 17px; line-height: 1.3; }
 .search:focus-within { border-color: var(--ink-3); background: var(--paper); }
 .search input { flex: 1; min-width: 0; background: none; border: none; outline: none; font-size: 14px; }
 .search input::placeholder { color: var(--ink-4); }
+/* Absolutely-positioned filter button — anchored to the right
+   edge of the search bar regardless of how the input's flex
+   width behaves in different parent contexts. The 48px right
+   reservation keeps the input from sliding under it. */
+.search:has(.search-filter-btn) { padding-right: 48px; }
 .search .search-filter-btn {
+  position: absolute;
+  right: 0; top: 50%; transform: translateY(-50%);
+  height: calc(100% - 8px);
+  display: flex; align-items: center;
   border-left: 1px solid var(--rule);
+  border-top: 0; border-right: 0; border-bottom: 0;
   border-radius: 0;
-  padding: 6px 4px 6px 12px;
-  margin-left: auto;
-  margin-right: -4px;
+  padding: 0 12px;
+  margin: 0;
+  background: transparent;
   color: var(--ink-3);
 }
 .search .search-filter-btn:hover {
