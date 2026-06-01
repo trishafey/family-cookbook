@@ -316,15 +316,15 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
             )}
           </div>
           <div className="meal-actions-row">
-            <button className="btn primary sm" onClick={() => setCookOpen(true)}>
-              <Icon name="play" size={14} /> Cook this meal
+            <button className="btn primary sm cook-btn" onClick={() => setCookOpen(true)}>
+              <Icon name="play" size={14} /> {t("startCooking")}
             </button>
             <button className="btn sm" onClick={() => onShop(recipes.map(r => ({ recipe: r, ings: r.ingredients })))}>
               <Icon name="bowl" size={14} /> {t("shoppingList")}
             </button>
             <button className="btn ghost sm"><Icon name="print" size={14} /> {t("print")}</button>
             {hasOverrides && (
-              <button className="btn ghost sm" onClick={resetOverrides} title="Clear all time adjustments and snap back to the planned schedule">
+              <button className="btn ghost sm reset-btn" onClick={resetOverrides} title="Clear all time adjustments and snap back to the planned schedule">
                 Reset adjustments
               </button>
             )}

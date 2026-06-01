@@ -1253,7 +1253,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
    above it. The start-time field gets the warm accent colour
    so it visually echoes the "you'll start at" framing. */
 .meal-plan-modal-body .plan-times {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
   padding: 14px 16px;
   background: var(--paper-2);
   border: 1px solid var(--rule);
@@ -1266,10 +1266,15 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--ink-3); font-weight: 600;
 }
+/* Native time inputs have an intrinsic min-width on iOS/Safari
+   (the rendered "12:00 PM" + spinner segments are sized in the
+   shadow DOM regardless of CSS font-size). `min-width: 0` lets
+   the grid track shrink to the column's share, and `width: 100%`
+   + `box-sizing` keeps the rendered control inside the card. */
 .meal-plan-modal-body .plan-time input[type="time"] {
-  width: 100%; box-sizing: border-box;
-  font-family: var(--serif); font-size: 20px; font-weight: 500;
-  padding: 10px 12px;
+  width: 100%; min-width: 0; box-sizing: border-box;
+  font-family: var(--serif); font-size: 18px; font-weight: 500;
+  padding: 8px 10px;
   background: var(--paper);
   border: 1px solid var(--rule); border-radius: var(--radius);
   color: var(--ink);
@@ -1281,8 +1286,8 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   letter-spacing: 0.05em; text-transform: uppercase;
 }
 @media (max-width: 520px) {
-  .meal-plan-modal-body .plan-times { grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
-  .meal-plan-modal-body .plan-time input[type="time"] { font-size: 18px; padding: 8px 10px; }
+  .meal-plan-modal-body .plan-times { gap: 8px; padding: 12px; }
+  .meal-plan-modal-body .plan-time input[type="time"] { font-size: 16px; padding: 8px 6px; text-align: center; }
 }
 .meal-plan-modal-body input[type="date"]:focus,
 .meal-plan-modal-body input[type="time"]:focus { border-color: var(--accent); }
@@ -3477,18 +3482,33 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
 .per-recipe-stats .stat-val { font-size: 22px; line-height: 1.1; }
 .per-recipe-stats .cook-btn { justify-self: end; }
 
-/* Cook this meal / Shopping list / Print row — kept on one line
-   even on narrow widths by clamping button padding so the three
-   primary actions don't wrap. Reset adjustments (rare) is
-   allowed to wrap onto a second line. */
+/* Start cooking / Shopping list / Print row — responsive
+   cascade so the three primary actions never wrap awkwardly:
+     • desktop: all three in one row, right-aligned
+     • tablet (≤720px): Start cooking full-width on its own row,
+       Shopping list + Print 50/50 underneath
+     • mobile (≤480px): all three full-width stacked
+   "Reset adjustments" (rare; only when overrides exist) always
+   gets its own full-width row beneath. */
 .meal-actions-row {
   margin-top: 16px;
-  display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap;
+  display: grid; gap: 6px;
+  grid-template-columns: 1fr auto auto auto;
+  justify-content: end;
+}
+.meal-actions-row .btn.sm { white-space: nowrap; }
+.meal-actions-row .cook-btn { grid-column: 2; }
+.meal-actions-row .reset-btn { grid-column: 1 / -1; justify-self: end; }
+@media (max-width: 720px) {
+  .meal-actions-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .meal-actions-row .cook-btn { grid-column: 1 / -1; }
+  .meal-actions-row .reset-btn { grid-column: 1 / -1; justify-self: stretch; }
 }
 @media (max-width: 480px) {
-  .meal-actions-row { gap: 4px; justify-content: stretch; }
-  .meal-actions-row .btn.sm { padding: 6px 8px; font-size: 11px; flex: 1 1 0; min-width: 0; }
-  .meal-actions-row .btn.sm svg { flex-shrink: 0; }
+  .meal-actions-row { grid-template-columns: 1fr; }
+  .meal-actions-row .cook-btn { grid-column: 1; }
 }
 
 @media (max-width: 720px) {
