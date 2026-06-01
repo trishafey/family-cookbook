@@ -1060,7 +1060,7 @@ Nutrition-driven tags (use the nutrition estimates you provide elsewhere):
 - "Low carb" — at most ~20g carbs per serving. Bread, pasta, rice, sugar, potatoes, root vegetables push the count up; protein + non-starchy vegetables keep it low.
 - "Low calorie" — at most ~400 cal per serving.
 
-CRITICAL: cross-check your `diet` array against your own `nutrition` estimate. If you put protein=28 in nutrition, "High protein" must be in diet. If fibre=9, "High fibre" must be there. If cal=320, "Low calorie" must be there. Don't leave applicable tags off.
+CRITICAL: cross-check your diet array against your own nutrition estimate. If you put protein=28 in nutrition, "High protein" must be in diet. If fibre=9, "High fibre" must be there. If cal=320, "Low calorie" must be there. Don't leave applicable tags off.
 
 NUTRITION (must provide estimates)
 - ALWAYS provide nutrition estimates per serving — even rough.
