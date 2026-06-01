@@ -295,6 +295,17 @@ function IngredientsEditor({ ingredients, onChange }) {
     onChange(next);
   };
   const remove = (idx) => onChange(ingredients.filter((_, j) => j !== idx));
+  // Swap two adjacent ingredient rows. Crossing a section boundary
+  // moves the row INTO the new section so the visual sequence
+  // stays coherent (matches StepsEditor.moveStep behaviour).
+  const moveIngredient = (idx, delta) => {
+    const target = idx + delta;
+    if (target < 0 || target >= ingredients.length) return;
+    const next = [...ingredients];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    next[target] = { ...next[target], grp: next[idx + delta]?.grp ?? next[target].grp };
+    onChange(next);
+  };
   const renameSection = (oldName, newName) => {
     onChange(ingredients.map(i => (i.grp || "Ingredients") === oldName ? { ...i, grp: newName } : i));
   };
@@ -308,41 +319,12 @@ function IngredientsEditor({ ingredients, onChange }) {
     const name = "New section";
     onChange([...ingredients, { qty: 1, unit: "", item: "", grp: name }]);
   };
-  // Reorder section blocks. The whole section (its items) moves
-  // with the header so the visual sequence stays coherent. Items
-  // keep their relative order within the section.
-  const moveSection = (name, delta) => {
-    const order = [];
-    ingredients.forEach(i => {
-      const g = i.grp || "Ingredients";
-      if (!order.includes(g)) order.push(g);
-    });
-    const idx = order.indexOf(name);
-    const target = idx + delta;
-    if (idx < 0 || target < 0 || target >= order.length) return;
-    [order[idx], order[target]] = [order[target], order[idx]];
-    const next = [];
-    order.forEach(g => ingredients.forEach(i => {
-      if ((i.grp || "Ingredients") === g) next.push(i);
-    }));
-    onChange(next);
-  };
 
   return (
     <div>
       {sections.map((sec, sectionIdx) => (
         <div key={sectionIdx} className="form-section" style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-            {sections.length > 1 && (
-              <div className="reorder-stack reorder-stack-h">
-                <button type="button" onClick={() => moveSection(sec.name, -1)} disabled={sectionIdx === 0} aria-label={t("moveUp")} title={t("moveUp")}>
-                  <Icon name="chevU" size={14} />
-                </button>
-                <button type="button" onClick={() => moveSection(sec.name, +1)} disabled={sectionIdx === sections.length - 1} aria-label={t("moveDown")} title={t("moveDown")}>
-                  <Icon name="chevD" size={14} />
-                </button>
-              </div>
-            )}
             <input
               type="text"
               value={sec.name}
@@ -357,33 +339,42 @@ function IngredientsEditor({ ingredients, onChange }) {
             )}
           </div>
           {sec.items.map((i) => (
-            <div key={i._idx} style={{ marginBottom: 6 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "70px 80px 1fr 24px", gap: 6 }}>
-                <QtyInput
-                  value={i.qty}
-                  placeholder={t("qtyPh")}
-                  onChange={(n) => update(i._idx, { qty: n })}
-                  disabled={!!i.qtyNote}
-                  title={i.qtyNote ? `Showing intuitive measure: "${i.qtyNote}". Clear it to set a number.` : undefined}
-                />
-                <input
-                  value={i.unit}
-                  placeholder={t("unitPh")}
-                  onChange={(e) => update(i._idx, { unit: e.target.value })}
-                  disabled={!!i.qtyNote}
-                />
-                <input value={i.item} placeholder={t("ingredientPh")}
-                  onChange={(e) => update(i._idx, { item: e.target.value })} />
-                <button type="button" className="btn ghost icon-only" onClick={() => remove(i._idx)}>
-                  <Icon name="x" size={14} />
+            <div key={i._idx} className="ingredient-row" style={{ marginBottom: 6 }}>
+              <div className="reorder-stack">
+                <button type="button" onClick={() => moveIngredient(i._idx, -1)} disabled={i._idx === 0} aria-label={t("moveUp")} title={t("moveUp")}>
+                  <Icon name="chevU" size={14} />
+                </button>
+                <button type="button" onClick={() => moveIngredient(i._idx, +1)} disabled={i._idx === ingredients.length - 1} aria-label={t("moveDown")} title={t("moveDown")}>
+                  <Icon name="chevD" size={14} />
                 </button>
               </div>
-              {/* Intuitive measure ("by eye", "to taste", "a glug").
-                  Shown when the AI extracted one or the cook
-                  manually typed one. Disables qty + unit while set —
-                  the family-cook measure is the truth here, not a
-                  fake number. */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, paddingLeft: 4 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "70px 80px 1fr 24px", gap: 6 }}>
+                  <QtyInput
+                    value={i.qty}
+                    placeholder={t("qtyPh")}
+                    onChange={(n) => update(i._idx, { qty: n })}
+                    disabled={!!i.qtyNote}
+                    title={i.qtyNote ? `Showing intuitive measure: "${i.qtyNote}". Clear it to set a number.` : undefined}
+                  />
+                  <input
+                    value={i.unit}
+                    placeholder={t("unitPh")}
+                    onChange={(e) => update(i._idx, { unit: e.target.value })}
+                    disabled={!!i.qtyNote}
+                  />
+                  <input value={i.item} placeholder={t("ingredientPh")}
+                    onChange={(e) => update(i._idx, { item: e.target.value })} />
+                  <button type="button" className="btn ghost icon-only" onClick={() => remove(i._idx)}>
+                    <Icon name="x" size={14} />
+                  </button>
+                </div>
+                {/* Intuitive measure ("by eye", "to taste", "a glug").
+                    Shown when the AI extracted one or the cook
+                    manually typed one. Disables qty + unit while set —
+                    the family-cook measure is the truth here, not a
+                    fake number. */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, paddingLeft: 4 }}>
                 <input
                   value={i.qtyNote || ""}
                   placeholder={t("qtyNotePh")}
@@ -405,6 +396,7 @@ function IngredientsEditor({ ingredients, onChange }) {
                     clear
                   </button>
                 )}
+                </div>
               </div>
             </div>
           ))}
@@ -511,27 +503,6 @@ function StepsEditor({ steps, onChange }) {
     const name = "New section";
     onChange([...steps, { t: "", d: "", mins: 0, precision: "easy", section: name }]);
   };
-  // Reorder section blocks. The whole section (header + items)
-  // moves as a unit so the cook flow stays coherent — moving
-  // "Filling" above "Dough" puts all of Filling's steps before
-  // all of Dough's steps. Per-step ordering inside a section is
-  // preserved.
-  const moveSection = (name, delta) => {
-    const order = [];
-    steps.forEach(s => {
-      const sec = s.section || "";
-      if (!order.includes(sec)) order.push(sec);
-    });
-    const idx = order.indexOf(name);
-    const target = idx + delta;
-    if (idx < 0 || target < 0 || target >= order.length) return;
-    [order[idx], order[target]] = [order[target], order[idx]];
-    const next = [];
-    order.forEach(sec => steps.forEach(s => {
-      if ((s.section || "") === sec) next.push(s);
-    }));
-    onChange(next);
-  };
   // Swap two adjacent rows. Native HTML5 drag-and-drop doesn't work on
   // iPad Safari (touch events don't fire dragstart), so explicit up/down
   // arrows are the reliable interaction.
@@ -552,16 +523,6 @@ function StepsEditor({ steps, onChange }) {
         <div key={sectionIdx} className="form-section" style={{ marginBottom: 14 }}>
           {sec.name && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-              {sections.length > 1 && (
-                <div className="reorder-stack reorder-stack-h">
-                  <button type="button" onClick={() => moveSection(sec.name, -1)} disabled={sectionIdx === 0} aria-label={t("moveUp")} title={t("moveUp")}>
-                    <Icon name="chevU" size={14} />
-                  </button>
-                  <button type="button" onClick={() => moveSection(sec.name, +1)} disabled={sectionIdx === sections.length - 1} aria-label={t("moveDown")} title={t("moveDown")}>
-                    <Icon name="chevD" size={14} />
-                  </button>
-                </div>
-              )}
               <input
                 type="text"
                 value={sec.name}
