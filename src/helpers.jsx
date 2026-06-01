@@ -592,7 +592,7 @@ export class ErrorBoundary extends React.Component {
 
 
 // ───── Filtering ─────
-export function applyFilters(recipes, { q, courses, diets, occasions, authors, cuisines, maxTime, difficulties }) {
+export function applyFilters(recipes, { q, courses, diets, occasions, authors, cuisines, maxTime, difficulties, origins }) {
   return recipes.filter(r => {
     if (q) {
       const hay = `${r.title} ${r.author} ${r.cuisine} ${r.subtitle} ${r.course}`.toLowerCase();
@@ -603,7 +603,12 @@ export function applyFilters(recipes, { q, courses, diets, occasions, authors, c
     if (authors?.length && !authors.includes(r.author)) return false;
     if (cuisines?.length && !cuisines.includes(r.cuisine)) return false;
     if (difficulties?.length && !difficulties.includes(r.difficulty)) return false;
-    if (diets?.length && !diets.some(d => r.diet.includes(d))) return false;
+    if (origins?.length && !origins.includes(r.origin)) return false;
+    // Diet tags use AND: a recipe needs ALL selected tags to pass.
+    // Picking Gluten-free + Soy-free shows only recipes that carry
+    // both, not either. Substitutions ("could be GF if you swap
+    // the pasta") aren't modelled yet — that's a future flag.
+    if (diets?.length && !diets.every(d => r.diet.includes(d))) return false;
     if (maxTime && r.total > maxTime) return false;
     return true;
   });

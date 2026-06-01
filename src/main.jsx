@@ -17,6 +17,60 @@ import { ShoppingList } from "./shopping.jsx";
 import { CookMode } from "./cook-mode.jsx";
 import { AdminAIUsage } from "./admin-ai-usage.jsx";
 
+// Collapsible nav search — renders as a bare icon button until
+// the cook taps it, then slides open into the full search bar
+// with a width transition. Auto-focuses the input on expand and
+// collapses again when blurred with no query.
+function NavSearch({ query, setQuery, placeholder, simpleMode, onOpenFilters, filtersLabel }) {
+  const [expanded, setExpanded] = useState(false);
+  const inputRef = useRef(null);
+  useEffect(() => {
+    if (expanded) inputRef.current?.focus();
+  }, [expanded]);
+  // Keep open while there's a query so the cook can see what
+  // they're filtering by; auto-collapse on blur when empty.
+  const handleBlur = () => {
+    if (!query) setExpanded(false);
+  };
+  if (!expanded) {
+    return (
+      <div className="search collapsed">
+        <button
+          className="search-toggle"
+          onClick={() => setExpanded(true)}
+          title={placeholder}
+          aria-label={placeholder}
+        >
+          <Icon name="search" />
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="search">
+      <Icon name="search" />
+      <input
+        ref={inputRef}
+        placeholder={placeholder}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onBlur={handleBlur}
+      />
+      {query && <button className="btn ghost icon-only" onClick={() => setQuery("")}><Icon name="x" size={14} /></button>}
+      {!simpleMode && (
+        <button
+          className="btn ghost icon-only search-filter-btn"
+          onClick={onOpenFilters}
+          title={filtersLabel}
+          aria-label={filtersLabel}
+        >
+          <Icon name="filter" size={16} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function App() {
   // ─── View routing ───
   // view: "browse" | "recipe" | "add" | "edit" | "meal"
@@ -104,7 +158,7 @@ function App() {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState({
     courses: [], diets: [], occasions: [],
-    authors: [], cuisines: [], difficulties: [],
+    authors: [], cuisines: [], difficulties: [], origins: [],
     maxTime: 0,
   });
   const filtered = useMemo(() => applyFilters(recipes, { q: query, ...filters }), [recipes, query, filters]);
@@ -125,7 +179,7 @@ function App() {
   useEffect(() => {
     const prev = prevFiltersRef.current;
     if (prev) {
-      for (const k of ["courses", "diets", "occasions", "authors", "cuisines", "difficulties"]) {
+      for (const k of ["courses", "diets", "occasions", "authors", "cuisines", "difficulties", "origins"]) {
         const added = (filters[k] || []).filter(v => !(prev[k] || []).includes(v));
         for (const v of added) logEvent("filter-apply", null, { filter: k, value: v });
       }
@@ -316,25 +370,14 @@ function App() {
             <img className="brand-logo" src="images/heirloom-tomato-long.png" alt="Heirloom" />
             <img className="brand-mark" src="images/heirloom-tomato-h.PNG" alt="Heirloom" />
           </div>
-          <div className="search">
-            <Icon name="search" />
-            <input
-              placeholder={t("searchPlaceholder")}
-              value={query}
-              onChange={(e) => { setQuery(e.target.value); if (view !== "browse") setView("browse"); }}
-            />
-            {query && <button className="btn ghost icon-only" onClick={() => setQuery("")}><Icon name="x" size={14} /></button>}
-            {!simpleMode && (
-              <button
-                className="btn ghost icon-only search-filter-btn"
-                onClick={() => setFiltersOpen(true)}
-                title={t("filters")}
-                aria-label={t("filters")}
-              >
-                <Icon name="filter" size={16} />
-              </button>
-            )}
-          </div>
+          <NavSearch
+            query={query}
+            setQuery={(v) => { setQuery(v); if (view !== "browse") setView("browse"); }}
+            placeholder={t("searchPlaceholder")}
+            simpleMode={simpleMode}
+            onOpenFilters={() => setFiltersOpen(true)}
+            filtersLabel={t("filters")}
+          />
           <div className="nav-actions">
             {!simpleMode && FLAGS.lab && (
             <button className="btn ghost sm" onClick={() => setView("lab")} title={t("kitchenExp")}>

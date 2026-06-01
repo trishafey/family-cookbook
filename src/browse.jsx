@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Icon, Pill, fmtDuration } from "./helpers.jsx";
 import { FLAGS } from "./config/flags.js";
 import { useLang } from "./i18n.js";
-import { COURSES, OCCASIONS, DIET_ICON } from "./data.js";
+import { OCCASIONS, DIET_ICON } from "./data.js";
 
 export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selectionMode, isFavorite, onToggleFavorite }) {
   const { t, tDiet, tOccasion, tDifficulty } = useLang();
@@ -85,11 +85,12 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
 }
 
 export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab, simpleMode }) {
-  const { t, tCourse, tOccasion, tDiet, lang } = useLang();
+  const { t, tCourse, tOccasion, tDiet, tOrigin, lang } = useLang();
 
-  // Active filter chips
+  // Active filter chips — origins lead the row because it's the
+  // broadest cut (heirloom / new / lab).
   const activeChips = [];
-  for (const k of ["courses", "diets", "occasions", "authors", "cuisines", "difficulties"]) {
+  for (const k of ["origins", "courses", "diets", "occasions", "authors", "cuisines", "difficulties"]) {
     for (const v of filters[k] || []) activeChips.push({ k, v });
   }
   if (filters.maxTime) activeChips.push({ k: "maxTime", v: `≤ ${fmtDuration(filters.maxTime)}` });
@@ -119,19 +120,34 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
   return (
     <div className="app" data-screen-label="01 Browse">
       {/* Editorial masthead */}
-      <header style={{ textAlign: "center", padding: "32px 0 48px", borderBottom: "1px solid var(--rule)", borderWidth: "0px" }}>
-        <h1 style={{ fontSize: 84, fontWeight: 400, margin: "12px 0 8px", letterSpacing: "-0.02em" }}>
+      <header className="home-masthead">
+        <h1 className="home-title">
           {lang === "pl"
             ? <><em style={{ color: "var(--accent)" }}>Rodzinna</em> Książka Kucharska</>
             : <>The <em style={{ color: "var(--accent)" }}>Family</em> Cookbook</>}
         </h1>
-        <div style={{ marginTop: 24, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+        <div className="home-search-row">
+          <div className="search home-search">
+            <Icon name="search" />
+            <input
+              placeholder={t("searchPlaceholder")}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query && <button className="btn ghost icon-only" onClick={() => setQuery("")}><Icon name="x" size={14} /></button>}
+            <button
+              className="btn ghost icon-only search-filter-btn"
+              onClick={openFilters}
+              title={t("filters")}
+              aria-label={t("filters")}
+            >
+              <Icon name="filter" size={16} />
+            </button>
+          </div>
           <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> {t("addRecipe")}</button>
           {!simpleMode && (
             <button className="btn" onClick={openMealBuilder}><Icon name="build" /> {t("buildMeal")}</button>
           )}
-          {/* Lab access lives in the top-nav button only. The
-              masthead button was duplicate chrome. */}
         </div>
       </header>
 
@@ -144,6 +160,7 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
             const display = c.k === "courses" ? tCourse(c.v)
               : c.k === "occasions" ? tOccasion(c.v)
               : c.k === "diets" ? tDiet(c.v)
+              : c.k === "origins" ? tOrigin(c.v)
               : c.v;
             return (
               <button key={`${c.k}-${c.v}`} className="filter-pill on" onClick={() => removeChip(c.k, c.v)}>
@@ -151,21 +168,8 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
               </button>
             );
           })}
-          <button className="btn ghost sm" style={{ marginLeft: "auto" }} onClick={() => setFilters({ courses: [], diets: [], occasions: [], authors: [], cuisines: [], difficulties: [], maxTime: 0 })}>
+          <button className="btn ghost sm" style={{ marginLeft: "auto" }} onClick={() => setFilters({ courses: [], diets: [], occasions: [], authors: [], cuisines: [], difficulties: [], origins: [], maxTime: 0 })}>
             {t("clearAll")}
-          </button>
-        </div>
-      }
-
-      {/* Quick course pills */}
-      {showingAll &&
-      <div className="filterbar" style={{ marginTop: 56 }}>
-          <span className="label">{t("browseByCourse")}</span>
-          {COURSES.map((c) =>
-        <button key={c} className="filter-pill" onClick={() => setFilters((f) => ({ ...f, courses: [c] }))}>{tCourse(c)}</button>
-        )}
-          <button className="btn ghost sm" style={{ marginLeft: "auto" }} onClick={openFilters}>
-            <Icon name="filter" size={15} /> {t("filters")}
           </button>
         </div>
       }
