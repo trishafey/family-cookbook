@@ -315,11 +315,37 @@ export function normalizeRecipe(r) {
     liveComments: r.liveComments || [],
     ingredients: r.ingredients || [],
     steps,
+    // Explicit section display order — when present, ingredients
+    // and steps render in this section sequence regardless of the
+    // physical order in the items array. Older recipes saved
+    // before section reorder existed don't have these fields;
+    // renderers fall back to first-occurrence in that case.
+    groupOrder: r.groupOrder || [],
+    stepSectionOrder: r.stepSectionOrder || [],
     nutrition: { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodium: 0, ...(r.nutrition || {}) },
     servingsDefault: r.servingsDefault || 1,
     difficulty: r.difficulty || "Easy",
     total: (r.prep || 0) + stepsTotal,
   };
+}
+
+// Reorder items for DISPLAY only — physical order in the array
+// is untouched. Steps/ingredients group by their .section /
+// .grp; groups render in `order` if provided, otherwise in
+// first-occurrence order. Each returned item carries _origIdx so
+// downstream consumers (the schedule array indexed by step
+// position, scaling lookups by ingredient index) keep working.
+export function applySectionOrder(items, getSection, order, defaultName = "") {
+  const groups = new Map();
+  items.forEach((it, i) => {
+    const k = getSection(it) || defaultName;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push({ ...it, _origIdx: i });
+  });
+  const seq = [];
+  (order || []).forEach(k => { if (groups.has(k)) seq.push(k); });
+  for (const k of groups.keys()) if (!seq.includes(k)) seq.push(k);
+  return seq.flatMap(k => groups.get(k));
 }
 
 // ───── Recipes (from the cookbook API, with localStorage as offline cache) ─────

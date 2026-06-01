@@ -241,18 +241,31 @@ function groupStepsBySection(steps) {
   return sectionOrder.flatMap(k => bySection[k]);
 }
 
-function groupBySection(arr, keyOf, defaultName) {
-  const seen = [];
+// Group items by section. When `explicitOrder` is provided
+// (e.g. `draft.groupOrder` set by the section reorder buttons),
+// the groups render in that order; sections that exist in the
+// data but aren't listed in the order get appended at the end.
+// Without an explicit order, falls back to first-occurrence so
+// older recipes (and the AI extractor output) keep working.
+function groupBySection(arr, keyOf, defaultName, explicitOrder) {
   const byName = {};
+  const firstSeen = [];
   arr.forEach((it, idx) => {
     const name = keyOf(it) || defaultName;
     if (!byName[name]) {
       byName[name] = { name, items: [] };
-      seen.push(byName[name]);
+      firstSeen.push(name);
     }
     byName[name].items.push({ ...it, _idx: idx });
   });
-  return seen;
+  let order;
+  if (explicitOrder && explicitOrder.length) {
+    order = explicitOrder.filter(n => byName[n]);
+    firstSeen.forEach(n => { if (!order.includes(n)) order.push(n); });
+  } else {
+    order = firstSeen;
+  }
+  return order.map(n => byName[n]);
 }
 
 // Text-mode qty input that accepts fractions ("1/3"), mixed
@@ -285,9 +298,21 @@ function QtyInput({ value, onChange, disabled, placeholder, title }) {
   );
 }
 
-function IngredientsEditor({ ingredients, onChange }) {
+function IngredientsEditor({ ingredients, onChange, groupOrder, onGroupOrderChange }) {
   const { t } = useLang();
-  const sections = groupBySection(ingredients, (i) => i.grp, "Ingredients");
+  const sections = groupBySection(ingredients, (i) => i.grp, "Ingredients", groupOrder);
+  // Move a section up/down in the display order WITHOUT touching
+  // the item array. The cook can reorder ingredient rows
+  // individually via the per-row arrows; this just changes which
+  // section header gets rendered first.
+  const moveSection = (name, delta) => {
+    const cur = sections.map(s => s.name);
+    const idx = cur.indexOf(name);
+    const target = idx + delta;
+    if (idx < 0 || target < 0 || target >= cur.length) return;
+    [cur[idx], cur[target]] = [cur[target], cur[idx]];
+    onGroupOrderChange(cur);
+  };
 
   const update = (idx, patch) => {
     const next = [...ingredients];
@@ -308,23 +333,38 @@ function IngredientsEditor({ ingredients, onChange }) {
   };
   const renameSection = (oldName, newName) => {
     onChange(ingredients.map(i => (i.grp || "Ingredients") === oldName ? { ...i, grp: newName } : i));
+    if (groupOrder?.includes(oldName)) {
+      onGroupOrderChange(groupOrder.map(n => n === oldName ? newName : n));
+    }
   };
   const deleteSection = (name) => {
     if (!confirm(`Delete the "${name}" section and its ingredients?`)) return;
     onChange(ingredients.filter(i => (i.grp || "Ingredients") !== name));
+    if (groupOrder?.includes(name)) onGroupOrderChange(groupOrder.filter(n => n !== name));
   };
   const addIngredientTo = (sectionName) =>
     onChange([...ingredients, { qty: 1, unit: "", item: "", grp: sectionName }]);
   const addSection = () => {
     const name = "New section";
     onChange([...ingredients, { qty: 1, unit: "", item: "", grp: name }]);
+    if (groupOrder && !groupOrder.includes(name)) onGroupOrderChange([...groupOrder, name]);
   };
 
   return (
     <div>
       {sections.map((sec, sectionIdx) => (
         <div key={sectionIdx} className="form-section" style={{ marginBottom: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+          <div className="section-head-row">
+            {sections.length > 1 && (
+              <div className="reorder-stack reorder-stack-h">
+                <button type="button" onClick={() => moveSection(sec.name, -1)} disabled={sectionIdx === 0} aria-label={t("moveUp")} title={t("moveUp")}>
+                  <Icon name="chevU" size={14} />
+                </button>
+                <button type="button" onClick={() => moveSection(sec.name, +1)} disabled={sectionIdx === sections.length - 1} aria-label={t("moveDown")} title={t("moveDown")}>
+                  <Icon name="chevD" size={14} />
+                </button>
+              </div>
+            )}
             <input
               type="text"
               value={sec.name}
@@ -438,9 +478,19 @@ function HoursMinutes({ value, onChange }) {
   );
 }
 
-function StepsEditor({ steps, onChange }) {
+function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange }) {
   const { t } = useLang();
-  const sections = groupBySection(steps, (s) => s.section, "");
+  const sections = groupBySection(steps, (s) => s.section, "", sectionOrder);
+  // Move a section up/down in the display order WITHOUT touching
+  // the step array. Per-step arrows handle individual row moves.
+  const moveSection = (name, delta) => {
+    const cur = sections.map(s => s.name);
+    const idx = cur.indexOf(name);
+    const target = idx + delta;
+    if (idx < 0 || target < 0 || target >= cur.length) return;
+    [cur[idx], cur[target]] = [cur[target], cur[idx]];
+    onSectionOrderChange(cur);
+  };
   const [uploadingIdx, setUploadingIdx] = useState(null);
 
   const update = (idx, patch) => {
@@ -477,10 +527,14 @@ function StepsEditor({ steps, onChange }) {
   };
   const renameSection = (oldName, newName) => {
     onChange(steps.map(s => (s.section || "") === oldName ? { ...s, section: newName || null } : s));
+    if (sectionOrder?.includes(oldName)) {
+      onSectionOrderChange(sectionOrder.map(n => n === oldName ? (newName || "") : n));
+    }
   };
   const deleteSection = (name) => {
     if (!confirm(`Delete the "${name}" section and its steps?`)) return;
     onChange(steps.filter(s => (s.section || "") !== name));
+    if (sectionOrder?.includes(name)) onSectionOrderChange(sectionOrder.filter(n => n !== name));
   };
   const addStepTo = (sectionName) => {
     // Insert at the end of the matching section so the underlying array
@@ -502,6 +556,7 @@ function StepsEditor({ steps, onChange }) {
   const addSection = () => {
     const name = "New section";
     onChange([...steps, { t: "", d: "", mins: 0, precision: "easy", section: name }]);
+    if (sectionOrder && !sectionOrder.includes(name)) onSectionOrderChange([...sectionOrder, name]);
   };
   // Swap two adjacent rows. Native HTML5 drag-and-drop doesn't work on
   // iPad Safari (touch events don't fire dragstart), so explicit up/down
@@ -522,7 +577,17 @@ function StepsEditor({ steps, onChange }) {
       {sections.map((sec, sectionIdx) => (
         <div key={sectionIdx} className="form-section" style={{ marginBottom: 14 }}>
           {sec.name && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <div className="section-head-row">
+              {sections.filter(x => x.name).length > 1 && (
+                <div className="reorder-stack reorder-stack-h">
+                  <button type="button" onClick={() => moveSection(sec.name, -1)} disabled={sectionIdx === 0} aria-label={t("moveUp")} title={t("moveUp")}>
+                    <Icon name="chevU" size={14} />
+                  </button>
+                  <button type="button" onClick={() => moveSection(sec.name, +1)} disabled={sectionIdx === sections.length - 1} aria-label={t("moveDown")} title={t("moveDown")}>
+                    <Icon name="chevD" size={14} />
+                  </button>
+                </div>
+              )}
               <input
                 type="text"
                 value={sec.name}
@@ -1267,6 +1332,8 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               <IngredientsEditor
                 ingredients={draft.ingredients}
                 onChange={(ings) => setDraft({ ...draft, ingredients: ings })}
+                groupOrder={draft.groupOrder || []}
+                onGroupOrderChange={(order) => setDraft({ ...draft, groupOrder: order })}
               />
             </div>
           </div>
@@ -1332,6 +1399,8 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
               <StepsEditor
                 steps={draft.steps}
                 onChange={(steps) => setDraft({ ...draft, steps })}
+                sectionOrder={draft.stepSectionOrder || []}
+                onSectionOrderChange={(order) => setDraft({ ...draft, stepSectionOrder: order })}
               />
             </div>
           </div>

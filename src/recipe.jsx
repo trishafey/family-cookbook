@@ -2,7 +2,7 @@
 // Variants: editorial (default), magazine, binder.
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Icon, fmtDuration, fmtTime, formatQty, formatIngredientQty, logEvent, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage } from "./helpers.jsx";
+import { Icon, fmtDuration, fmtTime, formatQty, formatIngredientQty, logEvent, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage, applySectionOrder } from "./helpers.jsx";
 import { convertIngredient } from "./units.js";
 import { useLang } from "./i18n.js";
 import { TimeOfDayInput, PrintOnly, Lightbox } from "./ui.jsx";
@@ -422,8 +422,16 @@ function IngredientsCard({ recipe, finalIngs, scaler, onShop, children }) {
       if (k === "Serve") continue;
       (g[k] = g[k] || []).push(i);
     }
-    return g;
-  }, [displayed]);
+    // Respect the cook's explicit section order (groupOrder)
+    // when set. Sections not in the order fall through at the
+    // end in first-occurrence order.
+    const order = recipe.groupOrder || [];
+    if (!order.length) return g;
+    const out = {};
+    order.forEach(k => { if (g[k]) out[k] = g[k]; });
+    Object.keys(g).forEach(k => { if (!out[k]) out[k] = g[k]; });
+    return out;
+  }, [displayed, recipe.groupOrder]);
 
   return (
     <div className="ingredients-card">
@@ -521,17 +529,24 @@ function TimingBar({ doneBy, setDoneBy, finishTime, setFinishTime, schedule }) {
 // ─────────────────────────────────────────────────────────────
 // Shared: Steps list
 // ─────────────────────────────────────────────────────────────
-function StepsList({ steps, doneBy, schedule, finishTime, bumpStepStart }) {
+function StepsList({ steps, sectionOrder, doneBy, schedule, finishTime, bumpStepStart }) {
   const { t, tPrecision, locale } = useLang();
   const [lightbox, setLightbox] = useState(null); // { src, alt }
+  const ordered = useMemo(
+    () => applySectionOrder(steps, s => s.section || "", sectionOrder),
+    [steps, sectionOrder]
+  );
   let lastSection = null;
   let lastDayOffset = null;
   return (
     <div className="steps-list">
-      {steps.map((s, i) => {
+      {ordered.map((s, i) => {
         const showSection = s.section && s.section !== lastSection;
         if (s.section) lastSection = s.section;
-        const stepSched = schedule?.schedule?.[i];
+        // schedule is indexed against the ORIGINAL step position
+        // — the array isn't physically reordered, only the
+        // render sequence is. Use _origIdx for that lookup.
+        const stepSched = schedule?.schedule?.[s._origIdx];
         const off = stepSched?.dayOffset ?? 0;
         const showDay = doneBy && schedule && off !== lastDayOffset;
         if (doneBy && schedule) lastDayOffset = off;
@@ -1086,7 +1101,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
           {!simpleMode && (
             <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           )}
-          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
+          <StepsList steps={scaled.steps} sectionOrder={recipe.stepSectionOrder} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
           {FLAGS.needHelp && !simpleMode && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
@@ -1181,7 +1196,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
           {!simpleMode && (
             <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           )}
-          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
+          <StepsList steps={scaled.steps} sectionOrder={recipe.stepSectionOrder} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
           {FLAGS.needHelp && !simpleMode && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
@@ -1274,7 +1289,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
           {!simpleMode && (
             <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           )}
-          <StepsList steps={scaled.steps} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
+          <StepsList steps={scaled.steps} sectionOrder={recipe.stepSectionOrder} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
           {FLAGS.needHelp && !simpleMode && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>

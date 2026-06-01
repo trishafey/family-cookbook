@@ -692,10 +692,16 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .reorder-stack button:hover:not([disabled]) { color: var(--accent); border-color: var(--accent); }
 .reorder-stack button[disabled] { opacity: 0.3; cursor: not-allowed; }
+/* Horizontal variant — for section headers where vertical
+   stacking would be too tall next to the section-name input. */
+.reorder-stack-h { flex-direction: row; padding-top: 0; }
 /* Ingredient row — reorder-stack on the left, fields on the
    right. Parallels the step-row layout so cooks reorder
    ingredients the same way they reorder steps. */
 .ingredient-row { display: flex; gap: 6px; align-items: flex-start; }
+/* Section header row in both editors — reorder buttons +
+   editable section name + delete. */
+.section-head-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 
 /* AI Adjust — lives INSIDE the ingredients card as a sub-section */
 .ai-adjust {
