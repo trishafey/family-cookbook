@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useStorage, scheduleForFinish, fmtTime, fmtDuration, formatQty, formatIngredientQty, Icon, logEvent } from "./helpers.jsx";
+import { useTimers } from "./timers.jsx";
 import { TimeOfDayInput, Lightbox } from "./ui.jsx";
 import { NeedHelp } from "./need-help.jsx";
 import { useLang } from "./i18n.js";
@@ -9,6 +10,7 @@ import { FLAGS } from "./config/flags.js";
 
 export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime, onClose, authEmail, onSaveRecipe }) {
   const { t, tPrecision } = useLang();
+  const { start: startTimer } = useTimers();
   const [idx, setIdx] = useStorage(`cookmode:${recipe.id}:idx`, 0);
   const [done, setDone] = useStorage(`cookmode:${recipe.id}:done`, []);
 
@@ -255,6 +257,21 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
               <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>{t("doneAt")}</div>
               <div style={{ fontSize: 16 }}>{fmtTime(curSched.end)}</div>
             </div>
+            {cur.mins > 0 && (
+              <button
+                type="button"
+                className="btn ai cook-start-timer"
+                onClick={() => startTimer({
+                  label: cur.t ? `${recipe.title} — ${cur.t}` : `${recipe.title} step ${idx + 1}`,
+                  mins: cur.mins,
+                  recipeId: recipe.id,
+                  stepIdx: idx,
+                })}
+                title={t("startTimer")}
+              >
+                <Icon name="timer" size={16} /> {t("startTimer")}
+              </button>
+            )}
           </div>
 
           <div style={{ marginTop: 40, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>

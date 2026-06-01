@@ -16,6 +16,8 @@ import { PlanMealModal, MealPlanPage } from "./meal-plan.jsx";
 import { ShoppingList } from "./shopping.jsx";
 import { CookMode } from "./cook-mode.jsx";
 import { AdminAIUsage } from "./admin-ai-usage.jsx";
+import { TimerTicker } from "./timers.jsx";
+import { TimerBanner } from "./timer-banner.jsx";
 
 // Collapsible nav search — renders as a bare icon button until
 // the cook taps it, then slides open into the full search bar
@@ -408,6 +410,12 @@ function App() {
           </div>
         </div>
       </nav>
+
+      {/* ───── Cooking timers (sticky full-width strip under the
+           nav; survives navigation so a simmer can keep ticking
+           while the cook browses pairings) ───── */}
+      <TimerTicker />
+      <TimerBanner />
 
       {/* ───── Meal-selection banner (sticky under nav while items
            are queued but the cook isn't in the meal builder) ───── */}

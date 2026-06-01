@@ -61,6 +61,7 @@ const S = {
   back:           { en: "Back",               pl: "Wstecz" },
   backToCookbook: { en: "Back to cookbook",   pl: "Powrót do książki kucharskiej" },
   startCooking:   { en: "Start cooking",      pl: "Zacznij gotować" },
+  startTimer:     { en: "Start timer",         pl: "Włącz minutnik" },
   shoppingList:   { en: "Shopping list",      pl: "Lista zakupów" },
   addToShoppingList: { en: "Add to shopping list", pl: "Dodaj do listy zakupów" },
   print:          { en: "Print",              pl: "Drukuj" },

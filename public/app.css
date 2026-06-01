@@ -3611,7 +3611,119 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
 }
 .meal-banner .btn { flex-shrink: 0; }
 
+/* ───── Cooking timers ─────────────────────────────────────
+   Sticky full-width strip sits directly under the nav. Each
+   active timer is a chip; on narrow screens the row scrolls
+   horizontally so the chips never wrap mid-cook. */
+.timer-banner {
+  position: sticky; top: 0; z-index: 60;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule);
+}
+.timer-banner-inner {
+  display: flex; align-items: stretch; gap: 8px;
+  padding: 8px 28px;
+  overflow-x: auto;
+}
+.timer-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px 6px 6px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  flex-shrink: 0;
+  font-family: var(--sans); font-size: 12px;
+  transition: background .2s, border-color .2s;
+}
+.timer-chip .timer-icon {
+  display: grid; place-items: center;
+  width: 28px; height: 28px;
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--accent);
+}
+/* Animate the stopwatch hand while the timer is actively
+   running — paused/fired chips freeze the hand. */
+.timer-chip:not(.paused):not(.fired) .timer-icon .sweep {
+  animation: ic-sweep 2.4s cubic-bezier(.5, 0, .5, 1) infinite;
+  transform-origin: 12px 13.7px;
+}
+.timer-chip.fired .timer-icon .sweep {
+  animation: ic-sweep 0.6s cubic-bezier(.5, 0, .5, 1) infinite;
+  transform-origin: 12px 13.7px;
+}
+.timer-chip .timer-body {
+  display: flex; flex-direction: column; min-width: 0;
+}
+.timer-chip .timer-label {
+  font-size: 11px; color: var(--ink-3);
+  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.timer-chip .timer-time {
+  font-family: var(--mono);
+  font-size: 15px; font-weight: 500;
+  color: var(--ink); line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.timer-chip .timer-adjust {
+  display: flex; gap: 2px;
+}
+.timer-chip .timer-adjust button,
+.timer-chip .timer-action,
+.timer-chip .timer-dismiss {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  background: transparent; border: 1px solid transparent;
+  border-radius: 6px; cursor: pointer; color: var(--ink-3);
+}
+.timer-chip .timer-adjust button:hover,
+.timer-chip .timer-action:hover,
+.timer-chip .timer-dismiss:hover {
+  color: var(--ink); background: var(--paper-2); border-color: var(--rule);
+}
+.timer-chip.paused {
+  background: var(--paper-2); border-style: dashed;
+}
+.timer-chip.paused .timer-time { color: var(--ink-3); }
+.timer-chip.fired {
+  background: rgba(176, 74, 42, 0.14);
+  border-color: var(--accent);
+  animation: timer-pulse 1.1s ease-in-out infinite;
+}
+.timer-chip.fired .timer-time { color: var(--accent); font-weight: 600; }
+@keyframes timer-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(176, 74, 42, 0.32); }
+  50% { box-shadow: 0 0 0 5px rgba(176, 74, 42, 0); }
+}
+
+/* "Start timer" microcopy — sits in the step .meta row next to
+   the duration. Quiet by default (ink-3) so it doesn't compete
+   with precision/time labels; hover bumps to the AI blue so the
+   cook knows it's an action. */
+.start-timer-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--ink-3);
+  font-family: var(--sans); font-size: 11px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.start-timer-link:hover {
+  color: var(--accent-cool, var(--accent));
+  border-color: var(--accent-cool, var(--accent));
+  background: var(--paper);
+}
+.start-timer-link:active { transform: scale(0.95); }
+/* Cook-mode variant lives in the stats row as a full button. */
+.cook-start-timer { margin-left: auto; }
+
 @media (max-width: 720px) {
+  .timer-banner-inner { padding: 6px 14px; gap: 6px; }
+  .timer-chip .timer-label { max-width: 120px; }
   .meal-banner { padding: 8px 16px; gap: 10px; font-size: 12px; }
   .meal-banner .count { font-size: 18px; }
 }

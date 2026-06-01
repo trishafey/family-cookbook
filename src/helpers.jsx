@@ -711,6 +711,7 @@ export const Icon = ({ name, size = 18 }) => {
     // `plus` icon's leaf reads as visual noise.
     plusBare:  <path d="M12 5v14M5 12h14" />,
     play:      <path d="M7 5v14l12-7L7 5Z" />,
+    pause:     <><rect x="7" y="5" width="3.5" height="14" rx="0.7" /><rect x="13.5" y="5" width="3.5" height="14" rx="0.7" /></>,
     copy:      <path d="M9 9h11v11H9zM5 5h11v3M5 15V5" />,
     download:  <path d="M12 4v12m0 0-5-5m5 5 5-5M4 21h16" />,
     link:      <path d="M10 14a5 5 0 0 0 7.07 0l3.54-3.54a5 5 0 0 0-7.07-7.07L11.83 5.17M14 10a5 5 0 0 0-7.07 0L3.39 13.54a5 5 0 0 0 7.07 7.07L12.17 18.83" />,

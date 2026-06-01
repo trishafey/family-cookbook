@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Icon, fmtDuration, fmtTime, formatQty, formatIngredientQty, logEvent, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage, applySectionOrder } from "./helpers.jsx";
+import { useTimers, playChime } from "./timers.jsx";
 import { convertIngredient } from "./units.js";
 import { useLang } from "./i18n.js";
 import { TimeOfDayInput, PrintOnly, Lightbox } from "./ui.jsx";
@@ -529,9 +530,23 @@ function TimingBar({ doneBy, setDoneBy, finishTime, setFinishTime, schedule }) {
 // ─────────────────────────────────────────────────────────────
 // Shared: Steps list
 // ─────────────────────────────────────────────────────────────
-function StepsList({ steps, sectionOrder, doneBy, schedule, finishTime, bumpStepStart }) {
+function StepsList({ steps, sectionOrder, doneBy, schedule, finishTime, bumpStepStart, recipeId, recipeTitle }) {
   const { t, tPrecision, locale } = useLang();
   const [lightbox, setLightbox] = useState(null); // { src, alt }
+  // Single shared timers handle — each step's "Start timer" link
+  // calls .start() with the step's mins. The chime context unlocks
+  // on the first click, since this is a user gesture.
+  const { start: startTimer } = useTimers();
+  const handleStartTimer = (step, idx) => {
+    if (!step.mins) return;
+    // Pre-warm the audio context inside the user gesture so the
+    // chime can ring later without an autoplay block.
+    try { playChime.warm?.(); } catch {}
+    const label = step.t
+      ? `${recipeTitle ? recipeTitle + " — " : ""}${step.t}`
+      : `${recipeTitle || ""} step ${idx + 1}`;
+    startTimer({ label, mins: step.mins, recipeId, stepIdx: idx });
+  };
   const ordered = useMemo(
     () => applySectionOrder(steps, s => s.section || "", sectionOrder),
     [steps, sectionOrder]
@@ -565,7 +580,19 @@ function StepsList({ steps, sectionOrder, doneBy, schedule, finishTime, bumpStep
                 <div className="d">{s.d}</div>
                 <div className="meta">
                   <span className={`precision-${s.precision}`}>● {tPrecision(s.precision)}</span>
-                  <span className="time">{fmtDuration(s.mins)}</span>
+                  <span className="time">
+                    {fmtDuration(s.mins)}
+                    {s.mins > 0 && (
+                      <button
+                        type="button"
+                        className="start-timer-link"
+                        onClick={() => handleStartTimer(s, s._origIdx ?? i)}
+                        title={t("startTimer")}
+                      >
+                        <Icon name="timer" size={12} /> {t("startTimer")}
+                      </button>
+                    )}
+                  </span>
                   {s.hands != null && <span>{t("handsOn")} {fmtDuration(s.hands)}</span>}
                   {s.photo && (
                     <button
@@ -1101,7 +1128,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
           {!simpleMode && (
             <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           )}
-          <StepsList steps={scaled.steps} sectionOrder={recipe.stepSectionOrder} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
+          <StepsList steps={scaled.steps} recipeId={recipe.id} recipeTitle={recipe.title} sectionOrder={recipe.stepSectionOrder} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
           {FLAGS.needHelp && !simpleMode && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
@@ -1196,7 +1223,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
           {!simpleMode && (
             <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           )}
-          <StepsList steps={scaled.steps} sectionOrder={recipe.stepSectionOrder} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
+          <StepsList steps={scaled.steps} recipeId={recipe.id} recipeTitle={recipe.title} sectionOrder={recipe.stepSectionOrder} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
           {FLAGS.needHelp && !simpleMode && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
@@ -1289,7 +1316,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
           {!simpleMode && (
             <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           )}
-          <StepsList steps={scaled.steps} sectionOrder={recipe.stepSectionOrder} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
+          <StepsList steps={scaled.steps} recipeId={recipe.id} recipeTitle={recipe.title} sectionOrder={recipe.stepSectionOrder} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
           {FLAGS.needHelp && !simpleMode && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>

@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Icon, logEvent, signInUrl, slugify, parseQty, formatQty } from "./helpers.jsx";
+import { useTimers } from "./timers.jsx";
 import { Modal } from "./ui.jsx";
 import { FLAGS } from "./config/flags.js";
 import { COURSES, OCCASIONS, DIETS, ORIGINS, RECIPES as SEED_RECIPES } from "./data.js";
@@ -478,8 +479,9 @@ function HoursMinutes({ value, onChange }) {
   );
 }
 
-function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange }) {
+function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange, recipeTitle, recipeId }) {
   const { t } = useLang();
+  const { start: startTimer } = useTimers();
   const sections = groupBySection(steps, (s) => s.section, "", sectionOrder);
   // Move a section up/down in the display order WITHOUT touching
   // the step array. Per-step arrows handle individual row moves.
@@ -621,6 +623,21 @@ function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange }) {
                   <select value={s.precision || "easy"} onChange={(e) => update(s._idx, { precision: e.target.value })}>
                     {["easy","medium","careful","watch","patient"].map(p => <option key={p}>{p}</option>)}
                   </select>
+                  {s.mins > 0 && (
+                    <button
+                      type="button"
+                      className="start-timer-link"
+                      onClick={() => startTimer({
+                        label: s.t ? `${recipeTitle ? recipeTitle + " — " : ""}${s.t}` : `${recipeTitle || "Step"} ${s._idx + 1}`,
+                        mins: s.mins,
+                        recipeId: recipeId || null,
+                        stepIdx: s._idx,
+                      })}
+                      title={t("startTimer")}
+                    >
+                      <Icon name="timer" size={12} /> {t("startTimer")}
+                    </button>
+                  )}
                   {s.photo ? (
                     <div
                       className="step-photo-thumb"
@@ -1401,6 +1418,8 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
                 onChange={(steps) => setDraft({ ...draft, steps })}
                 sectionOrder={draft.stepSectionOrder || []}
                 onSectionOrderChange={(order) => setDraft({ ...draft, stepSectionOrder: order })}
+                recipeTitle={draft.title}
+                recipeId={initialRecipe?.id || null}
               />
             </div>
           </div>
