@@ -1039,16 +1039,28 @@ STEPS (preserve EVERY detail; just polish the prose)
 - precision: "easy" (set and forget), "medium" (some attention), "careful" (precise), "watch" (don't walk away — heat, browning), "patient" (long wait — rest, rise, marinate).
 - mins: your best estimate; for passive steps (rest / marinate / freeze / proof) include the wait time.
 
-DIET (be liberal — apply by exclusion)
-- If the recipe does NOT contain wheat / barley / rye / flour / soy sauce → include "Gluten-free".
-- If the recipe does NOT contain milk / butter / cheese / cream / yogurt → include "Dairy-free".
-- If the recipe does NOT contain nuts → include "Nut-free".
-- If the recipe does NOT contain soy / soy sauce / tofu / edamame → include "Soy-free".
-- If the recipe is predominantly meat → "Carnivore" and "High protein".
-- If carbs (bread, pasta, rice, sugar, potatoes) are absent or minimal → "Low carb".
-- If there's no meat / fish / dairy / eggs → "Vegan".
-- If there's no meat / fish → "Vegetarian".
-- If the only animal product is fish/shellfish → "Pescatarian".
+DIET (be liberal — apply EVERY tag that genuinely fits)
+The valid diet values are exactly: "Gluten-free", "Dairy-free", "Nut-free", "Soy-free", "Vegan", "Vegetarian", "Pescatarian", "Carnivore", "High protein", "High fibre", "Low carb", "Low calorie". Only use values from this list. Apply MULTIPLE tags when they all apply — a vegan high-fibre lentil stew should get Vegan, Vegetarian, Dairy-free, Nut-free, Soy-free, High fibre, AND High protein if the protein count justifies it. Do not be conservative; if a tag fits, include it.
+
+Exclusion tags (apply when the recipe genuinely doesn't contain the allergen):
+- "Gluten-free" — no wheat, barley, rye, spelt, regular flour, breadcrumbs, pasta, couscous, or regular soy sauce.
+- "Dairy-free" — no milk, butter, cheese, cream, yogurt, sour cream, ghee, or whey.
+- "Nut-free" — no tree nuts (almonds, walnuts, pecans, pistachios, cashews, hazelnuts, etc.) and no peanuts. Coconut and seeds (sesame, sunflower) do NOT disqualify.
+- "Soy-free" — no soy sauce, tamari, tofu, tempeh, edamame, miso, or soy milk.
+
+Lifestyle tags:
+- "Vegan" — zero animal products: no meat, fish, shellfish, dairy, eggs, honey, gelatin.
+- "Vegetarian" — no meat or fish. Dairy and eggs are fine.
+- "Pescatarian" — fish or shellfish allowed, but no other meat.
+- "Carnivore" — predominantly or exclusively meat / fish / animal products (a steak with herbs counts; a meat-and-potatoes stew does not).
+
+Nutrition-driven tags (use the nutrition estimates you provide elsewhere):
+- "High protein" — at least ~20g protein per serving. Applies to meat, fish, eggs, dairy, tofu, lentils, beans, Greek yogurt, etc. NOT only "predominantly meat".
+- "High fibre" — at least ~6g fibre per serving. Triggered by whole grains, legumes, beans, lentils, leafy greens, vegetables, fruit, seeds, oats.
+- "Low carb" — at most ~20g carbs per serving. Bread, pasta, rice, sugar, potatoes, root vegetables push the count up; protein + non-starchy vegetables keep it low.
+- "Low calorie" — at most ~400 cal per serving.
+
+CRITICAL: cross-check your `diet` array against your own `nutrition` estimate. If you put protein=28 in nutrition, "High protein" must be in diet. If fibre=9, "High fibre" must be there. If cal=320, "Low calorie" must be there. Don't leave applicable tags off.
 
 NUTRITION (must provide estimates)
 - ALWAYS provide nutrition estimates per serving — even rough.
@@ -1074,7 +1086,7 @@ const AI_RECIPE_SCHEMA = {
     cuisine:  { type: ["string", "null"] },
     course:   { type: "string", enum: ["Breakfast", "Lunch", "Dinner", "Appetizer", "Dessert", "Snack"] },
     occasion: { type: "string", enum: ["Solo", "Family style", "Date night"] },
-    diet:     { type: "array", items: { type: "string" } },
+    diet:     { type: "array", items: { type: "string", enum: ["Gluten-free", "Dairy-free", "Nut-free", "Soy-free", "Vegan", "Vegetarian", "Pescatarian", "Carnivore", "High protein", "High fibre", "Low carb", "Low calorie"] } },
     prep:     { type: "number" },
     cook:     { type: "number" },
     servingsDefault: { type: "number" },

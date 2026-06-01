@@ -2,7 +2,7 @@
 // AI extraction is mocked: paste text, hit "extract", a stub parses into fields.
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Icon, logEvent, signInUrl, slugify } from "./helpers.jsx";
+import { Icon, logEvent, signInUrl, slugify, parseQty, formatQty } from "./helpers.jsx";
 import { Modal } from "./ui.jsx";
 import { FLAGS } from "./config/flags.js";
 import { COURSES, OCCASIONS, DIETS, ORIGINS, RECIPES as SEED_RECIPES } from "./data.js";
@@ -255,6 +255,36 @@ function groupBySection(arr, keyOf, defaultName) {
   return seen;
 }
 
+// Text-mode qty input that accepts fractions ("1/3"), mixed
+// numbers ("1 1/2"), and unicode fractions ("½"). While the
+// field has focus we keep the user's literal typing in local
+// state so they can keep typing "1/" without the value snapping
+// back. On blur or when the upstream value changes from
+// elsewhere we re-render from the canonical number.
+function QtyInput({ value, onChange, disabled, placeholder, title }) {
+  const [text, setText] = useState(formatQty(value));
+  const [focused, setFocused] = useState(false);
+  useEffect(() => { if (!focused) setText(formatQty(value)); }, [value, focused]);
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={text}
+      placeholder={placeholder}
+      disabled={disabled}
+      title={title}
+      onFocus={() => setFocused(true)}
+      onBlur={() => { setFocused(false); setText(formatQty(value)); }}
+      onChange={(e) => {
+        const v = e.target.value;
+        setText(v);
+        const n = parseQty(v);
+        if (n !== null) onChange(n);
+      }}
+    />
+  );
+}
+
 function IngredientsEditor({ ingredients, onChange }) {
   const { t } = useLang();
   const sections = groupBySection(ingredients, (i) => i.grp, "Ingredients");
@@ -278,12 +308,41 @@ function IngredientsEditor({ ingredients, onChange }) {
     const name = "New section";
     onChange([...ingredients, { qty: 1, unit: "", item: "", grp: name }]);
   };
+  // Reorder section blocks. The whole section (its items) moves
+  // with the header so the visual sequence stays coherent. Items
+  // keep their relative order within the section.
+  const moveSection = (name, delta) => {
+    const order = [];
+    ingredients.forEach(i => {
+      const g = i.grp || "Ingredients";
+      if (!order.includes(g)) order.push(g);
+    });
+    const idx = order.indexOf(name);
+    const target = idx + delta;
+    if (idx < 0 || target < 0 || target >= order.length) return;
+    [order[idx], order[target]] = [order[target], order[idx]];
+    const next = [];
+    order.forEach(g => ingredients.forEach(i => {
+      if ((i.grp || "Ingredients") === g) next.push(i);
+    }));
+    onChange(next);
+  };
 
   return (
     <div>
       {sections.map((sec, sectionIdx) => (
         <div key={sectionIdx} className="form-section" style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            {sections.length > 1 && (
+              <div className="reorder-stack reorder-stack-h">
+                <button type="button" onClick={() => moveSection(sec.name, -1)} disabled={sectionIdx === 0} aria-label={t("moveUp")} title={t("moveUp")}>
+                  <Icon name="chevU" size={14} />
+                </button>
+                <button type="button" onClick={() => moveSection(sec.name, +1)} disabled={sectionIdx === sections.length - 1} aria-label={t("moveDown")} title={t("moveDown")}>
+                  <Icon name="chevD" size={14} />
+                </button>
+              </div>
+            )}
             <input
               type="text"
               value={sec.name}
@@ -300,11 +359,10 @@ function IngredientsEditor({ ingredients, onChange }) {
           {sec.items.map((i) => (
             <div key={i._idx} style={{ marginBottom: 6 }}>
               <div style={{ display: "grid", gridTemplateColumns: "70px 80px 1fr 24px", gap: 6 }}>
-                <input
-                  type="number" step="0.25"
-                  value={i.qty || ""}
+                <QtyInput
+                  value={i.qty}
                   placeholder={t("qtyPh")}
-                  onChange={(e) => update(i._idx, { qty: e.target.value === "" ? 0 : +e.target.value })}
+                  onChange={(n) => update(i._idx, { qty: n })}
                   disabled={!!i.qtyNote}
                   title={i.qtyNote ? `Showing intuitive measure: "${i.qtyNote}". Clear it to set a number.` : undefined}
                 />
@@ -453,6 +511,27 @@ function StepsEditor({ steps, onChange }) {
     const name = "New section";
     onChange([...steps, { t: "", d: "", mins: 0, precision: "easy", section: name }]);
   };
+  // Reorder section blocks. The whole section (header + items)
+  // moves as a unit so the cook flow stays coherent — moving
+  // "Filling" above "Dough" puts all of Filling's steps before
+  // all of Dough's steps. Per-step ordering inside a section is
+  // preserved.
+  const moveSection = (name, delta) => {
+    const order = [];
+    steps.forEach(s => {
+      const sec = s.section || "";
+      if (!order.includes(sec)) order.push(sec);
+    });
+    const idx = order.indexOf(name);
+    const target = idx + delta;
+    if (idx < 0 || target < 0 || target >= order.length) return;
+    [order[idx], order[target]] = [order[target], order[idx]];
+    const next = [];
+    order.forEach(sec => steps.forEach(s => {
+      if ((s.section || "") === sec) next.push(s);
+    }));
+    onChange(next);
+  };
   // Swap two adjacent rows. Native HTML5 drag-and-drop doesn't work on
   // iPad Safari (touch events don't fire dragstart), so explicit up/down
   // arrows are the reliable interaction.
@@ -473,6 +552,16 @@ function StepsEditor({ steps, onChange }) {
         <div key={sectionIdx} className="form-section" style={{ marginBottom: 14 }}>
           {sec.name && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              {sections.length > 1 && (
+                <div className="reorder-stack reorder-stack-h">
+                  <button type="button" onClick={() => moveSection(sec.name, -1)} disabled={sectionIdx === 0} aria-label={t("moveUp")} title={t("moveUp")}>
+                    <Icon name="chevU" size={14} />
+                  </button>
+                  <button type="button" onClick={() => moveSection(sec.name, +1)} disabled={sectionIdx === sections.length - 1} aria-label={t("moveDown")} title={t("moveDown")}>
+                    <Icon name="chevD" size={14} />
+                  </button>
+                </div>
+              )}
               <input
                 type="text"
                 value={sec.name}

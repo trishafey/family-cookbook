@@ -16,6 +16,47 @@ export function formatIngredientQty(i) {
   return `${formatQty(i?.qty)} ${i?.unit || ""}`.trim();
 }
 
+// Parse a user-typed qty string into a number. Accepts plain
+// numbers ("1.5"), simple fractions ("1/3"), mixed numbers
+// ("1 1/2"), and unicode fractions ("½", "1½"). Returns null
+// for unparseable input so callers can preserve the in-progress
+// typing string instead of clobbering it.
+const UNICODE_FRACTIONS = {
+  "¼": 0.25, "½": 0.5, "¾": 0.75,
+  "⅓": 1/3, "⅔": 2/3,
+  "⅕": 0.2, "⅖": 0.4, "⅗": 0.6, "⅘": 0.8,
+  "⅙": 1/6, "⅚": 5/6,
+  "⅛": 0.125, "⅜": 0.375, "⅝": 0.625, "⅞": 0.875,
+};
+export function parseQty(str) {
+  if (str == null) return null;
+  const s = String(str).trim();
+  if (s === "") return 0;
+  if (UNICODE_FRACTIONS[s] != null) return UNICODE_FRACTIONS[s];
+  // "1½", "2¾"
+  const lastChar = s[s.length - 1];
+  if (UNICODE_FRACTIONS[lastChar] != null) {
+    const whole = parseFloat(s.slice(0, -1));
+    if (!Number.isNaN(whole)) return whole + UNICODE_FRACTIONS[lastChar];
+  }
+  // "1 1/2"
+  const mixed = s.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixed) {
+    const d = +mixed[3];
+    if (d === 0) return null;
+    return +mixed[1] + +mixed[2] / d;
+  }
+  // "1/2"
+  const frac = s.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (frac) {
+    const d = +frac[2];
+    if (d === 0) return null;
+    return +frac[1] / d;
+  }
+  const n = parseFloat(s);
+  return Number.isNaN(n) ? null : n;
+}
+
 export function formatQty(n) {
   if (n == null || n === 0 || isNaN(n)) return "";
   const sign = n < 0 ? "-" : "";
