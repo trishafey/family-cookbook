@@ -632,6 +632,7 @@ function App() {
         <MealPlanPage
           recipes={mealPlan.recipes}
           finishTime={mealPlan.finishTime}
+          onChangeFinishTime={(t) => setMealPlan(p => ({ ...p, finishTime: t }))}
           eveningHour={mealPlan.eveningHour}
           onClose={() => setView("meal")}
           onCookMode={(r, steps, ings) => openCook(r, steps, ings)}

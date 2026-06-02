@@ -3,8 +3,8 @@
 // 2. MealPlanPage   — combined timeline + per-recipe tabs
 
 import { useState, useEffect, useMemo, Fragment } from "react";
-import { Icon, fmtDuration, fmtTime, logEvent, scheduleForFinish } from "./helpers.jsx";
-import { Modal } from "./ui.jsx";
+import { Icon, fmtDuration, fmtTime, logEvent, scheduleForFinish, formatIngredientQty } from "./helpers.jsx";
+import { Modal, Lightbox } from "./ui.jsx";
 import { useLang } from "./i18n.js";
 import { NeedHelp } from "./need-help.jsx";
 import { useTimers, warmAudio } from "./timers.jsx";
@@ -188,11 +188,12 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
 // ─────────────────────────────────────────────────────────────
 const RECIPE_COLORS = ["#b04a2a", "#6e7a3a", "#3a5a6a", "#d68a2a", "#8a3a5a"];
 
-export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, onCookMode, onShop, authEmail }) {
+export function MealPlanPage({ recipes, finishTime, onChangeFinishTime, eveningHour = 19, onClose, onCookMode, onShop, authEmail, onSaveStepPhoto }) {
   const { t, locale } = useLang();
   const { start: startTimer } = useTimers();
   const [tab, setTab] = useState("combined");
   const [cookOpen, setCookOpen] = useState(false);
+  const [editingFinish, setEditingFinish] = useState(false);
 
   // Per-step start overrides. Shape: { [recipeId]: { [stepIdx]: ISOString } }.
   // When a cook bumps a step ±5 minutes, we store the new start time here
@@ -320,7 +321,30 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
           </div>
         </div>
         <div className="rhs">
-          <div className="clock-big">{fmtTime(actualFinish)}</div>
+          {editingFinish && onChangeFinishTime ? (
+            <input
+              className="clock-big clock-big-edit"
+              type="time"
+              autoFocus
+              value={`${String(finishTime.getHours()).padStart(2, "0")}:${String(finishTime.getMinutes()).padStart(2, "0")}`}
+              onChange={(e) => {
+                const [h, m] = e.target.value.split(":").map(Number);
+                if (Number.isNaN(h) || Number.isNaN(m)) return;
+                const nx = new Date(finishTime); nx.setHours(h, m, 0, 0);
+                onChangeFinishTime(nx);
+              }}
+              onBlur={() => setEditingFinish(false)}
+            />
+          ) : (
+            <button
+              type="button"
+              className="clock-big"
+              onClick={() => onChangeFinishTime && setEditingFinish(true)}
+              title={onChangeFinishTime ? t("editFinishTime") || "Tap to adjust" : undefined}
+            >
+              {fmtTime(actualFinish)}
+            </button>
+          )}
           <div className="clock-small">
             {t("allReadyBy")}
             {slipMin > 0 && (
@@ -416,6 +440,7 @@ export function MealPlanPage({ recipes, finishTime, eveningHour = 19, onClose, o
         perRecipe={perRecipe}
         recipes={recipes}
         authEmail={authEmail}
+        onSaveStepPhoto={onSaveStepPhoto}
       />
     </div>
   );
@@ -567,6 +592,20 @@ function PerRecipeView({ rec, onCookMode }) {
           </div>
         </div>
       </div>
+
+      {recipe.ingredients?.length > 0 && (
+        <div className="per-recipe-ingredients">
+          <h3 style={{ marginBottom: 12 }}>Ingredients</h3>
+          <ul>
+            {recipe.ingredients.map((ing, idx) => (
+              <li key={idx}>
+                <span className="qty" style={{ color }}>{formatIngredientQty(ing)}</span>
+                <span className="item">{ing.item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <h3 style={{ marginBottom: 16 }}>Steps with start times</h3>
       <div className="steps-list">
