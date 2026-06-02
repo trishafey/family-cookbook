@@ -2728,10 +2728,15 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-family: var(--mono); font-size: 13px;
 }
 .cookmode-step-time .start { color: var(--accent); font-weight: 500; font-size: 16px; }
-/* Exit button in the cookmode-head — icon-only, no outline, so
-   it reads as a quiet dismiss instead of a competing CTA. */
+/* Exit pinned to the absolute top-right of the cookmode-overlay
+   so cooks always know where to dismiss from. Icon-only,
+   borderless — quiet dismiss, not a competing CTA. */
 .cookmode-exit {
-  border: 0; background: transparent; padding: 6px;
+  position: absolute; top: 12px; right: 12px; z-index: 5;
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border: 0; background: transparent; padding: 0;
+  border-radius: 999px; cursor: pointer; color: var(--ink);
 }
 .cookmode-exit:hover { background: var(--paper-2); }
 

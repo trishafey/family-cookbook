@@ -157,6 +157,12 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
 
   return (
     <div className="cookmode-overlay" data-screen-label={`03 Cook mode: ${recipe.title}`}>
+      {/* Exit pinned to the absolute top-right of the cook-mode
+          overlay so cooks always know where to dismiss from,
+          regardless of how the header reflows on narrow widths. */}
+      <button className="cookmode-exit" onClick={onClose} aria-label={t("exit")} title={t("exit")}>
+        <Icon name="x" size={20} />
+      </button>
       <div className="cookmode-head">
         <div className="where">
           <span className="accent">{recipe.author}'s</span> {recipe.title}
@@ -170,9 +176,6 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
           {hasOverrides && (
             <button type="button" className="btn ghost sm" onClick={resetAdjustments} title={t("resetAllAdjustments")}>{t("reset")}</button>
           )}
-          <button className="btn ghost icon-only cookmode-exit" onClick={onClose} aria-label={t("exit")} title={t("exit")}>
-            <Icon name="x" size={18} />
-          </button>
         </div>
       </div>
 
