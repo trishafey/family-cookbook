@@ -20,7 +20,7 @@ export function PrintOnly({ children }) {
 // Closes on backdrop click, Escape, or the × button. Locks
 // body scroll while open so a tap-to-scroll on iPad doesn't
 // scroll the page behind the dim.
-export function Lightbox({ src, alt, onClose }) {
+export function Lightbox({ src, alt, onClose, actions }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
@@ -34,6 +34,15 @@ export function Lightbox({ src, alt, onClose }) {
   if (typeof document === "undefined" || !src) return null;
   return createPortal(
     <div className="lightbox" onClick={onClose} role="dialog" aria-modal="true">
+      {/* Optional caller-supplied action(s) (e.g. "Replace
+          image") sit alongside the close button in the top
+          right. Wrapped in stopPropagation so clicks don't
+          bubble to the backdrop and dismiss the lightbox. */}
+      {actions && (
+        <div className="lightbox-actions" onClick={(e) => e.stopPropagation()}>
+          {actions}
+        </div>
+      )}
       <button
         className="lightbox-close"
         aria-label="Close"

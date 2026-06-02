@@ -2546,6 +2546,17 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   z-index: 1;
 }
 .lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
+/* Caller-supplied actions (e.g. "Replace image") sit left of
+   the close button. */
+.lightbox-actions {
+  position: fixed; top: 16px; right: 72px; z-index: 1;
+  display: flex; gap: 8px;
+}
+.lightbox-actions .btn {
+  background: rgba(255, 255, 255, 0.92); color: var(--ink);
+  border-color: transparent;
+}
+.lightbox-actions .btn:hover { background: #fff; }
 
 .cuisine-pop {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0;

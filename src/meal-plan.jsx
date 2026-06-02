@@ -767,40 +767,11 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
       <TimerBanner />
 
       <div className="cookmode-body">
-        {/* Sidebar: mini-timeline of every coloured step square,
-            plus per-recipe INGREDIENTS ON HAND. */}
+        {/* Sidebar: per-recipe INGREDIENTS ON HAND. The
+            mini-timeline of coloured squares is hidden for now —
+            the .cookmode-foot progress bar already shows
+            position in the meal. */}
         <div className="cookmode-side">
-          <div className="eyebrow" style={{ marginBottom: 12 }}>{t("timeline") || "Timeline"}</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-            {grouped.map((g, gi) => (
-              <div key={gi} style={{ display: "flex", gap: 3 }}>
-                {g.items.map((it) => {
-                  const ci = combined.indexOf(it);
-                  const cm = perRecipe.find(p => p.recipe.id === it.recipe.id);
-                  const dot = cm?.color || "var(--ink-3)";
-                  const active = gi === gIdx;
-                  const completed = !!done[ci];
-                  return (
-                    <button
-                      key={ci}
-                      onClick={() => setGIdx(gi)}
-                      title={`${it.recipe.title} · step ${it.stepIdx}: ${it.step.t}`}
-                      style={{
-                        width: 22, height: 22, borderRadius: 4,
-                        background: completed ? dot : active ? dot : "transparent",
-                        opacity: completed ? 0.55 : active ? 1 : 0.45,
-                        border: `1px solid ${dot}`,
-                        cursor: "pointer", padding: 0,
-                        outline: active ? "2px solid var(--ink)" : "none",
-                        outlineOffset: 2,
-                      }}
-                      aria-label={`Jump to step ${ci + 1}`}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </div>
 
           {/* INGREDIENTS ON HAND, grouped per-recipe so cooks can
               scan the right list without mentally filtering. Each
@@ -871,18 +842,10 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
                   <h2 style={{ margin: "4px 0 12px", fontFamily: "var(--serif)", fontSize: curGroup.items.length === 1 ? 40 : 26, lineHeight: 1.1 }}>
                     {it.step.t}
                   </h2>
-                  <div className={`cookmode-step-body ${photo ? "has-photo" : ""}`}>
+                  <div className="cookmode-step-body">
                     <p className="cookmode-step-desc" style={{ fontSize: curGroup.items.length === 1 ? 20 : 17 }}>
                       {it.step.d}
                     </p>
-                    {photo && (
-                      <img
-                        className="cookmode-step-photo"
-                        src={photo}
-                        alt={`Photo for step: ${it.step.t}`}
-                        onClick={() => setPhotoOpen({ url: photo, alt: `Photo for step: ${it.step.t}` })}
-                      />
-                    )}
                   </div>
 
                   <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -896,36 +859,35 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
                         <Icon name="timer" size={14} /> {t("startTimer")}
                       </button>
                     )}
-                    <label className="btn sm" style={{ cursor: "pointer" }} title="Snap a photo of this step as you cook">
-                      <Icon name="camera" size={14} />
-                      {isUploading
-                        ? "Uploading…"
-                        : (photo ? "Replace photo" : "Add photo")}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        style={{ display: "none" }}
-                        onChange={(e) => {
-                          captureStepPhoto(e.target.files?.[0], it.recipe.id, it.si);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-                    {/* Narrow-viewport fallback: if a photo exists but
-                        the inline <img> is hidden by responsive CSS,
-                        cooks can still pop it open from the camera
-                        ghost icon. Mirrors single-recipe CookMode. */}
-                    {photo && (
+                    {/* Photos stay collapsed by default — cooks open
+                        them explicitly via "View image". Replace is
+                        a second button rendered only inside the
+                        lightbox (see <Lightbox actions={...}/> at
+                        the bottom of MealCookMode). */}
+                    {photo ? (
                       <button
                         type="button"
-                        className="btn ghost sm view-photo-mini"
-                        onClick={() => setPhotoOpen({ url: photo, alt: `Photo for step: ${it.step.t}` })}
+                        className="btn sm"
+                        onClick={() => setPhotoOpen({ url: photo, alt: `Photo for step: ${it.step.t}`, recipeId: it.recipe.id, si: it.si })}
                         title="View step photo"
-                        aria-label="View step photo"
                       >
-                        <Icon name="camera" size={14} />
+                        <Icon name="camera" size={14} /> View image
                       </button>
+                    ) : (
+                      <label className="btn sm" style={{ cursor: "pointer" }} title="Snap a photo of this step as you cook">
+                        <Icon name="camera" size={14} />
+                        {isUploading ? "Uploading…" : "Add image"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            captureStepPhoto(e.target.files?.[0], it.recipe.id, it.si);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
                     )}
                   </div>
                 </div>
@@ -983,7 +945,31 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
       </div>
 
       {photoOpen && (
-        <Lightbox src={photoOpen.url} alt={photoOpen.alt} onClose={() => setPhotoOpen(null)} />
+        <Lightbox
+          src={photoOpen.url}
+          alt={photoOpen.alt}
+          onClose={() => setPhotoOpen(null)}
+          actions={
+            photoOpen.recipeId != null && photoOpen.si != null ? (
+              <label className="btn sm lightbox-replace" title="Replace this step's photo">
+                <Icon name="camera" size={14} /> Replace image
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!f) return;
+                    captureStepPhoto(f, photoOpen.recipeId, photoOpen.si);
+                    setPhotoOpen(null);
+                  }}
+                />
+              </label>
+            ) : null
+          }
+        />
       )}
     </div>
   );
