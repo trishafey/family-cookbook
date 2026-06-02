@@ -170,7 +170,9 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
           {hasOverrides && (
             <button type="button" className="btn ghost sm" onClick={resetAdjustments} title={t("resetAllAdjustments")}>{t("reset")}</button>
           )}
-          <button className="btn" onClick={onClose}><Icon name="x" size={16} /> {t("exit")}</button>
+          <button className="btn ghost icon-only cookmode-exit" onClick={onClose} aria-label={t("exit")} title={t("exit")}>
+            <Icon name="x" size={18} />
+          </button>
         </div>
       </div>
 
@@ -309,9 +311,6 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
                 />
               </label>
             )}
-            <span style={{ fontSize: 12, color: "var(--ink-3)", marginLeft: "auto" }}>
-              {done.length} {t("of")} {steps.length} {t("complete")}
-            </span>
           </div>
 
           {helpOpen && (

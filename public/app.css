@@ -2724,10 +2724,16 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cookmode-step-time {
   margin-top: 32px; padding: 16px 20px;
   background: var(--paper-2); border: 1px solid var(--rule); border-radius: var(--radius-lg);
-  display: inline-flex; gap: 16px; align-items: center;
+  display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
   font-family: var(--mono); font-size: 13px;
 }
 .cookmode-step-time .start { color: var(--accent); font-weight: 500; font-size: 16px; }
+/* Exit button in the cookmode-head — icon-only, no outline, so
+   it reads as a quiet dismiss instead of a competing CTA. */
+.cookmode-exit {
+  border: 0; background: transparent; padding: 6px;
+}
+.cookmode-exit:hover { background: var(--paper-2); }
 
 .cookmode-foot {
   display: flex; align-items: center; justify-content: space-between;
@@ -3250,9 +3256,14 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .cookmode-step-num { font-size: 11px; }
   .cookmode-step-title { font-size: 28px; }
   .cookmode-step-desc { font-size: 16px; }
-  .cookmode-step-time { padding: 12px 14px; gap: 10px; flex-wrap: wrap; }
+  .cookmode-step-time { padding: 12px 14px; gap: 14px; flex-wrap: wrap; }
   .cookmode-step-time > div { font-size: 13px; }
   .cookmode-step-time .start { font-size: 15px !important; }
+  /* Hide the vertical divider strips on narrow widths — they
+     waste flex-row real estate and TAKES / DONE AT can sit
+     close to START AT without a separator. */
+  .cookmode-step-time > div[style*="width: 1px"],
+  .cookmode-step-time > div[style*="height: 32px"] { display: none; }
   .cookmode-foot { padding: 10px 12px; }
   .cookmode-foot .nav-btns .btn { padding: 7px 10px; font-size: 12px; }
   .cookmode-help-pill { padding: 7px 11px; font-size: 11px; }
