@@ -243,9 +243,6 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
             <div>
               <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4 }}>{t("startAt")}</div>
               <TimeOfDayInput value={curSched.start} onChange={(d) => setStepStart(idx, d)} />
-              <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 4, fontStyle: "italic" }}>
-                {t("editToShift")}
-              </div>
             </div>
             <div style={{ height: 32, width: 1, background: "var(--rule)" }} />
             <div>
