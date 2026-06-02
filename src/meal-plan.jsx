@@ -646,21 +646,30 @@ function PerRecipeView({ rec, onCookMode }) {
 // MealCookMode — focus mode for a multi-recipe meal.
 // Iterates by TIME GROUP (not individual step), so concurrent
 // steps from different recipes show side-by-side and the cook
-// can work on multiple things in tandem. Layout mirrors the
-// single-recipe cook mode (big title, body, footer nav, AI help
-// as a blue toggle) but without the left-side timeline — the
-// coloured-square strip across the top serves the same purpose
-// and stays simpler for parallel cooking.
+// can work on multiple things in tandem. Fullscreen overlay
+// modeled on single-recipe CookMode (cookmode-overlay/head/body/
+// side/main/foot) so cooks get a consistent focus surface
+// regardless of how many recipes are on the menu.
 // ─────────────────────────────────────────────────────────────
-function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, authEmail }) {
+function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, authEmail, onSaveStepPhoto }) {
   const { t } = useLang();
   const { start: startTimer } = useTimers();
   const [gIdx, setGIdx] = useState(0);
   const [done, setDone] = useState({});       // keyed by combined-index
   const [helpOpen, setHelpOpen] = useState(false);
 
+  // Photos taken during this meal-cook session, keyed by
+  // `${recipeId}:${stepIdx}` so concurrent uploads across recipes
+  // don't clobber each other. Overlays whatever the saved step
+  // photo is so the cook sees the new shot immediately. If
+  // onSaveStepPhoto is provided we also persist via the parent;
+  // otherwise the photo lives only for this session.
+  const [sessionPhotos, setSessionPhotos] = useState({});
+  const [uploadingIdx, setUploadingIdx] = useState(null);
+  const [photoOpen, setPhotoOpen] = useState(null); // { url, alt } | null
+
   useEffect(() => {
-    if (open) { setGIdx(0); setDone({}); setHelpOpen(false); }
+    if (open) { setGIdx(0); setDone({}); setHelpOpen(false); setPhotoOpen(null); }
   }, [open]);
   // Reset the AI help panel when the active group changes — fresh
   // group, fresh conversation.
@@ -694,142 +703,289 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
     setGIdx(g => g - 1);
   };
 
-  const doneCount = Object.values(done).filter(Boolean).length;
+  // Resolve the photo to show for a given recipe step: session
+  // upload wins (it's the freshest the cook just snapped),
+  // otherwise fall back to whatever's saved on the step.
+  const photoFor = (recipeId, stepIdx, step) => {
+    return sessionPhotos[`${recipeId}:${stepIdx}`] || step.photo;
+  };
+
+  const captureStepPhoto = async (file, recipeId, stepIdx) => {
+    if (!file) return;
+    const key = `${recipeId}:${stepIdx}`;
+    setUploadingIdx(key);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/admin/uploads", {
+        method: "POST",
+        credentials: "include",
+        body,
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `Upload failed (${res.status})`);
+      }
+      const { url } = await res.json();
+      setSessionPhotos(p => ({ ...p, [key]: url }));
+      if (onSaveStepPhoto) {
+        await onSaveStepPhoto(recipeId, stepIdx, url);
+      }
+    } catch (err) {
+      alert(err.message || "Photo upload failed");
+    } finally {
+      setUploadingIdx(prev => (prev === key ? null : prev));
+    }
+  };
+
+  const headerTitles = recipes.map(r => r.title).join(" + ");
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={`Time slot ${gIdx + 1} of ${totalGroups} · ${curGroup.key}`}
-      subtitle={recipes.map(r => r.title).join(" + ")}
-      size="lg"
-      footer={
-        <>
-          <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
-            {doneCount} of {combined.length} steps done
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn" onClick={goPrev} disabled={gIdx === 0}>
-              <Icon name="chevL" /> Previous
-            </button>
-            <button className="btn primary" onClick={goNext}>
-              {isLast ? <>Mark done <Icon name="check" /></> : <>Next time slot <Icon name="chevR" /></>}
-            </button>
-          </div>
-        </>
-      }
-    >
-      {/* Timer chips inside the modal so they're visible while
-          cooking the meal — the page-level banner is covered by
-          the modal overlay. */}
-      <TimerBanner />
-      <div style={{ padding: "4px 0" }}>
-        {/* Mini-timeline of every step in the meal, grouped visually
-            by time slot. Squares in the current slot are highlighted;
-            completed slots fade. Tapping a square jumps to that slot. */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
-          {grouped.map((g, gi) => (
-            <div key={gi} style={{ display: "flex", gap: 3 }}>
-              {g.items.map((it) => {
-                const ci = combined.indexOf(it);
-                const cm = perRecipe.find(p => p.recipe.id === it.recipe.id);
-                const dot = cm?.color || "var(--ink-3)";
-                const active = gi === gIdx;
-                const completed = !!done[ci];
-                return (
-                  <button
-                    key={ci}
-                    onClick={() => setGIdx(gi)}
-                    title={`${it.recipe.title} · step ${it.stepIdx}: ${it.step.t}`}
-                    style={{
-                      width: 22, height: 22, borderRadius: 4,
-                      background: completed ? dot : active ? dot : "transparent",
-                      opacity: completed ? 0.55 : active ? 1 : 0.45,
-                      border: `1px solid ${dot}`,
-                      cursor: "pointer", padding: 0,
-                      outline: active ? "2px solid var(--ink)" : "none",
-                      outlineOffset: 2,
-                    }}
-                    aria-label={`Jump to step ${ci + 1}`}
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
+    <div className="cookmode-overlay" data-screen-label={`07 Meal cook mode: ${headerTitles}`}>
+      {/* Exit pinned to the absolute top-right of the overlay so
+          cooks always know where to dismiss from, regardless of
+          how the header reflows on narrow widths. */}
+      <button className="cookmode-exit" onClick={onClose} aria-label={t("exit")} title={t("exit")}>
+        <Icon name="x" size={20} />
+      </button>
 
-        {/* Concurrent steps in this time slot. Single step → one big
-            card; multiple → stack them so the cook can work in
-            parallel. Recipe colour codes each card so it's obvious
-            which dish a step belongs to at a glance. */}
-        <div style={{ display: "grid", gap: 16 }}>
-          {curGroup.items.map((it, ii) => {
-            const cm = perRecipe.find(p => p.recipe.id === it.recipe.id);
+      <div className="cookmode-head">
+        <div className="where">{headerTitles}</div>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+            Time slot {gIdx + 1} of {totalGroups}
+          </span>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--accent)", padding: "4px 10px", background: "var(--paper-2)", borderRadius: 4 }}>
+            {curGroup.key}
+          </span>
+        </div>
+      </div>
+
+      {/* Timers render here so the cook sees the banner without
+          leaving cook mode (the page-level banner is covered by
+          the overlay). Sits directly under the cookmode-head. */}
+      <TimerBanner />
+
+      <div className="cookmode-body">
+        {/* Sidebar: mini-timeline of every coloured step square,
+            plus per-recipe INGREDIENTS ON HAND. */}
+        <div className="cookmode-side">
+          <div className="eyebrow" style={{ marginBottom: 12 }}>{t("timeline") || "Timeline"}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            {grouped.map((g, gi) => (
+              <div key={gi} style={{ display: "flex", gap: 3 }}>
+                {g.items.map((it) => {
+                  const ci = combined.indexOf(it);
+                  const cm = perRecipe.find(p => p.recipe.id === it.recipe.id);
+                  const dot = cm?.color || "var(--ink-3)";
+                  const active = gi === gIdx;
+                  const completed = !!done[ci];
+                  return (
+                    <button
+                      key={ci}
+                      onClick={() => setGIdx(gi)}
+                      title={`${it.recipe.title} · step ${it.stepIdx}: ${it.step.t}`}
+                      style={{
+                        width: 22, height: 22, borderRadius: 4,
+                        background: completed ? dot : active ? dot : "transparent",
+                        opacity: completed ? 0.55 : active ? 1 : 0.45,
+                        border: `1px solid ${dot}`,
+                        cursor: "pointer", padding: 0,
+                        outline: active ? "2px solid var(--ink)" : "none",
+                        outlineOffset: 2,
+                      }}
+                      aria-label={`Jump to step ${ci + 1}`}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* INGREDIENTS ON HAND, grouped per-recipe so cooks can
+              scan the right list without mentally filtering. Each
+              recipe's sub-heading is tinted with its legend colour. */}
+          <div className="eyebrow" style={{ marginTop: 28, marginBottom: 12 }}>
+            {t("ingredientsOnHand") || "Ingredients on hand"}
+          </div>
+          {recipes.map((r) => {
+            const cm = perRecipe.find(p => p.recipe.id === r.id);
             const color = cm?.color || "var(--ink)";
+            const ings = r.ingredients || [];
+            if (!ings.length) return null;
             return (
-              <div
-                key={ii}
-                style={{
-                  borderLeft: `4px solid ${color}`,
-                  paddingLeft: 16,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6, fontSize: 12 }}>
-                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 999, background: color }} />
-                  <strong style={{ fontFamily: "var(--serif)", fontSize: 13 }}>{it.recipe.title}</strong>
-                  <span style={{ color: "var(--ink-3)" }}>· step {it.stepIdx} of {it.recipe.steps.length}</span>
-                  <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", color: "var(--ink-3)" }}>
-                    {fmtTime(it.start)} → {fmtTime(it.end)} · {fmtDuration(it.step.mins)}
-                  </span>
+              <div key={r.id} style={{ marginBottom: 18 }}>
+                <div style={{
+                  fontFamily: "var(--serif)", fontSize: 13, fontWeight: 600,
+                  color, marginBottom: 6, display: "flex", alignItems: "center", gap: 8,
+                }}>
+                  <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 999, background: color }} />
+                  {r.title}
                 </div>
-                <h2 style={{ margin: "4px 0 8px", fontFamily: "var(--serif)", fontSize: curGroup.items.length === 1 ? 26 : 20 }}>
-                  {it.step.t}
-                </h2>
-                <p style={{ fontFamily: "var(--serif)", fontSize: curGroup.items.length === 1 ? 17 : 15, lineHeight: 1.55, color: "var(--ink-2)", margin: 0 }}>
-                  {it.step.d}
-                </p>
-                {it.step.mins > 0 && (
-                  <button
-                    type="button"
-                    className="btn primary sm"
-                    style={{ marginTop: 10 }}
-                    onClick={() => startStepTimer(startTimer, it.step, it.recipe, it.si)}
-                    title={t("startTimer")}
-                  >
-                    <Icon name="timer" size={14} /> {t("startTimer")}
-                  </button>
-                )}
+                <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 12.5 }}>
+                  {ings.map((ing, ii) => (
+                    <li key={ii} style={{ display: "grid", gridTemplateColumns: "60px 1fr", gap: 8, padding: "4px 0", borderBottom: "1px dotted var(--rule)" }}>
+                      <span className="mono" style={{ color }}>{formatIngredientQty(ing)}</span>
+                      <span style={{ color: "var(--ink-2)" }}>{ing.item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             );
           })}
         </div>
 
-        {/* Ask AI — single button per slot, matching single-recipe
-            cook mode visually. Passes the whole meal as context so
-            the model can answer cross-recipe questions ("can I
-            substitute X across both dishes?"). */}
-        <div style={{ marginTop: 28 }}>
-          <button
-            className="btn ai"
-            onClick={() => setHelpOpen(o => !o)}
-          >
-            <Icon name="sparkle" size={15} /> {helpOpen ? "Hide help" : "Need help with this step?"}
+        {/* Main: the concurrent steps for this time slot stacked
+            vertically, plus the AI-help panel beneath them. */}
+        <div className="cookmode-main">
+          <div className="cookmode-step-num">
+            {(t("step") || "step").toUpperCase()} {String(gIdx + 1).padStart(2, "0")} {(t("of") || "of").toUpperCase()} {String(totalGroups).padStart(2, "0")}
+            {curGroup.items[0]?.step?.precision && (
+              <> · {String(curGroup.items[0].step.precision).toUpperCase()}</>
+            )}
+          </div>
+
+          <div style={{ display: "grid", gap: 28, marginTop: 16 }}>
+            {curGroup.items.map((it, ii) => {
+              const cm = perRecipe.find(p => p.recipe.id === it.recipe.id);
+              const color = cm?.color || "var(--ink)";
+              const photo = photoFor(it.recipe.id, it.si, it.step);
+              const uploadKey = `${it.recipe.id}:${it.si}`;
+              const isUploading = uploadingIdx === uploadKey;
+              return (
+                <div
+                  key={ii}
+                  style={{
+                    borderLeft: `4px solid ${color}`,
+                    paddingLeft: 16,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6, fontSize: 12 }}>
+                    <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 999, background: color }} />
+                    <strong style={{ fontFamily: "var(--serif)", fontSize: 13 }}>{it.recipe.title}</strong>
+                    <span style={{ color: "var(--ink-3)" }}>· step {it.stepIdx} of {it.recipe.steps.length}</span>
+                    <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", color: "var(--ink-3)" }}>
+                      {fmtTime(it.start)} → {fmtTime(it.end)} · {fmtDuration(it.step.mins)}
+                    </span>
+                  </div>
+                  <h2 style={{ margin: "4px 0 12px", fontFamily: "var(--serif)", fontSize: curGroup.items.length === 1 ? 40 : 26, lineHeight: 1.1 }}>
+                    {it.step.t}
+                  </h2>
+                  <div className={`cookmode-step-body ${photo ? "has-photo" : ""}`}>
+                    <p className="cookmode-step-desc" style={{ fontSize: curGroup.items.length === 1 ? 20 : 17 }}>
+                      {it.step.d}
+                    </p>
+                    {photo && (
+                      <img
+                        className="cookmode-step-photo"
+                        src={photo}
+                        alt={`Photo for step: ${it.step.t}`}
+                        onClick={() => setPhotoOpen({ url: photo, alt: `Photo for step: ${it.step.t}` })}
+                      />
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    {it.step.mins > 0 && (
+                      <button
+                        type="button"
+                        className="btn primary sm"
+                        onClick={() => startStepTimer(startTimer, it.step, it.recipe, it.si)}
+                        title={t("startTimer")}
+                      >
+                        <Icon name="timer" size={14} /> {t("startTimer")}
+                      </button>
+                    )}
+                    <label className="btn sm" style={{ cursor: "pointer" }} title="Snap a photo of this step as you cook">
+                      <Icon name="camera" size={14} />
+                      {isUploading
+                        ? "Uploading…"
+                        : (photo ? "Replace photo" : "Add photo")}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          captureStepPhoto(e.target.files?.[0], it.recipe.id, it.si);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {/* Narrow-viewport fallback: if a photo exists but
+                        the inline <img> is hidden by responsive CSS,
+                        cooks can still pop it open from the camera
+                        ghost icon. Mirrors single-recipe CookMode. */}
+                    {photo && (
+                      <button
+                        type="button"
+                        className="btn ghost sm view-photo-mini"
+                        onClick={() => setPhotoOpen({ url: photo, alt: `Photo for step: ${it.step.t}` })}
+                        title="View step photo"
+                        aria-label="View step photo"
+                      >
+                        <Icon name="camera" size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Ask AI — single button per slot, matching single-recipe
+              cook mode visually. Passes the whole meal as context so
+              the model can answer cross-recipe questions ("can I
+              substitute X across both dishes?"). */}
+          <div style={{ marginTop: 32 }}>
+            <button
+              className="btn ai"
+              onClick={() => setHelpOpen(o => !o)}
+            >
+              <Icon name="sparkle" size={15} /> {helpOpen ? "Hide help" : "Need help with this step?"}
+            </button>
+            {helpOpen && (
+              <div className="cookmode-help-inline">
+                <NeedHelp
+                  key={gIdx /* reset turns on slot change */}
+                  recipes={recipes}
+                  currentStep={curGroup.items[0]?.step}
+                  compact
+                  defaultOpen={true}
+                  authEmail={authEmail}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="cookmode-foot">
+        <div className="nav-btns">
+          <button className="btn" onClick={goPrev} disabled={gIdx === 0}>
+            <Icon name="chevL" /> Previous
           </button>
-          {helpOpen && (
-            <div style={{ marginTop: 12 }}>
-              <NeedHelp
-                key={gIdx /* reset turns on slot change */}
-                recipes={recipes}
-                currentStep={curGroup.items[0]?.step}
-                compact
-                defaultOpen={true}
-                authEmail={authEmail}
-              />
-            </div>
+        </div>
+        <div className="cookmode-progress">
+          <div className="bar" style={{ width: `${((gIdx + 1) / totalGroups) * 100}%` }} />
+        </div>
+        <div className="nav-btns">
+          {!isLast ? (
+            <button className="btn primary" onClick={goNext}>
+              Next time slot <Icon name="chevR" />
+            </button>
+          ) : (
+            <button className="btn accent" onClick={() => { goNext(); onClose(); }}>
+              <Icon name="check" /> Done — eat!
+            </button>
           )}
         </div>
       </div>
-    </Modal>
+
+      {photoOpen && (
+        <Lightbox src={photoOpen.url} alt={photoOpen.alt} onClose={() => setPhotoOpen(null)} />
+      )}
+    </div>
   );
 }
 
