@@ -637,7 +637,25 @@ function App() {
           onClose={() => setView("meal")}
           onCookMode={(r, steps, ings) => openCook(r, steps, ings)}
           onShop={openShop}
+          allRecipes={recipes}
+          addComment={addComment}
+          deleteComment={deleteComment}
+          onSaveRecipe={onSaveRecipe}
+          onSaveToLab={onSaveToLab}
+          onOpenRecipe={openRecipe}
+          onEditRecipe={onEditRecipe}
+          onDeleteRecipe={onDeleteRecipe}
+          onAddToMeal={(paired) => {
+            if (!paired?.id) return;
+            // Add to the staged meal plan (don't re-add duplicates)
+            // and the selection so the meal-banner count syncs.
+            setMealPlan(p => p && p.recipes.some(r => r.id === paired.id)
+              ? p
+              : (p ? { ...p, recipes: [...p.recipes, paired] } : p));
+            setSelection(s => s.includes(paired.id) ? s : [...s, paired.id]);
+          }}
           authEmail={authEmail}
+          simpleMode={simpleMode}
         />
       )}
 

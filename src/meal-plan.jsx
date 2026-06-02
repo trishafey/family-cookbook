@@ -7,6 +7,7 @@ import { Icon, fmtDuration, fmtTime, logEvent, scheduleForFinish, formatIngredie
 import { Modal, Lightbox } from "./ui.jsx";
 import { useLang } from "./i18n.js";
 import { NeedHelp } from "./need-help.jsx";
+import { RecipeDetail } from "./recipe.jsx";
 import { useTimers, warmAudio } from "./timers.jsx";
 import { TimerBanner } from "./timer-banner.jsx";
 
@@ -188,7 +189,16 @@ export function PlanMealModal({ open, onClose, recipes, onConfirm }) {
 // ─────────────────────────────────────────────────────────────
 const RECIPE_COLORS = ["#b04a2a", "#6e7a3a", "#3a5a6a", "#d68a2a", "#8a3a5a"];
 
-export function MealPlanPage({ recipes, finishTime, onChangeFinishTime, eveningHour = 19, onClose, onCookMode, onShop, authEmail, onSaveStepPhoto }) {
+export function MealPlanPage({
+  recipes, finishTime, onChangeFinishTime, eveningHour = 19,
+  onClose, onCookMode, onShop, onSaveStepPhoto,
+  // Plumbed through to embedded RecipeDetail on the per-recipe
+  // tabs so cooks see the same shape as the full recipe page,
+  // including pairings (with an "Add to build a meal" button).
+  allRecipes, addComment, deleteComment, onSaveRecipe, onSaveToLab,
+  onOpenRecipe, onEditRecipe, onDeleteRecipe, onAddToMeal,
+  authEmail, simpleMode,
+}) {
   const { t, locale } = useLang();
   const { start: startTimer } = useTimers();
   const [tab, setTab] = useState("combined");
@@ -422,6 +432,18 @@ export function MealPlanPage({ recipes, finishTime, onChangeFinishTime, eveningH
         <PerRecipeView
           rec={perRecipe.find(p => p.recipe.id === tab)}
           onCookMode={onCookMode}
+          allRecipes={allRecipes}
+          onOpenRecipe={onOpenRecipe}
+          onShop={onShop}
+          onSaveRecipe={onSaveRecipe}
+          onSaveToLab={onSaveToLab}
+          onEditRecipe={onEditRecipe}
+          onDeleteRecipe={onDeleteRecipe}
+          onAddToMeal={onAddToMeal}
+          addComment={addComment}
+          deleteComment={deleteComment}
+          authEmail={authEmail}
+          simpleMode={simpleMode}
         />
       )}
 
@@ -559,86 +581,36 @@ function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
   );
 }
 
-function PerRecipeView({ rec, onCookMode }) {
-  const { t } = useLang();
-  const { start: startTimer } = useTimers();
-  const { recipe, color, schedule, startTime } = rec;
+function PerRecipeView({
+  rec, onCookMode, onAddToMeal,
+  allRecipes, onOpenRecipe, onShop, onSaveRecipe, onSaveToLab,
+  onEditRecipe, onDeleteRecipe, addComment, deleteComment,
+  authEmail, simpleMode,
+}) {
+  const { recipe } = rec;
+  // The per-recipe tab now renders the full RecipeDetail so cooks
+  // see the same shape they get on the recipe page (hero, tags,
+  // stats, ingredients, steps, pairings, comments). onBuildMealWith
+  // is wired to onAddToMeal so the "Build meal" action on a paired
+  // recipe folds it directly into THIS meal plan instead of
+  // navigating away.
   return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 240px) minmax(0, 1fr)", gap: 32, marginBottom: 32 }} className="per-recipe-head">
-        <div style={{ aspectRatio: "4/5", backgroundImage: `url(${recipe.photo})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: "var(--radius-lg)" }} />
-        <div>
-          <div className="eyebrow" style={{ color }}>{recipe.course} · {recipe.cuisine}</div>
-          <h2 style={{ margin: "6px 0 10px" }}>{recipe.title}</h2>
-          <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)" }}>{recipe.subtitle}</div>
-          <div className="per-recipe-stats" style={{ marginTop: 16, padding: 14, background: "var(--paper-2)", borderRadius: "var(--radius)" }}>
-            <div className="stats-grid">
-              <div>
-                <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Start at</div>
-                <div className="stat-val" style={{ fontFamily: "var(--serif)", color }}>{fmtTime(startTime)}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Total</div>
-                <div className="stat-val" style={{ fontFamily: "var(--serif)" }}>{fmtDuration(recipe.total)}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Difficulty</div>
-                <div className="stat-val" style={{ fontFamily: "var(--serif)", fontStyle: "italic" }}>{recipe.difficulty}</div>
-              </div>
-            </div>
-            <button className="btn primary cook-btn" onClick={() => onCookMode(recipe, recipe.steps, recipe.ingredients)}>
-              <Icon name="play" /> Cook this
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {recipe.ingredients?.length > 0 && (
-        <div className="per-recipe-ingredients">
-          <h3 style={{ marginBottom: 12 }}>Ingredients</h3>
-          <ul>
-            {recipe.ingredients.map((ing, idx) => (
-              <li key={idx}>
-                <span className="qty" style={{ color }}>{formatIngredientQty(ing)}</span>
-                <span className="item">{ing.item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <h3 style={{ marginBottom: 16 }}>Steps with start times</h3>
-      <div className="steps-list">
-        {recipe.steps.map((s, i) => (
-          <div className="step" key={i}>
-            <div className="n" style={{ color }}>{String(i + 1).padStart(2, "0")}</div>
-            <div>
-              <div className="t">{s.t}</div>
-              <div className="d">{s.d}</div>
-              <div className="meta">
-                <span className={`precision-${s.precision}`}>● {s.precision}</span>
-                <span className="time">
-                  {fmtDuration(s.mins)}
-                  {s.mins > 0 && (
-                    <button
-                      type="button"
-                      className="start-timer-link"
-                      onClick={() => startStepTimer(startTimer, s, recipe, i)}
-                      title={t("startTimer")}
-                    >
-                      <Icon name="timer" size={12} /> {t("startTimer")}
-                    </button>
-                  )}
-                </span>
-                <span className="start" style={{ background: `${color}1a`, color }}>
-                  ▶ {fmtTime(schedule[i].start)} – {fmtTime(schedule[i].end)}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <RecipeDetail
+      recipe={recipe}
+      allRecipes={allRecipes || []}
+      onCookMode={onCookMode}
+      onShop={onShop}
+      onOpenRecipe={onOpenRecipe}
+      onSaveRecipe={onSaveRecipe}
+      onSaveToLab={onSaveToLab}
+      onEditRecipe={onEditRecipe}
+      onDeleteRecipe={onDeleteRecipe}
+      onBuildMealWith={onAddToMeal}
+      addComment={addComment}
+      deleteComment={deleteComment}
+      authEmail={authEmail}
+      simpleMode={simpleMode}
+    />
   );
 }
 
