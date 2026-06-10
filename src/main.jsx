@@ -856,7 +856,7 @@ function MobileMenuDrawer({
               <span>{t("signOut")}</span>
             </a>
           ) : (
-            <a className="mobile-menu-item primary" href={signInUrl()}>
+            <a className="mobile-menu-item sign-in-cta" href={signInUrl()}>
               <Icon name="chef" size={18} />
               <span>{t("signIn")}</span>
             </a>
