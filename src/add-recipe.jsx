@@ -298,6 +298,52 @@ function QtyInput({ value, onChange, disabled, placeholder, title }) {
   );
 }
 
+// Section name input — keeps the typed value in LOCAL state and
+// only commits to the parent on blur or Enter, so we don't fire
+// a rename on every keystroke.
+//
+// Without this, every character typed triggered renameSection
+// against the section's name-so-far. Two cascading bugs:
+//   1. Partial-name collisions — typing "Ingredients"
+//      letter-by-letter walked through "I" / "In" / "Ing" …
+//      if any partial matched an existing section, the two
+//      groups merged mid-keystroke and the cook ended up typing
+//      in a different section's input (focus "flew around"
+//      because the sections array reindexed under React).
+//   2. Empty-value fallback to "Ingredients" merged with any
+//      existing default section when the cook cleared the input
+//      to retype.
+//
+// Local state + commit-on-blur keeps the input stable while the
+// cook is typing; only one rename fires at the end. The cook
+// can also press Enter to commit early.
+function SectionNameInput({ value, onCommit, defaultName, ariaLabel, className }) {
+  const [text, setText] = useState(value);
+  const [focused, setFocused] = useState(false);
+  // Resync when the parent value changes from outside (e.g. the
+  // section was moved or another field updated). We only do this
+  // when the input isn't focused so live typing isn't clobbered.
+  useEffect(() => { if (!focused) setText(value); }, [value, focused]);
+  const commit = () => {
+    setFocused(false);
+    const next = text.trim() || defaultName || value;
+    if (next !== value) onCommit(next);
+    if (!text.trim()) setText(next);  // bounce empty back to the default visually
+  };
+  return (
+    <input
+      type="text"
+      className={className}
+      aria-label={ariaLabel}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onFocus={() => setFocused(true)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
+    />
+  );
+}
+
 function IngredientsEditor({ ingredients, onChange, groupOrder, onGroupOrderChange }) {
   const { t } = useLang();
   const sections = groupBySection(ingredients, (i) => i.grp, "Ingredients", groupOrder);
@@ -345,7 +391,13 @@ function IngredientsEditor({ ingredients, onChange, groupOrder, onGroupOrderChan
   const addIngredientTo = (sectionName) =>
     onChange([...ingredients, { qty: 1, unit: "", item: "", grp: sectionName }]);
   const addSection = () => {
-    const name = "New section";
+    // Use a unique placeholder name so adding two sections in a
+    // row doesn't immediately merge them (sections group by .grp,
+    // so duplicate names collapse into one).
+    const existing = new Set(ingredients.map(i => i.grp || "Ingredients"));
+    let name = "New section";
+    let n = 2;
+    while (existing.has(name)) name = `New section ${n++}`;
     onChange([...ingredients, { qty: 1, unit: "", item: "", grp: name }]);
     if (groupOrder && !groupOrder.includes(name)) onGroupOrderChange([...groupOrder, name]);
   };
@@ -365,12 +417,12 @@ function IngredientsEditor({ ingredients, onChange, groupOrder, onGroupOrderChan
                 </button>
               </div>
             )}
-            <input
-              type="text"
+            <SectionNameInput
               value={sec.name}
-              onChange={(e) => renameSection(sec.name, e.target.value || "Ingredients")}
+              onCommit={(newName) => renameSection(sec.name, newName)}
+              defaultName="Ingredients"
               className="section-name-input"
-              aria-label={t("sectionName")}
+              ariaLabel={t("sectionName")}
             />
             {sections.length > 1 && (
               <button type="button" className="btn ghost icon-only" onClick={() => deleteSection(sec.name)} title={t("deleteSection")}>
@@ -554,7 +606,12 @@ function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange }) {
     }
   };
   const addSection = () => {
-    const name = "New section";
+    // Unique placeholder name so two consecutive Add section
+    // taps don't merge into a single group.
+    const existing = new Set(steps.map(s => s.section || ""));
+    let name = "New section";
+    let n = 2;
+    while (existing.has(name)) name = `New section ${n++}`;
     onChange([...steps, { t: "", d: "", mins: 0, precision: "easy", section: name }]);
     if (sectionOrder && !sectionOrder.includes(name)) onSectionOrderChange([...sectionOrder, name]);
   };
@@ -588,12 +645,12 @@ function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange }) {
                   </button>
                 </div>
               )}
-              <input
-                type="text"
+              <SectionNameInput
                 value={sec.name}
-                onChange={(e) => renameSection(sec.name, e.target.value)}
+                onCommit={(newName) => renameSection(sec.name, newName)}
+                defaultName={sec.name}
                 className="section-name-input"
-                aria-label={t("sectionName")}
+                ariaLabel={t("sectionName")}
               />
               <button type="button" className="btn ghost icon-only" onClick={() => deleteSection(sec.name)} title={t("deleteSection")}>
                 <Icon name="x" size={14} />
