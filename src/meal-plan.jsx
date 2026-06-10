@@ -765,14 +765,42 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
                   <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 999, background: color }} />
                   {r.title}
                 </div>
-                <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 12.5 }}>
-                  {ings.map((ing, ii) => (
-                    <li key={ii} style={{ display: "grid", gridTemplateColumns: "60px 1fr", gap: 8, padding: "4px 0", borderBottom: "1px dotted var(--rule)" }}>
-                      <span className="mono" style={{ color }}>{formatIngredientQty(ing)}</span>
-                      <span style={{ color: "var(--ink-2)" }}>{ing.item}</span>
-                    </li>
-                  ))}
-                </ul>
+                {(() => {
+                  // Group this recipe's ingredients by their
+                  // section (.grp) so cooks see the same Sauce
+                  // / Dough / Filling headings they typed in.
+                  // No heading when the recipe has only the
+                  // default group.
+                  const byGrp = {};
+                  const order = [];
+                  for (const ing of ings) {
+                    const k = ing.grp || "Ingredients";
+                    if (!byGrp[k]) { byGrp[k] = []; order.push(k); }
+                    byGrp[k].push(ing);
+                  }
+                  const showHeadings = order.length > 1 || (order[0] && order[0] !== "Ingredients");
+                  return order.map((g) => (
+                    <div key={g} style={{ marginBottom: 10 }}>
+                      {showHeadings && (
+                        <div style={{
+                          fontFamily: "var(--serif)", fontStyle: "italic",
+                          fontSize: 12, color: "var(--ink-2)",
+                          marginBottom: 4, paddingLeft: 4,
+                        }}>
+                          {g}
+                        </div>
+                      )}
+                      <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 12.5 }}>
+                        {byGrp[g].map((ing, ii) => (
+                          <li key={ii} style={{ display: "grid", gridTemplateColumns: "60px 1fr", gap: 8, padding: "4px 0", borderBottom: "1px dotted var(--rule)" }}>
+                            <span className="mono" style={{ color }}>{formatIngredientQty(ing)}</span>
+                            <span style={{ color: "var(--ink-2)" }}>{ing.item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ));
+                })()}
               </div>
             );
           })}

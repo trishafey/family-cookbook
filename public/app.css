@@ -2758,6 +2758,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cookmode-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 32px;
+  /* Reserve room on the right for the absolutely-positioned
+     .cookmode-exit X so the head's own right-side cluster
+     (Done by clock, Start at chip) doesn't slide under it. */
+  padding-right: 64px;
   border-bottom: 1px solid var(--rule);
   background: var(--paper);
 }

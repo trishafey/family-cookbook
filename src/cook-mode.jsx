@@ -214,14 +214,44 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
           </div>
 
           <div className="eyebrow" style={{ marginTop: 32, marginBottom: 12 }}>{t("ingredientsOnHand")}</div>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 12.5 }}>
-            {ingredients.map((i, idx) => (
-              <li key={idx} style={{ display: "grid", gridTemplateColumns: "60px 1fr", gap: 8, padding: "4px 0", borderBottom: "1px dotted var(--rule)" }}>
-                <span className="mono" style={{ color: "var(--accent)" }}>{formatIngredientQty(i)}</span>
-                <span style={{ color: "var(--ink-2)" }}>{i.item}</span>
-              </li>
-            ))}
-          </ul>
+          {/* Group ingredients by .grp section so cooks see the
+              same Sauce / Dough / Filling headings they typed in
+              the editor. Falls back to a single ungrouped list
+              when there are no sections. */}
+          {(() => {
+            const byGrp = {};
+            const order = [];
+            for (const i of ingredients) {
+              const k = i.grp || "Ingredients";
+              if (!byGrp[k]) { byGrp[k] = []; order.push(k); }
+              byGrp[k].push(i);
+            }
+            const showHeadings = order.length > 1 || (order[0] && order[0] !== "Ingredients");
+            return order.map((g) => (
+              <div key={g} style={{ marginBottom: 14 }}>
+                {showHeadings && (
+                  <div
+                    style={{
+                      fontFamily: "var(--serif)", fontStyle: "italic",
+                      fontSize: 13, color: "var(--ink-2)",
+                      marginBottom: 6, paddingBottom: 4,
+                      borderBottom: "1px solid var(--rule)",
+                    }}
+                  >
+                    {g}
+                  </div>
+                )}
+                <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 12.5 }}>
+                  {byGrp[g].map((i, idx) => (
+                    <li key={idx} style={{ display: "grid", gridTemplateColumns: "60px 1fr", gap: 8, padding: "4px 0", borderBottom: "1px dotted var(--rule)" }}>
+                      <span className="mono" style={{ color: "var(--accent)" }}>{formatIngredientQty(i)}</span>
+                      <span style={{ color: "var(--ink-2)" }}>{i.item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ));
+          })()}
         </div>
 
         {/* Main step */}
