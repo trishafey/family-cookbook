@@ -247,7 +247,10 @@ h4 { font-size: 17px; line-height: 1.3; }
 }
 .mobile-menu-foot {
   margin-top: auto;
-  padding: 12px 8px env(safe-area-inset-bottom, 12px);
+  /* max() guarantees at least 20px of breathing room even when
+     env(safe-area-inset-bottom) reports 0 (Safari with the URL
+     bar visible). */
+  padding: 16px 8px max(env(safe-area-inset-bottom, 0px), 20px);
   border-top: 1px solid var(--rule);
 }
 .brand { display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 0; }
