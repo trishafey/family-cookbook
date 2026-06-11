@@ -1458,6 +1458,9 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cookmode-help-inline {
   margin-top: 24px;
   max-width: 720px;
+  /* Takes its own full row when the parent is a flex wrap
+     (MealCookMode renders it alongside the action buttons). */
+  flex: 1 1 100%;
   animation: helpSlide .18s ease-out;
 }
 .cookmode-help-inline .need-help { margin-top: 0; }
@@ -2804,6 +2807,11 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   border-radius: 999px; cursor: pointer; color: var(--ink);
 }
 .cookmode-exit:hover { background: var(--paper-2); }
+/* Opens the mobile ingredients drawer. Hidden wherever the
+   cookmode sidebar is visible (the list is already on screen);
+   the mobile breakpoint that hides .cookmode-side flips this
+   to inline-flex. */
+.cookmode-ingredients-btn { display: none; }
 
 .cookmode-foot {
   display: flex; align-items: center; justify-content: space-between;
@@ -3122,6 +3130,9 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   /* Cook mode */
   .cookmode-body { grid-template-columns: 1fr; }
   .cookmode-side { display: none; }
+  /* The sidebar is gone, so surface its ingredient list behind
+     a drawer-opening button instead. */
+  .cookmode-ingredients-btn { display: inline-flex; }
   .cookmode-main { padding: 28px 24px; }
   .cookmode-step-title { font-size: 36px; }
   .cookmode-step-desc { font-size: 18px; }

@@ -4,7 +4,8 @@
 
 import { useState, useEffect, useMemo, Fragment } from "react";
 import { Icon, fmtDuration, fmtTime, logEvent, scheduleForFinish, formatIngredientQty } from "./helpers.jsx";
-import { Modal, Lightbox } from "./ui.jsx";
+import { Modal, Lightbox, Drawer } from "./ui.jsx";
+import { GroupedIngredientList } from "./cook-mode.jsx";
 import { useLang } from "./i18n.js";
 import { NeedHelp } from "./need-help.jsx";
 import { RecipeDetail } from "./recipe.jsx";
@@ -639,6 +640,9 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
   const [sessionPhotos, setSessionPhotos] = useState({});
   const [uploadingIdx, setUploadingIdx] = useState(null);
   const [photoOpen, setPhotoOpen] = useState(null); // { url, alt } | null
+  // Mobile-only ingredients drawer — the sidebar holding the
+  // per-recipe lists is display: none on phones.
+  const [ingsOpen, setIngsOpen] = useState(false);
 
   useEffect(() => {
     if (open) { setGIdx(0); setDone({}); setHelpOpen(false); setPhotoOpen(null); }
@@ -712,6 +716,28 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
 
   const headerTitles = recipes.map(r => r.title).join(" + ");
 
+  // Per-recipe ingredient lists (recipe-coloured headings +
+  // section groups). Rendered in BOTH the sidebar and the
+  // mobile ingredients drawer.
+  const perRecipeIngredients = recipes.map((r) => {
+    const cm = perRecipe.find(p => p.recipe.id === r.id);
+    const color = cm?.color || "var(--ink)";
+    const ings = r.ingredients || [];
+    if (!ings.length) return null;
+    return (
+      <div key={r.id} style={{ marginBottom: 18 }}>
+        <div style={{
+          fontFamily: "var(--serif)", fontSize: 13, fontWeight: 600,
+          color, marginBottom: 6, display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 999, background: color }} />
+          {r.title}
+        </div>
+        <GroupedIngredientList ingredients={ings} color={color} />
+      </div>
+    );
+  });
+
   return (
     <div className="cookmode-overlay" data-screen-label={`07 Meal cook mode: ${headerTitles}`}>
       {/* Exit pinned to the absolute top-right of the overlay so
@@ -751,59 +777,7 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
           <div className="eyebrow" style={{ marginTop: 28, marginBottom: 12 }}>
             {t("ingredientsOnHand") || "Ingredients on hand"}
           </div>
-          {recipes.map((r) => {
-            const cm = perRecipe.find(p => p.recipe.id === r.id);
-            const color = cm?.color || "var(--ink)";
-            const ings = r.ingredients || [];
-            if (!ings.length) return null;
-            return (
-              <div key={r.id} style={{ marginBottom: 18 }}>
-                <div style={{
-                  fontFamily: "var(--serif)", fontSize: 13, fontWeight: 600,
-                  color, marginBottom: 6, display: "flex", alignItems: "center", gap: 8,
-                }}>
-                  <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 999, background: color }} />
-                  {r.title}
-                </div>
-                {(() => {
-                  // Group this recipe's ingredients by their
-                  // section (.grp) so cooks see the same Sauce
-                  // / Dough / Filling headings they typed in.
-                  // No heading when the recipe has only the
-                  // default group.
-                  const byGrp = {};
-                  const order = [];
-                  for (const ing of ings) {
-                    const k = ing.grp || "Ingredients";
-                    if (!byGrp[k]) { byGrp[k] = []; order.push(k); }
-                    byGrp[k].push(ing);
-                  }
-                  const showHeadings = order.length > 1 || (order[0] && order[0] !== "Ingredients");
-                  return order.map((g) => (
-                    <div key={g} style={{ marginBottom: 10 }}>
-                      {showHeadings && (
-                        <div style={{
-                          fontFamily: "var(--serif)", fontStyle: "italic",
-                          fontSize: 12, color: "var(--ink-2)",
-                          marginBottom: 4, paddingLeft: 4,
-                        }}>
-                          {g}
-                        </div>
-                      )}
-                      <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 12.5 }}>
-                        {byGrp[g].map((ing, ii) => (
-                          <li key={ii} style={{ display: "grid", gridTemplateColumns: "60px 1fr", gap: 8, padding: "4px 0", borderBottom: "1px dotted var(--rule)" }}>
-                            <span className="mono" style={{ color }}>{formatIngredientQty(ing)}</span>
-                            <span style={{ color: "var(--ink-2)" }}>{ing.item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ));
-                })()}
-              </div>
-            );
-          })}
+          {perRecipeIngredients}
         </div>
 
         {/* Main: the concurrent steps for this time slot stacked
@@ -899,7 +873,15 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
               cook mode visually. Passes the whole meal as context so
               the model can answer cross-recipe questions ("can I
               substitute X across both dishes?"). */}
-          <div style={{ marginTop: 32 }}>
+          <div style={{ marginTop: 32, display: "flex", gap: 10, alignItems: "flex-start", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="btn cookmode-ingredients-btn"
+              onClick={() => setIngsOpen(true)}
+              title={t("ingredientsOnHand")}
+            >
+              <Icon name="ingredientList" size={16} /> {t("ingredients")}
+            </button>
             <button
               className="btn ai"
               onClick={() => setHelpOpen(o => !o)}
@@ -971,6 +953,10 @@ function MealCookMode({ open, onClose, combined, grouped, perRecipe, recipes, au
           }
         />
       )}
+
+      <Drawer open={ingsOpen} onClose={() => setIngsOpen(false)} title={t("ingredientsOnHand") || "Ingredients on hand"}>
+        {perRecipeIngredients}
+      </Drawer>
     </div>
   );
 }

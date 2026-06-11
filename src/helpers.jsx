@@ -660,6 +660,8 @@ export const Icon = ({ name, size = 18 }) => {
     search:    <><circle cx="11" cy="11" r="6.2" /><path className="vine" d="M15.4 15.4 C17.6 17.6 18.9 18.9 19.9 18.4 C20.8 18 20.4 16.5 18.9 16.4" /></>,
     plus:      <><path d="M12 20.5 V11 M7.5 15.5 H16.5" /><path className="nod" d="M12 11 C12 7.6 14.4 5.4 17.6 6 C17.6 9.4 15.2 11.6 12 11 Z" /><path className="nod" d="M13 9.6 C14.4 8.6 15.6 8 16.8 7.8" /></>,
     timer:     <><circle cx="12" cy="13.7" r="7.4" /><path className="sweep" d="M12 13.7 V8.4" /><path d="M9.6 3 H14.4 M12 3 V5.6" /></>,
+    // Recipe-card ingredient list — bound card with seed bullets.
+    ingredientList: <><path d="M10 6 H14" strokeWidth="1.8" /><rect x="2.5" y="8" width="19" height="13.5" rx="2.5" /><circle className="seed" cx="5.5" cy="12" r="0.7" /><path d="M7.5 12 H18.5" /><circle className="seed" cx="5.5" cy="15.5" r="0.7" /><path d="M7.5 15.5 H16" /><circle className="seed" cx="5.5" cy="19" r="0.7" /><path d="M7.5 19 H17.5" /></>,
     home:      <><path d="M4 11.5 L12 4.5 L20 11.5 V20 H4 Z" /><path d="M9.4 20 V15 A2.6 2.6 0 0 1 14.6 15 V20" /></>,
     book:      <><path d="M12 6.4 C10 4.8 6.6 4.8 4 5.4 V19 C6.6 18.4 10 18.4 12 20 C14 18.4 17.4 18.4 20 19 V5.4 C17.4 4.8 14 4.8 12 6.4 Z" /><path d="M12 6.4 V20" /></>,
     save:      <><path d="M7 4 H17 V20 L12 16 L7 20 Z" /><path d="M12 8 C10.6 8 9.6 9 9.6 10.4 C11 10.4 12 9.4 12 8 Z" /></>,
