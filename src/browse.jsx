@@ -1,6 +1,6 @@
 // Browse / home page — the first thing the user sees.
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Icon, Pill, fmtDuration, recipeSuggestions } from "./helpers.jsx";
 
 // Home masthead search bar — always expanded (no collapse) and
@@ -82,9 +82,8 @@ function HomeSearch({ query, setQuery, openFilters, recipes, onOpenRecipe, place
   );
 }
 
-import { FLAGS } from "./config/flags.js";
 import { useLang } from "./i18n.js";
-import { OCCASIONS, DIET_ICON } from "./data.js";
+import { DIET_ICON } from "./data.js";
 
 export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect, selectionMode, isFavorite, onToggleFavorite }) {
   const { t, tDiet, tOccasion, tDifficulty } = useLang();

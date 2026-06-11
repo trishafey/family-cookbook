@@ -1,7 +1,7 @@
 // Cooking mode — one step at a time, full-screen, with reverse-timing.
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useStorage, scheduleForFinish, fmtTime, fmtDuration, formatQty, formatIngredientQty, Icon, logEvent } from "./helpers.jsx";
+import { useStorage, scheduleForFinish, fmtTime, fmtDuration, formatIngredientQty, Icon, logEvent } from "./helpers.jsx";
 import { useTimers, warmAudio } from "./timers.jsx";
 import { TimerBanner } from "./timer-banner.jsx";
 import { TimeOfDayInput, Lightbox, Drawer } from "./ui.jsx";
@@ -331,14 +331,6 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
             >
               <Icon name="ingredientList" size={16} /> {t("ingredients")}
             </button>
-            {FLAGS.needHelp && (
-              <button
-                className="btn ai"
-                onClick={() => setHelpOpen(o => !o)}
-              >
-                <Icon name="sparkle" size={15} /> {helpOpen ? "Hide help" : "Need help with this step?"}
-              </button>
-            )}
             {onSaveRecipe && (
               <label className="btn" style={{ cursor: "pointer" }} title="Snap a photo of this step as you cook">
                 <Icon name="camera" size={15} />
@@ -354,6 +346,14 @@ export function CookMode({ recipe, steps, ingredients, finishTime, setFinishTime
                   }}
                 />
               </label>
+            )}
+            {FLAGS.needHelp && (
+              <button
+                className="btn ai"
+                onClick={() => setHelpOpen(o => !o)}
+              >
+                <Icon name="sparkle" size={15} /> {helpOpen ? "Hide help" : "Need help with this step?"}
+              </button>
             )}
           </div>
 
