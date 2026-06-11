@@ -187,7 +187,6 @@ const S = {
   ingredientsOnHand: { en: "Ingredients on hand", pl: "Składniki pod ręką" },
   step:           { en: "Step",               pl: "Krok" },
   of:             { en: "of",                 pl: "z" },
-  editToShift:    { en: "Edit to shift the rest of the timeline", pl: "Edytuj, aby przesunąć resztę harmonogramu" },
   reset:          { en: "Reset",              pl: "Resetuj" },
   resetAllAdjustments: { en: "Reset all timing adjustments?", pl: "Zresetować wszystkie korekty czasu?" },
   complete:       { en: "complete",            pl: "ukończonych" },

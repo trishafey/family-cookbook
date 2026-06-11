@@ -3,7 +3,7 @@
 // 2. MealPlanPage   — combined timeline + per-recipe tabs
 
 import { useState, useEffect, useMemo, Fragment } from "react";
-import { Icon, fmtDuration, fmtTime, logEvent, scheduleForFinish, formatIngredientQty } from "./helpers.jsx";
+import { Icon, fmtDuration, fmtTime, logEvent, scheduleForFinish } from "./helpers.jsx";
 import { Modal, Lightbox, Drawer } from "./ui.jsx";
 import { GroupedIngredientList } from "./cook-mode.jsx";
 import { useLang } from "./i18n.js";
@@ -201,7 +201,6 @@ export function MealPlanPage({
   authEmail, simpleMode,
 }) {
   const { t, locale } = useLang();
-  const { start: startTimer } = useTimers();
   const [tab, setTab] = useState("combined");
   const [cookOpen, setCookOpen] = useState(false);
   const [editingFinish, setEditingFinish] = useState(false);
@@ -471,6 +470,11 @@ export function MealPlanPage({
 
 function CombinedTimeline({ grouped, finishTime, stepOverrides, bumpStep }) {
   const { t, locale } = useLang();
+  // Needed by the per-step Start timer chips. This component
+  // used to live inline in MealPlanPage and silently lost the
+  // closure over startTimer when it was extracted — clicking a
+  // chip threw a ReferenceError and no timer started.
+  const { start: startTimer } = useTimers();
   // Compute earliest item across groups so we can label day transitions
   // and gaps with a meaningful "previous day"/"day of" label.
   const finishDay = new Date(finishTime); finishDay.setHours(0, 0, 0, 0);

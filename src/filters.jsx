@@ -1,6 +1,5 @@
 // Filters drawer
 
-import { useState } from "react";
 import { fmtDuration, Icon } from "./helpers.jsx";
 import { Drawer } from "./ui.jsx";
 import { COURSES, OCCASIONS, DIETS, CUISINES, ORIGINS } from "./data.js";

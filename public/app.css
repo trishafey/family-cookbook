@@ -1482,9 +1482,6 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
    child to the column width so cards align flush with the date
    field above. */
 .meal-plan-modal-body > * { min-width: 0; max-width: 100%; box-sizing: border-box; }
-.meal-plan-modal-body .when {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-}
 .meal-plan-modal-body label {
   font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--ink-3); font-weight: 600; margin-bottom: 6px; display: block;
@@ -1607,34 +1604,6 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   outline: none;
 }
 
-/* Per-recipe view's ingredient list — matches the recipe page's
-   ingredient styling so cooks see the same shape in both
-   places. */
-.per-recipe-ingredients {
-  margin-top: 24px; padding: 20px 24px;
-  background: var(--paper-2);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-lg);
-}
-.per-recipe-ingredients ul {
-  list-style: none; padding: 0; margin: 0;
-  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px;
-}
-.per-recipe-ingredients li {
-  display: grid; grid-template-columns: 110px 1fr; gap: 12px;
-  padding: 6px 0;
-  border-bottom: 1px dashed var(--rule);
-  font-family: var(--serif); font-size: 14px;
-}
-.per-recipe-ingredients li:last-child { border-bottom: 0; }
-.per-recipe-ingredients .qty {
-  font-family: var(--mono); font-size: 12px;
-  text-align: right;
-}
-@media (max-width: 720px) {
-  .per-recipe-ingredients ul { grid-template-columns: 1fr; }
-  .per-recipe-ingredients li { grid-template-columns: 90px 1fr; gap: 10px; }
-}
 .meal-plan-header .rhs .clock-small {
   font-family: var(--mono); font-size: 11px;
   color: var(--ink-3); letter-spacing: .08em; text-transform: uppercase;
@@ -3170,7 +3139,6 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .modal-head { padding: 16px 18px; }
   .modal-body { padding: 18px; }
   .modal-foot { padding: 14px 18px; }
-  .meal-plan-modal-body .when { grid-template-columns: 1fr; gap: 10px; }
   .meal-plan-modal-body .preset-times .chip { font-size: 11px; padding: 5px 10px; }
 
   /* Drawer full-width */
@@ -3787,28 +3755,6 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
 .filter-pill svg    { width: 14px; height: 14px; flex-shrink: 0; }
 .chip svg           { width: 13px; height: 13px; flex-shrink: 0; }
 
-/* Per-recipe view inside the meal plan page: stack the photo
-   above the content on narrow viewports instead of trying to
-   force a 240px + 1fr grid that crushes the title and stats.
-   Inside the content, the stats card lays out as a 2-column
-   grid (stats group + Cook this button) on desktop and stacks
-   to a single column on narrow screens. The stat values are
-   sized down a touch on mobile so "3h 30m" doesn't wrap. */
-.per-recipe-stats {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 20px;
-  align-items: center;
-}
-.per-recipe-stats .stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  min-width: 0;
-}
-.per-recipe-stats .stat-val { font-size: 22px; line-height: 1.1; }
-.per-recipe-stats .cook-btn { justify-self: end; }
-
 /* Start cooking / Shopping list / Print row.
    Buttons keep their natural width and flow left-to-right,
    wrapping onto a second line if the row can't fit them all.
@@ -3821,23 +3767,6 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
 }
 .meal-actions-row .btn { white-space: nowrap; }
 .meal-actions-row .reset-btn { flex-basis: 100%; text-align: left; }
-
-@media (max-width: 720px) {
-  .per-recipe-head {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-  .per-recipe-head > div:first-child {
-    max-width: 240px;
-  }
-  .per-recipe-stats {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .per-recipe-stats .cook-btn {
-    justify-self: stretch;
-    justify-content: center;
-  }
-  .per-recipe-stats .stat-val { font-size: 18px; }
-}
 
 /* iOS Safari auto-zooms whenever a form control has font-size
    under 16px. The zoom-out gesture after every step (typing in

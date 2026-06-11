@@ -624,7 +624,6 @@ function App() {
           clearSelection={() => setSelection([])}
           openRecipe={openRecipe}
           onClose={backToBrowse}
-          onShop={openShop}
           onPlanMeal={openPlanMeal}
         />
       )}
