@@ -476,17 +476,17 @@ function App() {
           />
           <div className="nav-actions">
             {!simpleMode && FLAGS.lab && (
-            <button className="btn ghost sm" onClick={() => setView("lab")} title={t("kitchenExp")}>
+            <button className={`btn ghost sm ${view === "lab" ? "active" : ""}`} onClick={() => setView("lab")} title={t("kitchenExp")}>
               <Icon name="experiment" size={15} /> <span className="btn-label">{t("theLab")}</span>
             </button>
             )}
             {!simpleMode && (
-              <button className="btn ghost sm" onClick={() => setView("meal")} title={t("buildMeal")}>
+              <button className={`btn ghost sm ${view === "meal" || view === "meal-plan" ? "active" : ""}`} onClick={() => setView("meal")} title={t("buildMeal")}>
                 <Icon name="build" size={15} /> <span className="btn-label">{t("buildMeal")}</span>
                 {selection.length > 0 && <span style={{ marginLeft: 4, padding: "1px 6px", background: "var(--accent)", color: "var(--paper)", borderRadius: 999, fontSize: 10, fontWeight: 600 }}>{selection.length}</span>}
               </button>
             )}
-            <button className="btn primary sm" onClick={() => setView("add")} title={t("addRecipe")}>
+            <button className={`btn primary sm ${view === "add" || view === "edit" ? "active" : ""}`} onClick={() => setView("add")} title={t("addRecipe")}>
               <Icon name="plusBare" size={15} /> <span className="btn-label">{t("addRecipe")}</span>
             </button>
             {authEmail ? (
@@ -690,6 +690,7 @@ function App() {
         onOpenMeal={() => setView("meal")}
         onOpenLab={() => setView("lab")}
         onOpenAdminAIUsage={() => setView("admin-ai-usage")}
+        currentView={view}
         selectionCount={selection.length}
       />
 
@@ -782,6 +783,7 @@ function MobileMenuDrawer({
   open, onClose,
   authEmail, simpleMode, onToggleSimpleMode,
   onOpenAdd, onOpenMeal, onOpenLab, onOpenAdminAIUsage,
+  currentView,
   selectionCount,
 }) {
   const { t } = useLang();
@@ -815,17 +817,17 @@ function MobileMenuDrawer({
         {!simpleMode && (
           <section className="mobile-menu-section">
             <div className="mobile-menu-section-title">{t("make") || "Make"}</div>
-            <button className="mobile-menu-item primary" onClick={() => go(onOpenAdd)}>
+            <button className={`mobile-menu-item primary ${currentView === "add" || currentView === "edit" ? "active" : ""}`} onClick={() => go(onOpenAdd)}>
               <Icon name="plusBare" size={18} />
               <span>{t("addRecipe")}</span>
             </button>
-            <button className="mobile-menu-item" onClick={() => go(onOpenMeal)}>
+            <button className={`mobile-menu-item ${currentView === "meal" || currentView === "meal-plan" ? "active" : ""}`} onClick={() => go(onOpenMeal)}>
               <Icon name="build" size={18} />
               <span>{t("buildMeal")}</span>
               {selectionCount > 0 && <span className="badge">{selectionCount}</span>}
             </button>
             {FLAGS.lab && (
-              <button className="mobile-menu-item" onClick={() => go(onOpenLab)}>
+              <button className={`mobile-menu-item ${currentView === "lab" ? "active" : ""}`} onClick={() => go(onOpenLab)}>
                 <Icon name="experiment" size={18} />
                 <span>{t("theLab")}</span>
               </button>
