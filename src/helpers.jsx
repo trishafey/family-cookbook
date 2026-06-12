@@ -280,6 +280,15 @@ export function fmtDuration(min) {
 }
 
 // ───── Storage ─────
+// Cross-component sync — every useStorage("lang") (and any
+// other key) in the tree needs to see the same value. The
+// native "storage" event only fires in OTHER tabs, so we
+// broadcast a custom event on every write and have every
+// instance listen. Without this, calling setLang("pl") in
+// AddRecipe would flip THAT component's labels but leave the
+// IngredientsEditor / StepsEditor / nav stuck on "en" because
+// each child useLang() has its own React state seeded from
+// localStorage only at mount time.
 export function useStorage(key, initial) {
   const [v, setV] = useState(() => {
     try {
@@ -288,8 +297,31 @@ export function useStorage(key, initial) {
     } catch { return initial; }
   });
   useEffect(() => {
-    try { localStorage.setItem(key, JSON.stringify(v)); } catch {}
+    try {
+      const next = JSON.stringify(v);
+      if (localStorage.getItem(key) !== next) {
+        localStorage.setItem(key, next);
+      }
+      window.dispatchEvent(new CustomEvent(`storage:${key}`, { detail: v }));
+    } catch {}
   }, [key, v]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onSame = (e) => setV(e.detail);
+    const onCross = (e) => {
+      if (e.key !== key) return;
+      try { setV(e.newValue == null ? initial : JSON.parse(e.newValue)); } catch {}
+    };
+    window.addEventListener(`storage:${key}`, onSame);
+    window.addEventListener("storage", onCross);
+    return () => {
+      window.removeEventListener(`storage:${key}`, onSame);
+      window.removeEventListener("storage", onCross);
+    };
+    // initial is intentionally not in deps — it's a default fallback,
+    // not something that should re-trigger the listener.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
   return [v, setV];
 }
 

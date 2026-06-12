@@ -1013,11 +1013,17 @@ const AI_EXTRACT_SYSTEM_PROMPT = `You are a recipe extraction assistant for a fa
 
 LANGUAGE (critical)
 - The source text may be in English or Polish. Read it fluently regardless.
-- DETECT the source language and write the extracted output in THAT SAME LANGUAGE. If the source is Polish, title / subtitle / ingredient items / step titles + descriptions / tips are all in Polish. If the source is English, the same fields are in English. The cook will edit in the source language; a background translation pass produces the other-language overlay after save.
-- Return sourceLang: "pl" if the source text is predominantly Polish, "en" otherwise (default English when in doubt or when the text is too short to be sure).
-- Preserve proper nouns and traditional dish names that don't translate ("Pierogi", "Babcia Krystyna", "Bigos", "Goulash"). Brand names stay as-is.
-- For descriptive cuisine adjectives, use the form appropriate to the output language ("Polish" / "polska", "Hungarian" / "węgierska").
-- ENUM FIELDS (course, occasion, difficulty, diet tags) must ALWAYS be the canonical English values from the schema enums regardless of source language. The cookbook's filters and analytics depend on this — the human-readable Polish labels are applied at render time via the i18n layer.
+- DETECT the source language by reading the PROSE (step descriptions, the subtitle/tagline, tips, narrative sentences). Do NOT base detection on the title, ingredient names, or dish-name proper nouns — a Polish recipe like "Bigos" or "Pierogi" can be written about in English; an English-style cake recipe can mention "ciasto" once. The prose is what matters. When the prose is ambiguous or split, DEFAULT to "en".
+- Write the extracted output in the DETECTED source language:
+  - title: the dish name. Keep traditional dish names that don't have a clean equivalent ("Bigos", "Pierogi", "Goulash"). If a translatable descriptor surrounds it, render the descriptor in the source language ("Old Polish Bigos" in EN, "Bigos Staropolski" in PL).
+  - subtitle / tips: source language, always.
+  - step titles ('t') + descriptions ('d'): source language, always. Every sentence of the prose must be in the source language — no half-translated mixing.
+  - ingredient items: source language. Translate common ingredient names ("sauerkraut" / "kiszona kapusta", "onion" / "cebula", "flour" / "mąka"). Do NOT preserve Polish ingredient names verbatim when the source language is English — the cook will read "sauerkraut" in an English recipe.
+  - ingredient .grp (section name): source language ("Meat" in EN, "Mięso" in PL; "Sauce" in EN, "Sos" in PL; "Ingredients" in EN, "Składniki" in PL).
+  - step .section (section name): same rule — source language.
+- Return sourceLang: "pl" only when the PROSE is predominantly Polish. Otherwise "en".
+- Brand names stay as-is regardless of language ("Bullseye BBQ sauce", "Heinz").
+- ENUM FIELDS (course, occasion, difficulty, diet tags) MUST ALWAYS be the canonical English values from the schema enums regardless of source language. The cookbook's filters and analytics depend on this — the human-readable Polish labels are applied at render time via the i18n layer.
 
 QUANTITIES (critical)
 - qty MUST always be a positive number > 0. NEVER return 0.
