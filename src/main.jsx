@@ -487,7 +487,7 @@ function App() {
               </button>
             )}
             <button className={`btn primary sm ${view === "add" || view === "edit" ? "active" : ""}`} onClick={() => setView("add")} title={t("addRecipe")}>
-              <Icon name="plusBare" size={15} /> <span className="btn-label">{t("addRecipe")}</span>
+              <Icon name="plus" size={15} /> <span className="btn-label">{t("addRecipe")}</span>
             </button>
             {authEmail ? (
               <AvatarMenu
@@ -818,7 +818,7 @@ function MobileMenuDrawer({
           <section className="mobile-menu-section">
             <div className="mobile-menu-section-title">{t("make") || "Make"}</div>
             <button className={`mobile-menu-item primary ${currentView === "add" || currentView === "edit" ? "active" : ""}`} onClick={() => go(onOpenAdd)}>
-              <Icon name="plusBare" size={18} />
+              <Icon name="plus" size={18} />
               <span>{t("addRecipe")}</span>
             </button>
             <button className={`mobile-menu-item ${currentView === "meal" || currentView === "meal-plan" ? "active" : ""}`} onClick={() => go(onOpenMeal)}>

@@ -216,7 +216,7 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
             mobilePlaceholder={t("searchPlaceholderShort")}
             filtersLabel={t("filters")}
           />
-          <button className="btn primary" onClick={openAddRecipe}><Icon name="plusBare" /> {t("addRecipe")}</button>
+          <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> {t("addRecipe")}</button>
           {!simpleMode && (
             <button className="btn" onClick={openMealBuilder}><Icon name="build" /> {t("buildMeal")}</button>
           )}
