@@ -279,6 +279,9 @@ h4 { font-size: 17px; line-height: 1.3; }
               flex-basis 0.32s cubic-bezier(.4, 0, .2, 1),
               padding 0.2s ease;
 }
+/* Magnifying glass renders at 24×24 — sized via CSS so it
+   beats whatever size prop the call sites pass to <Icon />. */
+.search > svg { width: 24px; height: 24px; flex-shrink: 0; }
 /* Collapsed: tablet/desktop nav search shrinks to an outlined
    icon button (mobile never collapses). Same DOM as expanded —
    only the class toggles — so width AND the inner controls'
