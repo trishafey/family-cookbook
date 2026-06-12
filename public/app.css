@@ -479,11 +479,13 @@ h4 { font-size: 17px; line-height: 1.3; }
 /* Buttons */
 .btn {
   display: inline-flex; align-items: center; gap: 7px;
-  padding: 9px 15px;
-  /* All variants share font-size: 14 — only padding differs
-     between default / sm / lg. Icon size is enforced separately
-     by the "Icon size normalisation" block near the bottom of
-     this file (20×20 for every .btn). */
+  /* No-icon default: symmetric 15px on all sides. The
+     .btn:has(svg) rule below tightens vertical to 10px and
+     pulls the left edge in to 12px when an icon is present
+     (icons get a touch more breathing room on their side so
+     the visual mass is balanced against the text column).
+     sm / lg variants scale this same ratio. */
+  padding: 15px;
   font-size: 14px; font-weight: 500;
   border: 1px solid var(--rule);
   background: var(--paper);
@@ -491,6 +493,7 @@ h4 { font-size: 17px; line-height: 1.3; }
   cursor: pointer;
   transition: background .12s, border-color .12s;
 }
+.btn:has(svg) { padding: 10px 15px 10px 12px; }
 .btn:hover { background: var(--paper-3); }
 .btn.primary {
   background: var(--ink); color: var(--paper);
@@ -521,10 +524,12 @@ h4 { font-size: 17px; line-height: 1.3; }
 .btn.ghost { border-color: transparent; background: transparent; }
 .btn.ghost:hover { background: var(--paper-2); }
 .btn.icon-only { padding: 8px; }
-/* sm / lg share the base 14px font-size — only padding
-   differs between the three sizes. */
-.btn.sm { padding: 6px 11px; font-size: 14px; }
-.btn.lg { padding: 13px 20px; font-size: 14px; }
+/* sm / lg share the base 14px font-size — only padding scales.
+   Same with-icon vs no-icon split as the default .btn. */
+.btn.sm { padding: 11px; font-size: 14px; }
+.btn.sm:has(svg) { padding: 7px 11px 7px 8px; }
+.btn.lg { padding: 22px; font-size: 14px; }
+.btn.lg:has(svg) { padding: 15px 22px 15px 19px; }
 /* Active state — used by nav buttons to mark the current view.
    Faint terracotta wash + matching accent on the label so the
    cook can glance at the top bar and see where they are. */
