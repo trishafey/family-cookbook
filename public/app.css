@@ -272,13 +272,19 @@ h4 { font-size: 17px; line-height: 1.3; }
 /* Collapsed: tablet/desktop nav search shrinks to an outlined
    icon button (mobile never collapses). Same DOM as expanded —
    only the class toggles — so width AND the inner controls'
-   opacity animate symmetrically (open == reverse of close). */
+   opacity animate symmetrically (open == reverse of close).
+   overflow: hidden clips the absolutely-positioned filter
+   button so it doesn't peek out from behind the pill. */
 .search.collapsed {
-  flex: 0 0 40px; max-width: 40px;
-  padding: 4px 8px;
+  flex: 0 0 40px; max-width: 40px; width: 40px;
+  height: 40px;
+  padding: 0;
   cursor: pointer;
   background: var(--paper);
   border-color: var(--rule);
+  border-radius: 999px;
+  justify-content: center;
+  overflow: hidden;
 }
 .search.collapsed:hover { background: var(--paper-2); border-color: var(--ink-3); }
 /* Hide / fade the input + trailing buttons while collapsed.
@@ -309,9 +315,19 @@ h4 { font-size: 17px; line-height: 1.3; }
   animation: ic-curl 0.7s ease-out 1;
 }
 /* Wrapper that contains the input row + suggestions panel.
-   Position relative so the dropdown anchors below the input. */
-.search-wrap { position: relative; flex: 1 1 480px; max-width: 480px; min-width: 0; }
+   Position relative so the dropdown anchors below the input.
+   Width transitions in lock-step with the inner .search so the
+   wrap shrinks to a 40px circle when collapsed (otherwise it
+   would reserve a full 480px slot and the inner pill would
+   look stranded). */
+.search-wrap {
+  position: relative; flex: 1 1 480px; max-width: 480px; min-width: 0;
+  transition: flex-basis 0.32s cubic-bezier(.4, 0, .2, 1),
+              max-width 0.32s cubic-bezier(.4, 0, .2, 1);
+}
+.search-wrap.collapsed { flex: 0 0 40px; max-width: 40px; }
 .search-wrap .search { flex: 1 1 auto; max-width: none; width: 100%; box-sizing: border-box; }
+.search-wrap.collapsed .search { width: 40px; max-width: 40px; }
 /* Below the home-search-row breakpoint, the wrap takes its
    container's full width — explicit `width: 100%` is the
    belt-and-braces version that survives any parent flex
@@ -319,6 +335,7 @@ h4 { font-size: 17px; line-height: 1.3; }
 @media (max-width: 720px) {
   .search-wrap { max-width: none; width: 100%; }
 }
+.search-wrap.collapsed .search-suggestions { display: none; }
 .search-suggestions {
   position: absolute; top: calc(100% + 6px); left: 0; right: 0;
   background: var(--paper);
@@ -717,7 +734,8 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   width: 26px; height: 26px;
   border-radius: 999px;
   color: var(--ink-2);
-  display: grid; place-items: center;
+  display: inline-grid; place-items: center;
+  vertical-align: middle;
   transition: background .12s, color .12s;
 }
 .stats-strip .servings-control button:hover:not(:disabled) {
@@ -728,15 +746,18 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   opacity: 0.35; cursor: not-allowed;
 }
 .stats-strip .servings-control .servings-val {
-  font-family: var(--serif); font-size: 22px;
-  min-width: 36px; text-align: center; line-height: 1;
-  /* Match the +/- buttons' 26px box height and flex-center
-     the digit so its visual baseline lands on the same axis
-     as the icons (line-height: 1 alone left the number
-     sitting slightly above centre). */
-  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
-  height: 26px;
+  font-family: var(--serif); font-size: 20px;
+  min-width: 36px; text-align: center;
+  /* line-height set to the +/- buttons' 26px box so the digit's
+     line box matches the buttons' bounding box. The serif's
+     optical centre lands on the same axis as the SVG icon
+     glyphs (which are mathematically centred). Dropping the
+     font-size 22 → 20 nudges the cap height down a hair so the
+     ascender doesn't visually overshoot the icons. */
+  line-height: 26px;
+  display: inline-block;
   padding: 0 6px;
+  vertical-align: middle;
 }
 .stats-strip .servings-control .servings-val .weight-sub {
   font-family: var(--mono); font-size: 9px;
