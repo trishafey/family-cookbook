@@ -728,7 +728,7 @@ function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange }) {
 }
 
 export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe = null, usedCuisines = [], usedAuthors = [] }) {
-  const { t, tCourse, tOccasion, tDiet, tDifficulty, tOrigin } = useLang();
+  const { t, tCourse, tOccasion, tDiet, tDifficulty, tOrigin, lang, setLang } = useLang();
   const editing = Boolean(initialRecipe);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -766,9 +766,25 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     pendingImages.forEach(p => URL.revokeObjectURL(p.preview));
   }, []);
 
+  // When opening an existing recipe to edit, flip the UI to its
+  // canonical_lang so the cook reads labels in the same language
+  // the recipe is written in. Sticky (useStorage persists) — the
+  // cook can switch back manually. Only fires on the first mount
+  // per recipe id to avoid fighting a deliberate switch mid-edit.
+  useEffect(() => {
+    const c = initialRecipe?.canonical_lang;
+    if (c && c !== lang) setLang(c);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialRecipe?.id]);
+
   // Manual form initial
   const newDraft = () => ({
     id: `recipe-${Date.now()}`,
+    // Defaults to whichever language the cook is currently in.
+    // AI extraction overwrites this with the detected source
+    // language; manual entry stays in whatever lang the cook
+    // chose, which is reasonable.
+    canonical_lang: lang || "en",
     title: "",
     subtitle: "",
     author: "",
@@ -827,8 +843,17 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     const ings = (parsed.ingredients?.length ? parsed.ingredients : fresh.ingredients)
       .map(i => ({ ...i, grp: i.grp || "Ingredients" }));
     const steps = parsed.steps?.length ? parsed.steps : fresh.steps;
+    // Source language detected by the worker. Whatever the cook
+    // pasted/photographed dictates which language the edit form
+    // renders in AND becomes the recipe's canonical language. If
+    // it differs from the current UI lang, flip the whole UI to
+    // match (sticky — useStorage persists it). The cook can flip
+    // back manually later via the lang switcher.
+    const sourceLang = parsed.sourceLang === "pl" ? "pl" : "en";
+    if (sourceLang !== lang) setLang(sourceLang);
     setDraft({
       ...fresh,
+      canonical_lang:  sourceLang,
       title:           parsed.title           || fresh.title,
       subtitle:        parsed.subtitle        || "",
       author:          parsed.author          || "",

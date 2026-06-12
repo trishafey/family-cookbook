@@ -300,7 +300,13 @@ export function useStorage(key, initial) {
 // / tips) flip to the requested language. Falls through to the canonical
 // fields whenever a translation hasn't landed yet.
 export function localizeRecipe(r, lang) {
-  if (!r || !lang || lang === "en") return r;
+  if (!r || !lang) return r;
+  // Recipes track their canonical language now. Older rows
+  // without canonical_lang default to "en" (everything saved
+  // before the multi-canonical feature shipped). If the cook's
+  // requested lang matches canonical, return the blob as-is.
+  const canonical = r.canonical_lang || "en";
+  if (lang === canonical) return r;
   const tr = r.translations?.[lang];
   if (!tr) return r;
   return {
@@ -347,6 +353,9 @@ export function normalizeRecipe(r) {
     // renderers fall back to first-occurrence in that case.
     groupOrder: r.groupOrder || [],
     stepSectionOrder: r.stepSectionOrder || [],
+    // Recipe's canonical language. Older recipes (saved before
+    // multi-canonical shipped) default to English-canonical.
+    canonical_lang: r.canonical_lang || "en",
     nutrition: { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodium: 0, ...(r.nutrition || {}) },
     servingsDefault: r.servingsDefault || 1,
     difficulty: r.difficulty || "Easy",

@@ -710,9 +710,15 @@ app.get("/api/admin/translate-missing", async (c) => {
   const skipped = [];
   for (const row of rows.results) {
     const existing = row.translations ? JSON.parse(row.translations) : {};
-    if (existing.pl) { skipped.push(row.id); continue; }
     const recipe = JSON.parse(row.blob);
-    c.executionCtx.waitUntil(translateAndStore(c.env, row.id, recipe, "en", "pl", email));
+    // Direction is recipe's canonical_lang → the OTHER lang.
+    // Older recipes default to English-canonical for backward
+    // compatibility — they were all saved before the multi-
+    // canonical feature shipped.
+    const from = recipe.canonical_lang || "en";
+    const to = from === "en" ? "pl" : "en";
+    if (existing[to]) { skipped.push(row.id); continue; }
+    c.executionCtx.waitUntil(translateAndStore(c.env, row.id, recipe, from, to, email));
     queued.push(row.id);
   }
 
@@ -766,7 +772,12 @@ app.post("/api/admin/recipes", async (c) => {
       finalId = tryId;
       // Fire-and-forget translation. Cook doesn't wait for it;
       // the next /api/recipes refresh after a few seconds will include it.
-      c.executionCtx.waitUntil(translateAndStore(c.env, finalId, finalDraft, "en", "pl", email));
+      // Direction follows the recipe's canonical_lang (set by
+      // the cook's source language during extract) — default
+      // English-canonical when missing.
+      const from = finalDraft.canonical_lang || "en";
+      const to = from === "en" ? "pl" : "en";
+      c.executionCtx.waitUntil(translateAndStore(c.env, finalId, finalDraft, from, to, email));
       return c.json({ ok: true, id: finalId });
     } catch (err) {
       const msg = String(err?.message || err);
@@ -835,7 +846,11 @@ app.patch("/api/admin/recipes/:id", async (c) => {
       now,
       id
     ).run();
-    c.executionCtx.waitUntil(translateAndStore(c.env, id, merged, "en", "pl", email));
+    {
+      const from = merged.canonical_lang || "en";
+      const to = from === "en" ? "pl" : "en";
+      c.executionCtx.waitUntil(translateAndStore(c.env, id, merged, from, to, email));
+    }
   } else {
     await c.env.DB.prepare(
       `UPDATE recipes
@@ -896,6 +911,8 @@ app.post("/api/admin/recipes/:id/reset-from-seed", async (c) => {
     id,
   ).run();
 
+  // Seeds are bundled English-canonical, hence the hard-coded
+  // direction. Future seeds could carry their own canonical_lang.
   c.executionCtx.waitUntil(translateAndStore(c.env, id, seed, "en", "pl", email));
 
   return c.json({ ok: true, id });
@@ -995,10 +1012,12 @@ const AI_OPENAI_MODEL = "gpt-4o-mini";
 const AI_EXTRACT_SYSTEM_PROMPT = `You are a recipe extraction assistant for a family cookbook. The user will paste text containing a recipe — could be an email from a relative, a blog post copy-paste, a screenshot transcript, or freeform notes. Extract the recipe into structured JSON matching the provided schema.
 
 LANGUAGE (critical)
-- The source text may be in any language (English, Polish, Spanish, Italian, etc.). Read it fluently regardless.
-- ALWAYS write the extracted output in ENGLISH, no matter what language the source is in. Title, subtitle, ingredient items, step titles and descriptions, tips — all in English. The cookbook is canonical-English; a separate translation pass produces the Polish overlay after save.
-- Preserve proper nouns and traditional dish names that don't translate cleanly ("Pierogi", "Babcia Krystyna", "Bigos", "Goulash"). Brand names stay as-is.
-- For descriptive cuisine adjectives, use the English form ("Hungarian", "Polish", "Italian").
+- The source text may be in English or Polish. Read it fluently regardless.
+- DETECT the source language and write the extracted output in THAT SAME LANGUAGE. If the source is Polish, title / subtitle / ingredient items / step titles + descriptions / tips are all in Polish. If the source is English, the same fields are in English. The cook will edit in the source language; a background translation pass produces the other-language overlay after save.
+- Return sourceLang: "pl" if the source text is predominantly Polish, "en" otherwise (default English when in doubt or when the text is too short to be sure).
+- Preserve proper nouns and traditional dish names that don't translate ("Pierogi", "Babcia Krystyna", "Bigos", "Goulash"). Brand names stay as-is.
+- For descriptive cuisine adjectives, use the form appropriate to the output language ("Polish" / "polska", "Hungarian" / "węgierska").
+- ENUM FIELDS (course, occasion, difficulty, diet tags) must ALWAYS be the canonical English values from the schema enums regardless of source language. The cookbook's filters and analytics depend on this — the human-readable Polish labels are applied at render time via the i18n layer.
 
 QUANTITIES (critical)
 - qty MUST always be a positive number > 0. NEVER return 0.
@@ -1085,8 +1104,14 @@ DEFAULTS
 const AI_RECIPE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "subtitle", "author", "cuisine", "course", "occasion", "diet", "prep", "cook", "servingsDefault", "difficulty", "ingredients", "steps", "tips", "nutrition"],
+  required: ["sourceLang", "title", "subtitle", "author", "cuisine", "course", "occasion", "diet", "prep", "cook", "servingsDefault", "difficulty", "ingredients", "steps", "tips", "nutrition"],
   properties: {
+    // Detected source language of the cook's paste / photo /
+    // URL. The client uses it to flip the edit UI's language
+    // to match what the cook wrote, and the worker uses it as
+    // the saved recipe's canonical_lang so translateAndStore
+    // knows which direction to translate.
+    sourceLang: { type: "string", enum: ["en", "pl"] },
     title:    { type: "string" },
     subtitle: { type: ["string", "null"] },
     author:   { type: ["string", "null"] },
