@@ -787,17 +787,6 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     pendingImages.forEach(p => URL.revokeObjectURL(p.preview));
   }, []);
 
-  // When opening an existing recipe to edit, flip the UI to its
-  // canonical_lang so the cook reads labels in the same language
-  // the recipe is written in. Sticky (useStorage persists) — the
-  // cook can switch back manually. Only fires on the first mount
-  // per recipe id to avoid fighting a deliberate switch mid-edit.
-  useEffect(() => {
-    const c = initialRecipe?.canonical_lang;
-    if (c && c !== lang) setLang(c);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialRecipe?.id]);
-
   // Manual form initial
   const newDraft = () => ({
     id: `recipe-${Date.now()}`,
