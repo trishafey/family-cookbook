@@ -317,18 +317,33 @@ function QtyInput({ value, onChange, disabled, placeholder, title }) {
 // Local state + commit-on-blur keeps the input stable while the
 // cook is typing; only one rename fires at the end. The cook
 // can also press Enter to commit early.
-function SectionNameInput({ value, onCommit, defaultName, ariaLabel, className }) {
-  const [text, setText] = useState(value);
+function SectionNameInput({ value, displayValue, onCommit, defaultName, ariaLabel, className }) {
+  // displayValue lets the parent show a localised version of the
+  // canonical name while the cook isn't editing (e.g. show
+  // "Składniki" in Polish mode for the canonical English
+  // "Ingredients" default). If the cook clicks in and types
+  // something new, their text wins; if they leave it alone,
+  // the underlying canonical value is preserved.
+  const initial = displayValue ?? value;
+  const [text, setText] = useState(initial);
   const [focused, setFocused] = useState(false);
   // Resync when the parent value changes from outside (e.g. the
   // section was moved or another field updated). We only do this
   // when the input isn't focused so live typing isn't clobbered.
-  useEffect(() => { if (!focused) setText(value); }, [value, focused]);
+  useEffect(() => { if (!focused) setText(displayValue ?? value); }, [value, displayValue, focused]);
   const commit = () => {
     setFocused(false);
-    const next = text.trim() || defaultName || value;
-    if (next !== value) onCommit(next);
-    if (!text.trim()) setText(next);  // bounce empty back to the default visually
+    // Empty → bounce back to the canonical default. Unchanged
+    // display value → keep the canonical value (no rename). Any
+    // other typed text → commit it.
+    if (!text.trim()) {
+      const fallback = defaultName || value;
+      if (fallback !== value) onCommit(fallback);
+      setText(displayValue ?? fallback);
+      return;
+    }
+    if (displayValue != null && text === displayValue) return; // no edit
+    if (text !== value) onCommit(text);
   };
   return (
     <input
@@ -345,7 +360,7 @@ function SectionNameInput({ value, onCommit, defaultName, ariaLabel, className }
 }
 
 function IngredientsEditor({ ingredients, onChange, groupOrder, onGroupOrderChange }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const sections = groupBySection(ingredients, (i) => i.grp, "Ingredients", groupOrder);
   // Move a section up/down in the display order WITHOUT touching
   // the item array. The cook can reorder ingredient rows
@@ -393,11 +408,14 @@ function IngredientsEditor({ ingredients, onChange, groupOrder, onGroupOrderChan
   const addSection = () => {
     // Use a unique placeholder name so adding two sections in a
     // row doesn't immediately merge them (sections group by .grp,
-    // so duplicate names collapse into one).
+    // so duplicate names collapse into one). The placeholder
+    // follows the cook's UI language so a Polish cook sees
+    // "Nowa sekcja" instead of "New section".
     const existing = new Set(ingredients.map(i => i.grp || "Ingredients"));
-    let name = "New section";
+    const base = lang === "pl" ? "Nowa sekcja" : "New section";
+    let name = base;
     let n = 2;
-    while (existing.has(name)) name = `New section ${n++}`;
+    while (existing.has(name)) name = `${base} ${n++}`;
     onChange([...ingredients, { qty: 1, unit: "", item: "", grp: name }]);
     if (groupOrder && !groupOrder.includes(name)) onGroupOrderChange([...groupOrder, name]);
   };
@@ -419,8 +437,9 @@ function IngredientsEditor({ ingredients, onChange, groupOrder, onGroupOrderChan
             )}
             <SectionNameInput
               value={sec.name}
+              displayValue={sec.name === "Ingredients" && lang === "pl" ? t("ingredients") : undefined}
               onCommit={(newName) => renameSection(sec.name, newName)}
-              defaultName="Ingredients"
+              defaultName={lang === "pl" ? "Składniki" : "Ingredients"}
               className="section-name-input"
               ariaLabel={t("sectionName")}
             />
@@ -531,7 +550,7 @@ function HoursMinutes({ value, onChange }) {
 }
 
 function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange }) {
-  const { t } = useLang();
+  const { t, tPrecision, lang } = useLang();
   const sections = groupBySection(steps, (s) => s.section, "", sectionOrder);
   // Move a section up/down in the display order WITHOUT touching
   // the step array. Per-step arrows handle individual row moves.
@@ -607,11 +626,13 @@ function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange }) {
   };
   const addSection = () => {
     // Unique placeholder name so two consecutive Add section
-    // taps don't merge into a single group.
+    // taps don't merge into a single group. Follows the cook's
+    // UI language.
     const existing = new Set(steps.map(s => s.section || ""));
-    let name = "New section";
+    const base = lang === "pl" ? "Nowa sekcja" : "New section";
+    let name = base;
     let n = 2;
-    while (existing.has(name)) name = `New section ${n++}`;
+    while (existing.has(name)) name = `${base} ${n++}`;
     onChange([...steps, { t: "", d: "", mins: 0, precision: "easy", section: name }]);
     if (sectionOrder && !sectionOrder.includes(name)) onSectionOrderChange([...sectionOrder, name]);
   };
@@ -676,7 +697,7 @@ function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange }) {
                 <div className="step-meta">
                   <HoursMinutes value={s.mins} onChange={(v) => update(s._idx, { mins: v })} />
                   <select value={s.precision || "easy"} onChange={(e) => update(s._idx, { precision: e.target.value })}>
-                    {["easy","medium","careful","watch","patient"].map(p => <option key={p}>{p}</option>)}
+                    {["easy","medium","careful","watch","patient"].map(p => <option key={p} value={p}>{tPrecision(p)}</option>)}
                   </select>
                   {s.photo ? (
                     <div
@@ -696,7 +717,7 @@ function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange }) {
                   ) : (
                     <label className="step-add-photo" title="Upload a photo from your files">
                       <Icon name="camera" size={13} />
-                      {uploadingIdx === s._idx ? "Uploading…" : "Add photo"}
+                      {uploadingIdx === s._idx ? (t("uploading") || "Uploading…") : t("addPhoto")}
                       <input
                         type="file"
                         accept="image/*"
