@@ -279,6 +279,9 @@ h4 { font-size: 17px; line-height: 1.3; }
               flex-basis 0.32s cubic-bezier(.4, 0, .2, 1),
               padding 0.2s ease;
 }
+/* Magnifying glass renders at 24×24 — sized via CSS so it
+   beats whatever size prop the call sites pass to <Icon />. */
+.search > svg { width: 24px; height: 24px; flex-shrink: 0; }
 /* Collapsed: tablet/desktop nav search shrinks to an outlined
    icon button (mobile never collapses). Same DOM as expanded —
    only the class toggles — so width AND the inner controls'
@@ -297,6 +300,9 @@ h4 { font-size: 17px; line-height: 1.3; }
   overflow: hidden;
 }
 .search.collapsed:hover { background: var(--paper-2); border-color: var(--ink-3); }
+/* The search SVG was rebalanced (lens + handle visual bounding
+   box is now centred in the 24×24 viewBox) so no transform is
+   needed for the collapsed pill. */
 /* Hide / fade the input + trailing buttons while collapsed.
    They stay in the DOM so React doesn't unmount/remount across
    the transition; the same transition timings as max-width keep
@@ -478,15 +484,22 @@ h4 { font-size: 17px; line-height: 1.3; }
 
 /* Buttons */
 .btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 14px;
-  font-size: 13px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 4px;
+  /* No-icon default: symmetric 15px on all sides. The
+     .btn:has(svg) rule below tightens vertical to 10px and
+     pulls the left edge in to 12px when an icon is present
+     (icons get a touch more breathing room on their side so
+     the visual mass is balanced against the text column).
+     sm / lg variants scale this same ratio. */
+  padding: 15px;
+  font-size: 14px; font-weight: 500;
   border: 1px solid var(--rule);
   background: var(--paper);
   border-radius: var(--radius);
   cursor: pointer;
   transition: background .12s, border-color .12s;
 }
+.btn:has(svg) { padding: 10px 15px 10px 12px; }
 .btn:hover { background: var(--paper-3); }
 .btn.primary {
   background: var(--ink); color: var(--paper);
@@ -517,8 +530,12 @@ h4 { font-size: 17px; line-height: 1.3; }
 .btn.ghost { border-color: transparent; background: transparent; }
 .btn.ghost:hover { background: var(--paper-2); }
 .btn.icon-only { padding: 8px; }
-.btn.sm { padding: 6px 10px; font-size: 12px; }
-.btn.lg { padding: 12px 18px; font-size: 14px; }
+/* sm / lg share the base 14px font-size — only padding scales.
+   Same with-icon vs no-icon split as the default .btn. */
+.btn.sm { padding: 11px; font-size: 14px; }
+.btn.sm:has(svg) { padding: 7px 11px 7px 8px; }
+.btn.lg { padding: 22px; font-size: 14px; }
+.btn.lg:has(svg) { padding: 15px 22px 15px 19px; }
 /* Active state — used by nav buttons to mark the current view.
    Faint terracotta wash + matching accent on the label so the
    cook can glance at the top bar and see where they are. */
@@ -3271,7 +3288,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .recipe-hero .sub { font-size: 16px; }
   .recipe-hero .photo { aspect-ratio: 16/11; }
   .recipe-actions { gap: 6px; }
-  .recipe-actions .btn { padding: 8px 12px; font-size: 12px; }
+  .recipe-actions .btn { padding: 8px 12px; }
   .recipe-actions .btn.ghost.icon-only { display: none; }
 
   /* Tag row */
@@ -3385,7 +3402,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .cookmode-step-time > div[style*="width: 1px"],
   .cookmode-step-time > div[style*="height: 32px"] { display: none; }
   .cookmode-foot { padding: 10px 12px; }
-  .cookmode-foot .nav-btns .btn { padding: 7px 10px; font-size: 12px; }
+  .cookmode-foot .nav-btns .btn { padding: 7px 10px; }
   .cookmode-help-pill { padding: 7px 11px; font-size: 11px; }
 
   /* Add recipe form rows */
@@ -3848,11 +3865,21 @@ svg .p-leaf {
   transform-origin: 12px 8.5px;
 }
 button:hover .p-leaf, a:hover .p-leaf, .btn:hover .p-leaf {
-  animation: ic-pleaf .55s ease forwards;
+  animation: ic-pleaf .55s cubic-bezier(.34, 1.4, .64, 1) forwards;
 }
+/* Leaf grows FROM the plus's top tip as a single point that
+   expands outward. transform-origin is set above to 12px 8.5px
+   (the leaf's base, exactly where it joins the upright stroke
+   of the plus) so uniform scale(0) → scale(1) anchors the leaf
+   at the tip while it expands in both width and height. No
+   axis-only scaling (would read as "rising from below") and no
+   rotation (would read as "swinging in from the side"). The
+   cubic-bezier overshoot gives a tiny spring at the end so it
+   feels alive rather than just tweened in. */
 @keyframes ic-pleaf {
-  from { opacity: 0; transform: scale(0) rotate(-12deg); }
-  to   { opacity: 1; transform: scale(1) rotate(0); }
+  0%   { opacity: 0; transform: scale(0); }
+  20%  { opacity: 1; }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 /* Hover triggers for the experiment beaker bubbles. The
@@ -3905,16 +3932,17 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
    the call site. Add a new rule here when you need a new
    component class to enforce its own icon size.
    ─────────────────────────────────────────────────────────── */
-.btn svg            { width: 16px; height: 16px; flex-shrink: 0; }
-.btn.sm svg         { width: 14px; height: 14px; }
-.btn.lg svg         { width: 18px; height: 18px; }
-.btn.icon-only svg  { width: 16px; height: 16px; }
+/* All button variants render their glyphs at 20×20 — applies
+   to .btn, .btn.sm, .btn.lg, and icon-only. Overrides the size
+   prop passed to <Icon /> at the call site so the visual is
+   uniform regardless of what number the developer typed. */
+.btn svg            { width: 20px; height: 20px; flex-shrink: 0; }
+.btn.sm svg         { width: 20px; height: 20px; }
+.btn.lg svg         { width: 20px; height: 20px; }
+.btn.icon-only svg  { width: 20px; height: 20px; }
 
-/* Top-nav buttons get a slightly bigger glyph than other .btn.sm
-   uses — they're the entry points the cook reaches for most
-   often, and a 14px icon sits visually lighter than the
-   surrounding 16px nav search field. */
-.nav .btn svg       { width: 18px; height: 18px; }
+/* Top-nav buttons inherit the global .btn 20×20 sizing. */
+.nav .btn svg       { width: 20px; height: 20px; }
 
 .pill svg           { width: 13px; height: 13px; flex-shrink: 0; }
 .recipe-tag svg     { width: 13px; height: 13px; flex-shrink: 0; }
