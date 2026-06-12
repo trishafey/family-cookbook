@@ -300,6 +300,13 @@ h4 { font-size: 17px; line-height: 1.3; }
   overflow: hidden;
 }
 .search.collapsed:hover { background: var(--paper-2); border-color: var(--ink-3); }
+/* Lens of the magnifying glass sits at SVG (11, 11) — 1px
+   up-left of the viewBox centre (12, 12). Geometric centring
+   of the SVG inside the pill leaves the lens visibly
+   off-centre; nudge the icon by (1px, 1px) so the lens lands
+   on the pill's actual centre and the handle balances out
+   below-right. */
+.search.collapsed > svg { transform: translate(1px, 1px); }
 /* Hide / fade the input + trailing buttons while collapsed.
    They stay in the DOM so React doesn't unmount/remount across
    the transition; the same transition timings as max-width keep
