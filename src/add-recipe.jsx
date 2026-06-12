@@ -2,7 +2,7 @@
 // AI extraction is mocked: paste text, hit "extract", a stub parses into fields.
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Icon, logEvent, signInUrl, slugify, parseQty, formatQty } from "./helpers.jsx";
+import { Icon, logEvent, signInUrl, slugify, parseQty, formatQty, localizeRecipe } from "./helpers.jsx";
 import { Modal } from "./ui.jsx";
 import { FLAGS } from "./config/flags.js";
 import { COURSES, OCCASIONS, DIETS, ORIGINS, RECIPES as SEED_RECIPES } from "./data.js";
@@ -777,7 +777,22 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
   // Drag-and-drop on desktop: tracks whether files are hovering over
   // the drop zone so we can highlight it.
   const [dragHover, setDragHover] = useState(false);
-  const [draft, setDraft] = useState(initialRecipe);
+  // Initial draft is localised through the cook's current UI lang
+  // so the form's content (title, subtitle, ingredient items, step
+  // text, tips) matches the labels around it. localizeRecipe falls
+  // back to the canonical when there's no overlay for the requested
+  // lang (e.g. a brand-new recipe whose translation hasn't landed
+  // yet), so we never end up with empty fields.
+  //
+  // Captured ONCE per mount via a lazy useState initialiser — we
+  // intentionally don't re-localise when lang changes mid-edit
+  // because that would blow away the cook's in-flight edits. The
+  // language they were in at mount time becomes the recipe's new
+  // canonical_lang at save.
+  const [editLang] = useState(() => lang);
+  const [draft, setDraft] = useState(() =>
+    initialRecipe ? localizeRecipe(initialRecipe, editLang) : initialRecipe
+  );
 
   // Tracks which path populated the form, for analytics. Stays null
   // when the cook types it all in by hand → logged as "manual" on save.
@@ -1125,7 +1140,19 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
 
   const save = async () => {
     if (!draft.title.trim()) { alert("Give it a title first."); return; }
-    const out = { ...draft, total: draft.total || (draft.prep + draft.cook) };
+    // The form was populated in editLang (the cook's UI language
+    // at mount). Whatever they typed IS the new canonical in that
+    // language. Stamp canonical_lang so the worker's
+    // translateAndStore regenerates the OTHER language as the
+    // overlay. If the cook was editing in the recipe's existing
+    // canonical_lang this is a no-op; if they were editing the
+    // English overlay of a Polish-canonical recipe (or vice versa)
+    // this flips the canonical to match what they actually edited.
+    const out = {
+      ...draft,
+      canonical_lang: editLang,
+      total: draft.total || (draft.prep + draft.cook),
+    };
     out.steps = groupStepsBySection(out.steps);
     if (!out.link?.url) delete out.link;
     // For new recipes, derive a slug ID from the title so the URL
