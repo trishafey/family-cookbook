@@ -3867,19 +3867,17 @@ svg .p-leaf {
 button:hover .p-leaf, a:hover .p-leaf, .btn:hover .p-leaf {
   animation: ic-pleaf .55s cubic-bezier(.34, 1.4, .64, 1) forwards;
 }
-/* Leaf grows FROM the plus's top tip as a single point that
-   expands outward. transform-origin is set above to 12px 8.5px
-   (the leaf's base, exactly where it joins the upright stroke
-   of the plus) so uniform scale(0) → scale(1) anchors the leaf
-   at the tip while it expands in both width and height. No
-   axis-only scaling (would read as "rising from below") and no
-   rotation (would read as "swinging in from the side"). The
-   cubic-bezier overshoot gives a tiny spring at the end so it
-   feels alive rather than just tweened in. */
+/* Sprout grows up FROM the plus's top tip — scaleY drives the
+   vertical extension from the leaf's base (transform-origin
+   above is set to 12px 8.5px, exactly where the leaf joins
+   the upright stroke). The cubic-bezier easing overshoots
+   slightly past 1 then settles, so the leaf reads as
+   uncurling rather than swinging in. No rotation — that was
+   what made the previous version feel side-on. */
 @keyframes ic-pleaf {
-  0%   { opacity: 0; transform: scale(0); }
-  20%  { opacity: 1; }
-  100% { opacity: 1; transform: scale(1); }
+  0%   { opacity: 0; transform: scaleY(0); }
+  25%  { opacity: 1; }
+  100% { opacity: 1; transform: scaleY(1); }
 }
 
 /* Hover triggers for the experiment beaker bubbles. The
