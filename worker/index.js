@@ -1042,6 +1042,7 @@ STEPS (preserve EVERY detail; just polish the prose)
 - PRESERVE INTUITIVE COOKING CUES VERBATIM. Phrases like "until the bone shows", "when you can smell the garlic", "until it looks right", "until the dough springs back when poked", "stir until your arm gets tired", "cook by eye" are signal, not noise — they're how the family teaches the recipe. Keep these phrases word-for-word in the step prose. Do NOT replace them with measured times or temperatures. You may ALSO add a precise estimate alongside ("until the bone shows — usually 40-50 min") but the original phrase stays.
 - If the original mentions an ingredient or trick in the step text that wasn't in the ingredient list, keep that mention in the step.
 - Each step gets a short title 't' (max 60 chars) summarising the action plus a fuller 'd' description (the polished prose).
+- The 'd' description MUST begin with a tight intro sentence of NO MORE THAN 6 words that names the action — e.g. "Mash the potatoes.", "Brown the meat on all sides.", "Whisk the egg whites stiff." Then continue with the full polished prose on the next sentence. The intro doubles as a one-glance summary in cook mode; keep it punchy, imperative, and lowercase-friendly (sentence case is fine).
 - precision: "easy" (set and forget), "medium" (some attention), "careful" (precise), "watch" (don't walk away — heat, browning), "patient" (long wait — rest, rise, marinate).
 - mins: your best estimate; for passive steps (rest / marinate / freeze / proof) include the wait time.
 

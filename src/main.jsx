@@ -71,29 +71,28 @@ function NavSearch({ query, setQuery, placeholder, mobilePlaceholder, simpleMode
     // Only collapse on tablet/desktop, and only when empty.
     if (isTabletUp && !query) setExpanded(false);
   };
-  // Tablet/desktop collapsed pill — outlined icon button.
-  if (isTabletUp && !expanded) {
-    return (
-      <div className="search collapsed">
-        <button
-          className="search-toggle"
-          onClick={() => setExpanded(true)}
-          title={placeholder}
-          aria-label={placeholder}
-        >
-          <Icon name="search" />
-        </button>
-      </div>
-    );
-  }
-  const suggestions = focused ? recipeSuggestions(query, recipes) : [];
+  // Single DOM tree in both states — toggling a .collapsed class
+  // on the wrapper lets CSS transitions animate width AND opacity
+  // symmetrically (the open animation is the reverse of close).
+  // The old implementation returned two completely different
+  // component trees per state, which React swapped instantly with
+  // no transition possible.
+  const collapsed = isTabletUp && !expanded;
+  const suggestions = focused && !collapsed ? recipeSuggestions(query, recipes) : [];
   // Pick the right placeholder for the viewport — the long
   // "Search by recipe, cook, cuisine, or ingredient…" gets
   // truncated mid-word on narrow phones.
   const ph = !isTabletUp && mobilePlaceholder ? mobilePlaceholder : placeholder;
   return (
-    <div className="search-wrap" ref={wrapRef}>
-      <div className="search">
+    <div className={`search-wrap ${collapsed ? "collapsed" : ""}`} ref={wrapRef}>
+      <div
+        className={`search ${collapsed ? "collapsed" : ""}`}
+        onClick={collapsed ? () => setExpanded(true) : undefined}
+        role={collapsed ? "button" : undefined}
+        aria-label={collapsed ? placeholder : undefined}
+        tabIndex={collapsed ? 0 : undefined}
+        onKeyDown={collapsed ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(true); } } : undefined}
+      >
         <Icon name="search" />
         <input
           ref={inputRef}
@@ -102,9 +101,11 @@ function NavSearch({ query, setQuery, placeholder, mobilePlaceholder, simpleMode
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={handleBlur}
+          tabIndex={collapsed ? -1 : 0}
+          aria-hidden={collapsed ? true : undefined}
         />
-        {query && <button className="btn ghost icon-only" onClick={() => setQuery("")}><Icon name="x" size={14} /></button>}
-        {!simpleMode && (
+        {query && !collapsed && <button className="btn ghost icon-only" onClick={() => setQuery("")}><Icon name="x" size={14} /></button>}
+        {!simpleMode && !collapsed && (
           <button
             className="btn ghost icon-only search-filter-btn"
             onClick={onOpenFilters}

@@ -270,26 +270,42 @@ h4 { font-size: 17px; line-height: 1.3; }
               padding 0.2s ease;
 }
 /* Collapsed: tablet/desktop nav search shrinks to an outlined
-   icon button (mobile never collapses). Width animates smoothly
-   to/from the expanded state. */
+   icon button (mobile never collapses). Same DOM as expanded —
+   only the class toggles — so width AND the inner controls'
+   opacity animate symmetrically (open == reverse of close). */
 .search.collapsed {
   flex: 0 0 40px; max-width: 40px;
-  padding: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
   background: var(--paper);
   border-color: var(--rule);
 }
 .search.collapsed:hover { background: var(--paper-2); border-color: var(--ink-3); }
-.search .search-toggle {
-  width: 32px; height: 32px;
-  display: grid; place-items: center;
-  background: transparent; border: 0; padding: 0; cursor: pointer;
-  color: var(--ink);
+/* Hide / fade the input + trailing buttons while collapsed.
+   They stay in the DOM so React doesn't unmount/remount across
+   the transition; the same transition timings as max-width keep
+   the fade in lock-step with the width change. */
+.search input,
+.search .search-filter-btn,
+.search > .btn.ghost.icon-only {
+  transition: opacity 0.24s ease 0.08s;
+}
+.search.collapsed input,
+.search.collapsed .search-filter-btn,
+.search.collapsed > .btn.ghost.icon-only {
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+.search.collapsed input {
+  /* Stop the input from claiming any visible width while
+     hidden so it doesn't push the icon off-centre. */
+  flex: 0 0 0; width: 0; min-width: 0; padding: 0;
 }
 /* Micro-animation on click — the search icon's .vine handle
    completes one curl cycle when the bar is focused or the
-   collapsed button is tapped. */
+   collapsed pill is tapped. */
 .search:focus-within .vine,
-.search .search-toggle:active .vine {
+.search.collapsed:active .vine {
   animation: ic-curl 0.7s ease-out 1;
 }
 /* Wrapper that contains the input row + suggestions panel.
@@ -714,8 +730,13 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .stats-strip .servings-control .servings-val {
   font-family: var(--serif); font-size: 22px;
   min-width: 36px; text-align: center; line-height: 1;
-  display: inline-flex; flex-direction: column; align-items: center;
-  padding: 2px 6px;
+  /* Match the +/- buttons' 26px box height and flex-center
+     the digit so its visual baseline lands on the same axis
+     as the icons (line-height: 1 alone left the number
+     sitting slightly above centre). */
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 26px;
+  padding: 0 6px;
 }
 .stats-strip .servings-control .servings-val .weight-sub {
   font-family: var(--mono); font-size: 9px;
