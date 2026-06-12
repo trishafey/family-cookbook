@@ -478,9 +478,13 @@ h4 { font-size: 17px; line-height: 1.3; }
 
 /* Buttons */
 .btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 14px;
-  font-size: 13px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px;
+  /* Bumped from 13/13 to 16 — applies to default, sm, and lg
+     variants. .sm just trims padding, .lg adds it. Icon size is
+     enforced separately by the "Icon size normalisation" rules
+     near the bottom of this file (24×24 for every .btn). */
+  font-size: 16px; font-weight: 500;
   border: 1px solid var(--rule);
   background: var(--paper);
   border-radius: var(--radius);
@@ -517,8 +521,10 @@ h4 { font-size: 17px; line-height: 1.3; }
 .btn.ghost { border-color: transparent; background: transparent; }
 .btn.ghost:hover { background: var(--paper-2); }
 .btn.icon-only { padding: 8px; }
-.btn.sm { padding: 6px 10px; font-size: 12px; }
-.btn.lg { padding: 12px 18px; font-size: 14px; }
+/* sm / lg now share the base 16px font-size — only padding
+   differs between the three sizes. */
+.btn.sm { padding: 7px 12px; font-size: 16px; }
+.btn.lg { padding: 14px 22px; font-size: 16px; }
 /* Active state — used by nav buttons to mark the current view.
    Faint terracotta wash + matching accent on the label so the
    cook can glance at the top bar and see where they are. */
@@ -3271,7 +3277,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .recipe-hero .sub { font-size: 16px; }
   .recipe-hero .photo { aspect-ratio: 16/11; }
   .recipe-actions { gap: 6px; }
-  .recipe-actions .btn { padding: 8px 12px; font-size: 12px; }
+  .recipe-actions .btn { padding: 8px 12px; }
   .recipe-actions .btn.ghost.icon-only { display: none; }
 
   /* Tag row */
@@ -3385,7 +3391,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .cookmode-step-time > div[style*="width: 1px"],
   .cookmode-step-time > div[style*="height: 32px"] { display: none; }
   .cookmode-foot { padding: 10px 12px; }
-  .cookmode-foot .nav-btns .btn { padding: 7px 10px; font-size: 12px; }
+  .cookmode-foot .nav-btns .btn { padding: 7px 10px; }
   .cookmode-help-pill { padding: 7px 11px; font-size: 11px; }
 
   /* Add recipe form rows */
@@ -3905,16 +3911,19 @@ button[aria-busy="true"] svg[data-icon="sparkle"],
    the call site. Add a new rule here when you need a new
    component class to enforce its own icon size.
    ─────────────────────────────────────────────────────────── */
-.btn svg            { width: 16px; height: 16px; flex-shrink: 0; }
-.btn.sm svg         { width: 14px; height: 14px; }
-.btn.lg svg         { width: 18px; height: 18px; }
-.btn.icon-only svg  { width: 16px; height: 16px; }
+/* All button variants render their glyphs at 24×24 — applies
+   to .btn, .btn.sm, .btn.lg, and icon-only. Overrides the size
+   prop passed to <Icon /> at the call site so the visual is
+   uniform regardless of what number the developer typed. */
+.btn svg            { width: 24px; height: 24px; flex-shrink: 0; }
+.btn.sm svg         { width: 24px; height: 24px; }
+.btn.lg svg         { width: 24px; height: 24px; }
+.btn.icon-only svg  { width: 24px; height: 24px; }
 
-/* Top-nav buttons get a slightly bigger glyph than other .btn.sm
-   uses — they're the entry points the cook reaches for most
-   often, and a 14px icon sits visually lighter than the
-   surrounding 16px nav search field. */
-.nav .btn svg       { width: 18px; height: 18px; }
+/* Top-nav buttons inherit the global .btn 24×24 sizing now;
+   the previous 18px override is redundant but kept as a
+   no-op comment marker for the cascade. */
+.nav .btn svg       { width: 24px; height: 24px; }
 
 .pill svg           { width: 13px; height: 13px; flex-shrink: 0; }
 .recipe-tag svg     { width: 13px; height: 13px; flex-shrink: 0; }
