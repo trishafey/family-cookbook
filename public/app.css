@@ -3869,11 +3869,19 @@ svg .p-leaf {
   transform-origin: 12px 8.5px;
 }
 button:hover .p-leaf, a:hover .p-leaf, .btn:hover .p-leaf {
-  animation: ic-pleaf .55s ease forwards;
+  animation: ic-pleaf .55s cubic-bezier(.34, 1.4, .64, 1) forwards;
 }
+/* Sprout grows up FROM the plus's top tip — scaleY drives the
+   vertical extension from the leaf's base (transform-origin
+   above is set to 12px 8.5px, exactly where the leaf joins
+   the upright stroke). The cubic-bezier easing overshoots
+   slightly past 1 then settles, so the leaf reads as
+   uncurling rather than swinging in. No rotation — that was
+   what made the previous version feel side-on. */
 @keyframes ic-pleaf {
-  from { opacity: 0; transform: scale(0) rotate(-12deg); }
-  to   { opacity: 1; transform: scale(1) rotate(0); }
+  0%   { opacity: 0; transform: scaleY(0); }
+  25%  { opacity: 1; }
+  100% { opacity: 1; transform: scaleY(1); }
 }
 
 /* Hover triggers for the experiment beaker bubbles. The
