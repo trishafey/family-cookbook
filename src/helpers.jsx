@@ -699,7 +699,7 @@ export const Icon = ({ name, size = 18 }) => {
 
     // ── Core navigation (animated on hover) ──
     search:    <><circle cx="11" cy="11" r="6.2" /><path className="vine" d="M15.4 15.4 C17.6 17.6 18.9 18.9 19.9 18.4 C20.8 18 20.4 16.5 18.9 16.4" /></>,
-    plus:      <><path d="M12 20.5 V11 M7.5 15.5 H16.5" /><path className="nod" d="M12 11 C12 7.6 14.4 5.4 17.6 6 C17.6 9.4 15.2 11.6 12 11 Z" /><path className="nod" d="M13 9.6 C14.4 8.6 15.6 8 16.8 7.8" /></>,
+    plus:      <><path d="M12 8.5 V17.5" /><path d="M7.5 13 H16.5" /><path className="p-leaf" d="M12 8.5 C12 6 13.8 4.3 16.2 4.3 C16.2 6.8 14.4 8.5 12 8.5 Z" /></>,
     timer:     <><circle cx="12" cy="13.7" r="7.4" /><path className="sweep" d="M12 13.7 V8.4" /><path d="M9.6 3 H14.4 M12 3 V5.6" /></>,
     // Recipe-card ingredient list — bound card with seed bullets.
     ingredientList: <><path d="M10 6 H14" strokeWidth="1.8" /><rect x="2.5" y="8" width="19" height="13.5" rx="2.5" /><circle className="seed" cx="5.5" cy="12" r="0.7" /><path d="M7.5 12 H18.5" /><circle className="seed" cx="5.5" cy="15.5" r="0.7" /><path d="M7.5 15.5 H16" /><circle className="seed" cx="5.5" cy="19" r="0.7" /><path d="M7.5 19 H17.5" /></>,
@@ -713,12 +713,12 @@ export const Icon = ({ name, size = 18 }) => {
     menu:      <><path d="M4 7 H20 M4 12 H16 M4 17 H11" /><path d="M16 12 C18 11.6 19.4 12.6 19.6 14.6 C17.6 14.8 16.2 14 16 12 Z" /></>,
 
     // ── Recipe types & pages (featured, animated) ──
-    experiment: <><path d="M9.8 4.5 H14.2" /><path d="M10.2 4.5 V9.5 L6.6 17.3 A2.2 2.2 0 0 0 8.6 20.2 H15.4 A2.2 2.2 0 0 0 17.4 17.3 L13.8 9.5 V4.5" /><path d="M8.5 14 H15.5" /><circle className="bub seed" cx="10.8" cy="17" r="0.8" /><circle className="bub bub2 seed" cx="13" cy="16.2" r="0.7" /><circle className="bub bub3 seed" cx="11.8" cy="18.4" r="0.6" /></>,
+    experiment: <><path d="M10 4 H14" /><path d="M10.5 4 V9 L6 17.5 A1.6 1.6 0 0 0 7.4 20 H16.6 A1.6 1.6 0 0 0 18 17.5 L13.5 9 V4" /><path d="M8.2 14 H15.8" /><circle className="bub seed" cx="11" cy="16.5" r="0.9" /><circle className="bub bub2 seed" cx="14" cy="17.5" r="0.7" /><circle className="bub bub3 seed" cx="12.3" cy="15" r="0.6" /></>,
     // Same beaker shape without the bubble-animation classes —
     // for badges/tags where the constant motion would be noisy.
     experimentStill: <><path d="M9.8 4.5 H14.2" /><path d="M10.2 4.5 V9.5 L6.6 17.3 A2.2 2.2 0 0 0 8.6 20.2 H15.4 A2.2 2.2 0 0 0 17.4 17.3 L13.8 9.5 V4.5" /><path d="M8.5 14 H15.5" /><circle className="seed" cx="10.8" cy="17" r="0.8" /><circle className="seed" cx="13" cy="16.2" r="0.7" /><circle className="seed" cx="11.8" cy="18.4" r="0.6" /></>,
-    build:     <><path d="M4 12 H20 L18.4 18 A3 3 0 0 1 15.5 20 H8.5 A3 3 0 0 1 5.6 18 L4 12 Z" /><path d="M4 12 H20" /><g className="stir"><path d="M12 15 L15.2 6" /><ellipse cx="12" cy="15.2" rx="2.4" ry="1.5" /><circle cx="15.6" cy="5" r="1.3" /><circle cx="14.2" cy="4.7" r="0.9" /><circle cx="17" cy="4.7" r="0.9" /><circle cx="14.8" cy="6.2" r="0.9" /><circle cx="16.4" cy="6.2" r="0.9" /></g></>,
-    heirloom:  <><path d="M12 8.5 C7.5 8.5 5.5 12 5.5 14.8 A6.5 6.3 0 0 0 18.5 14.8 C18.5 12 16.5 8.5 12 8.5 Z" /><path d="M12 8.5 V5.6" /><g className="bloom"><path d="M12 8 C10.2 8 8.8 7 8.2 5.4 C10 5.4 11.3 6.4 12 8 Z" /><path d="M12 8 C13.8 8 15.2 7 15.8 5.4 C14 5.4 12.7 6.4 12 8 Z" /><path d="M12 8 C11.4 6.4 11.4 4.8 12 3.8 C12.6 4.8 12.6 6.4 12 8 Z" /></g></>,
+    build:     <><path d="M4.5 11.5 H19.5 L18.3 16.7 A3 3 0 0 1 15.4 19 H8.6 A3 3 0 0 1 5.7 16.7 L4.5 11.5 Z" /><circle className="drop d1 seed" cx="9" cy="8" r="1.2" /><path className="drop d2" d="M12 4.6 C13.4 4.6 14.4 5.6 14.4 7 C13 7 12 6 12 4.6 Z" /><circle className="drop d3 seed" cx="15" cy="8" r="1.2" /></>,
+    heirloom:  <><path d="M12 9 A6 6 0 1 0 12 21 A6 6 0 0 0 12 9 Z" /><g className="calyx"><path d="M12 9 V6.5" /><path d="M12 7 C10.6 7 9.5 6 9.5 4.6 C11 4.6 12 5.6 12 7 Z" /><path d="M12 7 C13.4 7 14.5 6 14.5 4.6 C13 4.6 12 5.6 12 7 Z" /></g></>,
     new:       <><path d="M12 21 V11" /><path d="M12 13 C12 9 9 6 4.5 6 C4.5 10.5 7.5 13 12 13 Z" /><path d="M12 11 C12 7.6 14.8 5 19.5 5 C19.5 9 16.6 11 12 11 Z" /></>,
 
     // ── Secondary actions ──
@@ -736,7 +736,7 @@ export const Icon = ({ name, size = 18 }) => {
     verify:    <><path d="M5 5 H19 V11 C19 16 15.5 19 12 20 C8.5 19 5 16 5 11 V5 Z" /><path d="M9 10 L11 12 L15.5 8" /></>,
 
     // ── Diet & nutrition (for pills / filter tags) ──
-    vegan:        <><path className="grow" d="M12 21 V11" /><path className="grow" d="M12 13 C12 9 9 6 4.5 6 C4.5 10.5 7.5 13 12 13 Z" /><path className="grow" d="M12 11 C12 7.6 14.8 5 19.5 5 C19.5 9 16.6 11 12 11 Z" /></>,
+    vegan:        <><ellipse cx="12" cy="18.8" rx="2.4" ry="1.5" /><g className="grow"><path d="M12 17.3 V13.5" /><path d="M12 13.8 C9.6 13.8 7.7 12 7.7 9.6 C10.1 9.6 12 11.4 12 13.8 Z" /><path d="M12 12.6 C12 10.2 13.9 8.4 16.3 8.4 C16.3 10.8 14.4 12.6 12 12.6 Z" /></g></>,
     vegetarian:   <><path d="M5 19 C5 11 11 5 19 5 C19 13 13 19 5 19 Z" /><path d="M8.5 15.5 L15.5 8.5" /><path d="M11 15 L12.5 13.5 M9.5 12.5 L11 11" /></>,
     pescatarian:  <><path d="M3.5 12 C6.5 8.5 11 8.5 14.5 12 C11 15.5 6.5 15.5 3.5 12 Z" /><path d="M14.5 12 L19.5 9 V15 Z" /><circle className="seed" cx="7" cy="11.4" r=".8" /></>,
     carnivore:    <><path d="M6.5 8.4 C10 6 16 6.2 18.2 9 C20.2 11.6 18.8 16 14.8 17.6 C10.6 19.3 5.6 17.4 5 13.2 C4.7 11.1 5.1 9.4 6.5 8.4 Z" /><circle cx="9" cy="12.2" r="1.8" /><path d="M12.4 9.8 C13.8 11.2 13.8 14 12.4 15.6" /></>,

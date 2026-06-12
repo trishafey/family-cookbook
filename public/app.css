@@ -3765,11 +3765,76 @@ button:hover .vine, a:hover .vine, .btn:hover .vine {
 .btn.primary .bub2 { animation-delay: .55s; }
 .btn.primary .bub3 { animation-delay: 1.05s; }
 
-/* Spoon stirs the mixing bowl (build mark) */
+/* Spoon stirs the mixing bowl (build mark) — legacy class kept
+   in case any other glyph uses it; the build icon itself was
+   replaced with the falling-drops version below. */
 @keyframes ic-stir { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg); } }
 button:hover .stir, a:hover .stir, .btn:hover .stir {
   animation: ic-stir 1.7s ease-in-out infinite;
   transform-origin: 50% 100%;
+}
+
+/* Ingredient drops falling into the build-a-meal pot. Stagger
+   three drops with delays so they cascade in over ~1.5s. Fires
+   on hover for nav-like uses; also fires when the host button
+   is selected (.btn.primary) to match the rest of the family. */
+svg .drop { transform-box: fill-box; transform-origin: center; }
+button:hover .drop, a:hover .drop, .btn:hover .drop,
+.btn.primary .drop {
+  animation: ic-drop 1.5s ease-in infinite;
+}
+button:hover .d2, .btn:hover .d2, .btn.primary .d2 { animation-delay: .3s; }
+button:hover .d3, .btn:hover .d3, .btn.primary .d3 { animation-delay: .6s; }
+@keyframes ic-drop {
+  0%   { transform: translateY(-9px); opacity: 0; }
+  20%  { opacity: 1; }
+  65%  { transform: translateY(3px); opacity: 1; }
+  100% { transform: translateY(3px); opacity: 0; }
+}
+
+/* Heirloom tomato calyx — the little stem-and-leaf cluster
+   above the fruit pulses scale up/down. Fires on the selected
+   origin pill (same trigger as the other origin glyphs). */
+svg .calyx { transform-box: view-box; transform-origin: 12px 9px; }
+.btn.primary .calyx {
+  animation: ic-calyx 1.4s ease infinite alternate;
+}
+@keyframes ic-calyx {
+  from { transform: scale(.5); }
+  to   { transform: scale(1.08); }
+}
+
+/* Plus icon's optional leaf — invisible until the host button
+   is hovered, then springs in with a tiny rotate. Used on the
+   primary Add recipe button. */
+svg .p-leaf {
+  opacity: 0;
+  transform-box: view-box;
+  transform-origin: 12px 8.5px;
+}
+button:hover .p-leaf, a:hover .p-leaf, .btn:hover .p-leaf {
+  animation: ic-pleaf .55s ease forwards;
+}
+@keyframes ic-pleaf {
+  from { opacity: 0; transform: scale(0) rotate(-12deg); }
+  to   { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+/* Hover triggers for the experiment beaker bubbles. The
+   existing .btn.primary trigger above handles the origin pill
+   when selected; this adds nav/button hover (The Lab nav
+   button, in-form buttons, etc.) so the bubbles also rise on
+   pointer-over. */
+button:hover .bub, a:hover .bub, .btn:hover .bub {
+  animation: ic-bub 1.7s ease-in infinite;
+}
+button:hover .bub2, .btn:hover .bub2 { animation-delay: .35s; }
+button:hover .bub3, .btn:hover .bub3 { animation-delay: .7s; }
+
+/* Hover trigger for the heirloom calyx (parity with the
+   origin-pill animation when the icon is in a nav button). */
+button:hover .calyx, a:hover .calyx, .btn:hover .calyx {
+  animation: ic-calyx 1.4s ease infinite alternate;
 }
 
 /* Standalone loader — runs continuously, no parent hover needed */
