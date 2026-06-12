@@ -859,18 +859,36 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
   // Merge an extraction response (from /api/admin/ai/extract-text or
   // /api/admin/ai/extract-url) into a fresh draft, then drop the user
   // into the manual review view so they can tweak before saving.
+  // Verify the source language the worker claimed against the
+  // actual content. The model sometimes returns sourceLang="pl"
+  // while writing English step descriptions (or vice versa);
+  // when that happens the UI flips but the form fields don't
+  // match. Count Polish-specific letters (ą/ć/ę/ł/ń/ó/ś/ź/ż +
+  // capitals) across the prose; if the ratio is well above the
+  // English noise floor it's Polish, otherwise English. Wins
+  // over the worker's claim.
+  const detectContentLang = (parsed) => {
+    const text = [
+      ...(parsed.steps || []).map(s => `${s?.t || ""} ${s?.d || ""}`),
+      parsed.subtitle || "",
+      ...(parsed.tips || []),
+    ].join(" ");
+    const letters = (text.match(/[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g) || []).length;
+    if (letters < 20) return null; // too little to judge
+    const polish = (text.match(/[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g) || []).length;
+    return polish / letters > 0.015 ? "pl" : "en";
+  };
+
   const applyExtraction = (parsed) => {
     const fresh = newDraft();
     const ings = (parsed.ingredients?.length ? parsed.ingredients : fresh.ingredients)
       .map(i => ({ ...i, grp: i.grp || "Ingredients" }));
     const steps = parsed.steps?.length ? parsed.steps : fresh.steps;
-    // Source language detected by the worker. Whatever the cook
-    // pasted/photographed dictates which language the edit form
-    // renders in AND becomes the recipe's canonical language. If
-    // it differs from the current UI lang, flip the whole UI to
-    // match (sticky — useStorage persists it). The cook can flip
-    // back manually later via the lang switcher.
-    const sourceLang = parsed.sourceLang === "pl" ? "pl" : "en";
+    // Trust the actual content language over the model's claim.
+    // Detector falls back to the worker's sourceLang only when
+    // the prose is too short to judge.
+    const claimed = parsed.sourceLang === "pl" ? "pl" : "en";
+    const sourceLang = detectContentLang(parsed) || claimed;
     if (sourceLang !== lang) setLang(sourceLang);
     setDraft({
       ...fresh,
