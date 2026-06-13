@@ -13,7 +13,7 @@ import { AddRecipe } from "./add-recipe.jsx";
 import { ExperimentationLab } from "./experiment.jsx";
 import { CookbooksIndex } from "./cookbooks.jsx";
 import { InviteAccept } from "./invite.jsx";
-import { ProfileSetupGate } from "./profile.jsx";
+import { ProfileSetupGate, PendingApprovalGate } from "./profile.jsx";
 import { AccountSettings, AdminUsers } from "./settings.jsx";
 import { SignedOutLanding } from "./landing.jsx";
 import { BuildAMeal } from "./meal.jsx";
@@ -530,6 +530,20 @@ function App() {
   // the initial auth probe.
   if (!authLoading && !authEmail && view !== "invite" && view !== "recipe") {
     return <SignedOutLanding />;
+  }
+
+  // Pending-approval gate: cooks signed up via the open Cloudflare
+  // Access policy land here until an admin approves them.
+  // Profile gate runs first so the admin sees their actual name
+  // in the pending queue. Invited cooks bypass — invite-accept
+  // auto-approves them.
+  if (authEmail && profile && profile.profileComplete === true && profile.status === "pending" && view !== "invite") {
+    return (
+      <PendingApprovalGate
+        authEmail={authEmail}
+        refreshProfile={refreshProfile}
+      />
+    );
   }
 
   // Profile gate: signed-in cooks without first/last name on file

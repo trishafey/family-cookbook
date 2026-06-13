@@ -518,6 +518,11 @@ app.post("/api/admin/invitations/:token/accept", async (c) => {
   }
 
   const now = new Date().toISOString();
+  // Vouched cooks bypass the pending queue — being invited by an
+  // existing cookbook owner is social proof enough.
+  await c.env.DB.prepare(
+    "UPDATE users SET status = 'approved' WHERE email = ? AND status = 'pending'"
+  ).bind(email).run().catch(() => {});
   // Add membership (no-op if they're somehow already a member).
   await c.env.DB.prepare(
     "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, invited_by, joined_at) VALUES (?, ?, ?, (SELECT invited_by FROM invitations WHERE token = ?), ?)"
@@ -768,11 +773,15 @@ async function ensureUserBootstrap(c) {
   let displayName = userRow?.display_name || null;
   if (!userRow) {
     // First-ever sign-in: insert with a sensible default display
-    // name pulled from the email's local-part. tier=full and
-    // status=approved keep behaviour open — tier gating lands in 4d.
+    // name pulled from the email's local-part. tier=full keeps
+    // behaviour open; status='pending' means the cook lands on
+    // the "waiting for approval" screen until Patricia (or any
+    // admin) approves them via /admin/users. Invitations
+    // auto-approve in the accept handler so a vouched cook
+    // doesn't sit in the queue.
     displayName = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, x => x.toUpperCase());
     await c.env.DB.prepare(
-      "INSERT INTO users (email, display_name, tier, status, created_at, last_seen_at) VALUES (?, ?, 'full', 'approved', ?, ?)"
+      "INSERT INTO users (email, display_name, tier, status, created_at, last_seen_at) VALUES (?, ?, 'full', 'pending', ?, ?)"
     ).bind(email, displayName, now, now).run().catch(() => {});
   } else {
     // Touch last_seen_at best-effort — never block the request.
@@ -3466,7 +3475,7 @@ app.get("/api/admin/me/profile", async (c) => {
   if (!email) return c.json({ error: "not signed in" }, 401);
   await ensureUserBootstrap(c);
   const row = await c.env.DB.prepare(
-    "SELECT email, display_name, first_name, last_name, phone, is_admin FROM users WHERE email = ?"
+    "SELECT email, display_name, first_name, last_name, phone, is_admin, status FROM users WHERE email = ?"
   ).bind(email).first();
   const firstName = row?.first_name || "";
   const lastName = row?.last_name || "";
@@ -3477,10 +3486,37 @@ app.get("/api/admin/me/profile", async (c) => {
     lastName,
     phone: row?.phone || "",
     isAdmin: !!row?.is_admin,
+    // Account-approval status. New cooks sign up as 'pending' and
+    // sit behind a holding screen until an admin approves them.
+    // Invited cooks auto-approve in the invite-accept handler.
+    status: row?.status || "pending",
     // Names are required; phone is recommended but not enforced
     // because phone verification (MFA) is a later state.
     profileComplete: !!(firstName && lastName),
   });
+});
+
+// Admin: approve / decline a pending account.
+app.post("/api/admin/users/:email/approve", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
+  const target = c.req.param("email").toLowerCase();
+  await c.env.DB.prepare(
+    "UPDATE users SET status = 'approved' WHERE email = ?"
+  ).bind(target).run();
+  return c.json({ ok: true });
+});
+
+app.post("/api/admin/users/:email/decline", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
+  const target = c.req.param("email").toLowerCase();
+  await c.env.DB.prepare(
+    "UPDATE users SET status = 'declined' WHERE email = ?"
+  ).bind(target).run();
+  return c.json({ ok: true });
 });
 
 app.put("/api/admin/me/profile", async (c) => {

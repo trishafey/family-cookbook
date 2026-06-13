@@ -240,6 +240,25 @@ export function AdminUsers({ authEmail, onClose }) {
     }
   };
 
+  const updateStatus = async (email, action) => {
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(email)}/${action}`, {
+        method: "POST", credentials: "include",
+      });
+      if (!res.ok) {
+        const { error: msg } = await res.json().catch(() => ({}));
+        throw new Error(msg || `Could not ${action} user.`);
+      }
+      setUsers(prev => prev.map(u => u.email === email ? { ...u, status: action === "approve" ? "approved" : "declined" } : u));
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const pendingUsers = users.filter(u => u.status === "pending");
+  const otherUsers = users.filter(u => u.status !== "pending");
+
   return (
     <div className="settings-page" data-screen-label="12 Admin · Users">
       <button className="btn ghost" onClick={onClose} style={{ marginBottom: 16 }}>
@@ -259,8 +278,49 @@ export function AdminUsers({ authEmail, onClose }) {
       {loading ? (
         <div style={{ color: "var(--ink-3)" }}>Loading users…</div>
       ) : (
+        <>
+          {pendingUsers.length > 0 && (
+            <section style={{ marginBottom: 32 }}>
+              <div className="section-head" style={{ color: "var(--accent)" }}>
+                Pending approval ({pendingUsers.length})
+              </div>
+              <ul className="admin-users-list">
+                {pendingUsers.map(u => (
+                  <li key={u.email} className="admin-user-row pending">
+                    <div className="who">
+                      <div className="name">
+                        {u.displayName || u.email}
+                        <span className="role-tag pending-tag">pending</span>
+                      </div>
+                      <div className="email">{u.email}</div>
+                      {u.phone && <div className="meta">{u.phone}</div>}
+                      <div className="meta">requested {u.createdAt?.slice(0, 10)}</div>
+                    </div>
+                    <div className="row-actions">
+                      <button
+                        type="button"
+                        className="btn primary sm"
+                        onClick={() => updateStatus(u.email, "approve")}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost sm danger-link"
+                        onClick={() => updateStatus(u.email, "decline")}
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <div className="section-head">All users</div>
         <ul className="admin-users-list">
-          {users.map(u => {
+          {otherUsers.map(u => {
             const isSelf = u.email === authEmail;
             return (
               <li key={u.email} className="admin-user-row">
@@ -307,6 +367,7 @@ export function AdminUsers({ authEmail, onClose }) {
             );
           })}
         </ul>
+        </>
       )}
     </div>
   );

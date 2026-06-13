@@ -1,3 +1,30 @@
+// Holding screen for cooks whose account hasn't been approved yet.
+// Hit after sign-up if Patricia hasn't approved them. Shows the
+// pending state, lets them sign out, and refreshes itself so an
+// approved user doesn't have to manually reload.
+export function PendingApprovalGate({ authEmail, refreshProfile }) {
+  return (
+    <div className="profile-gate" data-screen-label="10b Pending approval">
+      <div className="profile-card">
+        <div className="eyebrow">You're on the list</div>
+        <h1>Thanks for signing up.</h1>
+        <p className="sub">
+          We're a small family cookbook, so new accounts get a quick once-over before they're in. Patricia will see your request shortly and let you in. We'll send a note when you're approved.
+        </p>
+        <p className="sub" style={{ marginTop: 12, fontSize: 14, color: "var(--ink-3)" }}>
+          Signed in as <strong>{authEmail}</strong>.
+        </p>
+        <div className="actions" style={{ justifyContent: "flex-start", gap: 8 }}>
+          <button type="button" className="btn primary" onClick={refreshProfile}>
+            Check status
+          </button>
+          <a className="btn ghost" href="/cdn-cgi/access/logout">Sign out</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Phase 4b-2 follow-up — first-sign-in profile setup.
 //
 // Gates the app behind a name + phone form for any cook whose

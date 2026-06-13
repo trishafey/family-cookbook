@@ -2917,6 +2917,16 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .admin-user-row .self-tag {
   background: var(--paper-2); color: var(--ink-3);
 }
+.admin-user-row .pending-tag {
+  background: color-mix(in srgb, var(--accent) 15%, var(--paper));
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.admin-user-row.pending {
+  background: color-mix(in srgb, var(--accent) 4%, var(--paper));
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+}
 .admin-user-row .row-actions { display: flex; gap: 6px; }
 
 /* Onboarding banner — nudges new cooks to invite people to
