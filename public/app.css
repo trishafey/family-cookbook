@@ -316,6 +316,17 @@ h4 { font-size: 17px; line-height: 1.3; }
   border-color: var(--accent);
   box-shadow: 0 12px 32px -16px rgba(28, 24, 19, .18);
 }
+/* Nav search keeps the full pill shape + paper bg + 56px
+   height across the collapse↔expand transition, so the
+   border-radius doesn't snap and the bar doesn't reflow
+   vertically as it widens. Scoped to .nav-inner so the
+   browse-page filter bar keeps its rounded-rect look. */
+.nav-inner .search {
+  border-radius: 999px;
+  background: var(--paper);
+  height: 56px;
+  padding: 0 8px 0 16px;
+}
 /* Hide / fade the input + trailing buttons while collapsed.
    They stay in the DOM so React doesn't unmount/remount across
    the transition; the same transition timings as max-width keep
