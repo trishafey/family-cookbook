@@ -1786,9 +1786,28 @@ app.post("/api/admin/ai/help", async (c) => {
     const bodyOut = body.length > 600 ? body.slice(0, 600) + "…" : body;
     return bodyOut ? `${head} — ${bodyOut}` : head;
   };
+  // Each ingredient line shows quantity + unit + item + the
+  // intuitive-measure note ("a generous pinch", "to taste"),
+  // which is often where the cook's real intent lives. The
+  // qty field is the canonical number; qtyNote is the prose.
   const fmtIng = (i) => {
-    const head = `${i.qty ?? ""} ${i.unit ?? ""} ${i.item}`.trim();
-    return i.note ? `${head} (${i.note})` : head;
+    const qty = i.qty && i.qty > 0 ? String(i.qty) : "";
+    const head = `${qty} ${i.unit ?? ""} ${i.item}`.trim().replace(/\s+/g, " ");
+    const note = i.qtyNote || i.note;
+    return note ? `${head} (${note})` : head;
+  };
+  // Group ingredients by their .grp tag so the model sees that
+  // "salt" in the Rub group is distinct from "salt" in the
+  // Brine group — same for "Sauce", "Topping", "Serve", etc.
+  const groupedIngs = (ings) => {
+    if (!Array.isArray(ings) || !ings.length) return [];
+    const byGrp = new Map();
+    for (const ing of ings) {
+      const g = ing.grp || "Ingredients";
+      if (!byGrp.has(g)) byGrp.set(g, []);
+      byGrp.get(g).push(fmtIng(ing));
+    }
+    return [...byGrp.entries()].map(([g, lines]) => ({ group: g, items: lines }));
   };
 
   const context = mealRecipes
@@ -1803,7 +1822,7 @@ app.post("/api/admin/ai/help", async (c) => {
           servings: r.servingsDefault,
           totalMin: r.total,
           diet:     r.diet || [],
-          ingredients: (r.ingredients || []).map(fmtIng),
+          ingredients: groupedIngs(r.ingredients),
           steps:       (r.steps || []).map(fmtStep),
           tips:        Array.isArray(r.tips) && r.tips.length ? r.tips : null,
         })),
@@ -1819,7 +1838,7 @@ app.post("/api/admin/ai/help", async (c) => {
         weightUnit: recipe.weightUnit || null,
         cookMinsPerLb: recipe.cookMinsPerLb || null,
         diet:     recipe.diet || [],
-        ingredients: (recipe.ingredients || []).map(fmtIng),
+        ingredients: groupedIngs(recipe.ingredients),
         steps:    (recipe.steps || []).map(fmtStep),
         tips:     Array.isArray(recipe.tips) && recipe.tips.length ? recipe.tips : null,
         currentStep: body?.currentStep
@@ -1840,16 +1859,39 @@ app.post("/api/admin/ai/help", async (c) => {
     ? `You are the kitchen-side AI helper inside a family cookbook. The cook is planning or cooking a multi-dish meal — keep the whole meal in mind, not just one dish. ${anchorRule} Reply in 2-4 short paragraphs, plain prose, written like a thoughtful family cook giving real advice. When asked about substitutions or scaling, name which dish you mean. When asked about prep order, think about what can be made ahead vs what has to be timed to finishing.`
     : `You are the kitchen-side AI helper inside a family cookbook. The cook is mid-recipe and needs a practical answer fast. ${anchorRule} Reply in 2-4 short paragraphs, plain prose, written like a thoughtful family cook giving real advice — not a list of caveats. Reference the recipe's actual ingredients and the cook's current step or servings when it helps. If the cook hasn't told you which ingredient/step they mean, ask ONE focused clarifying question first.`;
 
+  // Optional photo: the cook snaps a quick shot of the pan and
+  // attaches it to their question ("does this look right?",
+  // "is it ready?", "is this burning?"). The image rides along
+  // with the LAST user turn as a multimodal content array.
+  // gpt-4o is vision-capable so no model swap needed.
+  const imageDataUrl = typeof body?.imageDataUrl === "string" && body.imageDataUrl.startsWith("data:image/")
+    ? body.imageDataUrl
+    : null;
+
+  const turnMessages = turns.map((t, i) => {
+    const isLast = i === turns.length - 1;
+    if (isLast && imageDataUrl && t.role === "you") {
+      return {
+        role: "user",
+        content: [
+          { type: "text", text: t.text || "Look at this and tell me how it's going — is it on track for the recipe, ready, undercooked, burning?" },
+          { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
+        ],
+      };
+    }
+    return {
+      role: t.role === "ai" ? "assistant" : "user",
+      content: t.text,
+    };
+  });
+
   const messages = [
-    { role: "system", content: systemPrompt },
+    { role: "system", content: systemPrompt + (imageDataUrl ? "\n\nThe cook has attached a photo of what they're cooking right now. Look at it carefully — assess colour, doneness cues, liquid level, browning, texture — and compare against what the recipe's current step expects. Tell them concretely whether to keep going, adjust, or pull off the heat." : "") },
     {
       role: "user",
       content: `${mealRecipes ? "MEAL CONTEXT" : "RECIPE CONTEXT"}:\n${JSON.stringify(context, null, 2)}`,
     },
-    ...turns.map(t => ({
-      role: t.role === "ai" ? "assistant" : "user",
-      content: t.text,
-    })),
+    ...turnMessages,
   ];
 
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -1864,7 +1906,7 @@ app.post("/api/admin/ai/help", async (c) => {
   const result = await openaiRes.json();
   const answer = result?.choices?.[0]?.message?.content;
   if (!answer) return c.json({ error: "OpenAI returned no content." }, 502);
-  const lastUserTurn = [...turns].reverse().find(t => t.role === "user");
+  const lastUserTurn = [...turns].reverse().find(t => t.role === "user" || t.role === "you");
   logAiEvent(c, "help", recipe?.id || null, {
     ...aiTokens(result),
     turnCount: turns.length,
@@ -1872,6 +1914,7 @@ app.post("/api/admin/ai/help", async (c) => {
     fromCookMode: !!body?.cookState,
     mealMode: !!mealRecipes,
     mealDishCount: mealRecipes?.length || null,
+    withImage: !!imageDataUrl,
   });
   return c.json({ answer });
 });

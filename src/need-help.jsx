@@ -68,25 +68,70 @@ function makeMealHelpPrompts(recipes) {
   ];
 }
 
+// Read a File into a JPEG data URL, downscaled to maxDim on the
+// long edge so we don't ship a 5 MB phone photo over the wire.
+async function fileToScaledDataUrl(file, maxDim = 1280, quality = 0.82) {
+  const bmp = await createImageBitmap(file).catch(() => null);
+  if (!bmp) {
+    return await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+  const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+  const w = Math.round(bmp.width * scale);
+  const h = Math.round(bmp.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bmp, 0, 0, w, h);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+const VISION_CHIPS = [
+  { label: "Does this look right?", t: "Does this look right for where I should be?" },
+  { label: "Is it ready?",          t: "Is it ready, or does it need more time?" },
+  { label: "Am I burning it?",      t: "Am I burning this? Should I pull off the heat?" },
+  { label: "What's wrong?",         t: "Something looks off. What's wrong and how do I fix it?" },
+];
+
 export function NeedHelp({ recipe, recipes, currentStep, compact, defaultOpen, authEmail, servings, weight, appliedAdjustments }) {
   const [open, setOpen] = useState(!!defaultOpen);
   const [text, setText] = useState("");
   const [turns, setTurns] = useState([]);
   const [thinking, setThinking] = useState(false);
   const [error, setError] = useState(null);
+  const [photo, setPhoto] = useState(null); // { dataUrl, name }
   const inputRef = useRef(null);
   const convRef = useRef(null);
 
+  const onPickPhoto = async (file) => {
+    if (!file) return;
+    setError(null);
+    try {
+      const dataUrl = await fileToScaledDataUrl(file);
+      setPhoto({ dataUrl, name: file.name || "photo.jpg" });
+    } catch (err) {
+      setError("Couldn't read that photo. Try another.");
+    }
+  };
+
   const submit = async (promptText) => {
     const q = (promptText ?? text).trim();
-    if (!q) return;
+    // Allow image-only submission with a default prompt
+    if (!q && !photo) return;
     if (!authEmail) {
       setError("Sign in to ask the kitchen AI.");
       return;
     }
-    const nextTurns = [...turns, { role: "you", text: q }];
+    const effectiveText = q || "Look at this and tell me how it's going.";
+    const nextTurns = [...turns, { role: "you", text: effectiveText, photoDataUrl: photo?.dataUrl || null }];
+    const sentPhoto = photo;
     setTurns(nextTurns);
     setText("");
+    setPhoto(null);
     setThinking(true);
     setError(null);
     try {
@@ -97,11 +142,12 @@ export function NeedHelp({ recipe, recipes, currentStep, compact, defaultOpen, a
         body: JSON.stringify({
           recipe,
           recipes,
-          turns: nextTurns,
+          turns: nextTurns.map(({ photoDataUrl, ...rest }) => rest),
           currentStep,
           servings,
           weight,
           appliedAdjustments,
+          imageDataUrl: sentPhoto?.dataUrl || null,
         }),
       });
       if (!res.ok) {
@@ -115,6 +161,7 @@ export function NeedHelp({ recipe, recipes, currentStep, compact, defaultOpen, a
       // and they can retry without re-typing.
       setTurns(turns);
       setText(q);
+      setPhoto(sentPhoto);
       setError(err.message || "Could not reach the kitchen AI.");
     } finally {
       setThinking(false);
@@ -150,17 +197,33 @@ export function NeedHelp({ recipe, recipes, currentStep, compact, defaultOpen, a
       </summary>
       <div className="body">
         <div className="quick-prompts">
-          {prompts.map((p, i) => (
+          {(photo ? VISION_CHIPS : prompts).map((p, i) => (
             <button key={i} className="chip" onClick={() => submit(p.t)}>
               <Icon name="sparkle" size={12} /> {p.label}
             </button>
           ))}
         </div>
 
+        {photo && (
+          <div className="need-help-photo-preview">
+            <img src={photo.dataUrl} alt="Attached photo" />
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => setPhoto(null)}
+              aria-label="Remove photo"
+            >
+              <Icon name="x" size={13} /> Remove
+            </button>
+          </div>
+        )}
+
         <div className="input-area">
           <textarea
             ref={inputRef}
-            placeholder="Ask anything — 'I'm out of buttermilk', 'too much salt', 'can I bake this tomorrow?'…"
+            placeholder={photo
+              ? "Add anything else? Or just send — I'll look at the photo."
+              : "Ask anything — 'I'm out of buttermilk', 'too much salt', 'can I bake this tomorrow?'…"}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -169,8 +232,32 @@ export function NeedHelp({ recipe, recipes, currentStep, compact, defaultOpen, a
             rows={2}
             disabled={!authEmail}
           />
-          <button className="btn ai sm" disabled={!text.trim() || thinking || !authEmail} aria-busy={thinking} onClick={() => submit()}>
-            <Icon name="sparkle" size={13} /> Ask
+          <label
+            className="btn ghost sm need-help-photo-btn"
+            title="Snap a photo and ask 'does this look right?'"
+            aria-label="Attach a photo"
+            style={{ cursor: authEmail ? "pointer" : "not-allowed" }}
+          >
+            <Icon name="camera" size={14} />
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              style={{ display: "none" }}
+              disabled={!authEmail || thinking}
+              onChange={(e) => {
+                onPickPhoto(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <button
+            className="btn ai sm"
+            disabled={(!text.trim() && !photo) || thinking || !authEmail}
+            aria-busy={thinking}
+            onClick={() => submit()}
+          >
+            <Icon name="sparkle" size={13} /> {photo ? "Send photo" : "Ask"}
           </button>
         </div>
 
@@ -194,7 +281,16 @@ export function NeedHelp({ recipe, recipes, currentStep, compact, defaultOpen, a
                   </div>
                 )}
                 {t.role === "you" && (
-                  <div className="bubble">{t.text}</div>
+                  <div className="bubble">
+                    {t.photoDataUrl && (
+                      <img
+                        src={t.photoDataUrl}
+                        alt="Your attached photo"
+                        className="need-help-turn-photo"
+                      />
+                    )}
+                    {t.text}
+                  </div>
                 )}
               </div>
             ))}

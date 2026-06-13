@@ -1540,6 +1540,37 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   max-height: 360px; overflow-y: auto;
   display: flex; flex-direction: column; gap: 10px;
 }
+/* Attached-photo preview shown above the input before sending. */
+.need-help-photo-preview {
+  display: flex; align-items: center; gap: 12px;
+  margin: 10px 0 6px;
+  padding: 8px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+}
+.need-help-photo-preview img {
+  width: 72px; height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+/* Camera button sits in the input row between textarea and Ask. */
+.need-help-photo-btn {
+  width: 36px; height: 36px;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+/* Photo embedded inside a "you" turn after sending. */
+.need-help-turn-photo {
+  display: block;
+  max-width: 240px; max-height: 200px;
+  width: 100%; height: auto;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  object-fit: cover;
+}
 .need-help .turn {
   display: flex; gap: 10px;
 }
