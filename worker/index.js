@@ -128,7 +128,8 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
   ).bind(id).first();
   if (!cb) return c.json({ error: "not found" }, 404);
   const members = await c.env.DB.prepare(`
-    SELECT m.user_email, m.role, m.joined_at, u.display_name
+    SELECT m.user_email, m.role, m.joined_at,
+           u.display_name, u.first_name, u.last_name
     FROM cookbook_members m
     LEFT JOIN users u ON u.email = m.user_email
     WHERE m.cookbook_id = ?
@@ -153,6 +154,8 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
     members: (members.results || []).map(m => ({
       email: m.user_email,
       displayName: m.display_name || null,
+      firstName: m.first_name || null,
+      lastName: m.last_name || null,
       role: m.role,
       joinedAt: m.joined_at,
     })),

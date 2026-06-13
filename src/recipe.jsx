@@ -801,7 +801,7 @@ function StarRow({ value, onChange, readOnly, size = 18 }) {
   );
 }
 
-function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOpen }) {
+function CommentsPanel({ recipe, addComment, deleteComment, authEmail, profile, defaultOpen }) {
   const { t } = useLang();
   // recipe.comments holds the original cookbook's curated placeholder
   // notes (left over from the seed data). The shared family notes live
@@ -809,7 +809,14 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
   const all = recipe.liveComments || [];
   const photos = all.filter(c => c.photo).map(c => ({ id: c.id, url: c.photo, name: c.name }));
 
-  const [cName, setCName] = useState("");
+  // Phase 4b-5: a signed-in cook's display name comes from their
+  // profile — no need to retype it on every comment. Falls back
+  // to the manual input only if profile isn't loaded yet.
+  const profileName = profile?.displayName
+    || [profile?.firstName, profile?.lastName].filter(Boolean).join(" ")
+    || "";
+  const [cName, setCName] = useState(profileName);
+  useEffect(() => { if (profileName) setCName(profileName); }, [profileName]);
   const [cText, setCText] = useState("");
   const [cRating, setCRating] = useState(0);
   const [cPhoto, setCPhoto] = useState(null);
@@ -917,7 +924,13 @@ function CommentsPanel({ recipe, addComment, deleteComment, authEmail, defaultOp
         {authEmail ? (
           <form className="comment-form" onSubmit={submit} style={{ marginTop: 16 }}>
             <h4 style={{ marginBottom: 8 }}>{t("leaveANote")}</h4>
-            <input type="text" placeholder={t("yourName")} value={cName} onChange={(e) => setCName(e.target.value)} required disabled={posting} />
+            {profileName ? (
+              <div className="comment-as">
+                Posting as <strong>{profileName}</strong>
+              </div>
+            ) : (
+              <input type="text" placeholder={t("yourName")} value={cName} onChange={(e) => setCName(e.target.value)} required disabled={posting} />
+            )}
             <textarea placeholder={t("commentPlaceholder")} value={cText} onChange={(e) => setCText(e.target.value)} required disabled={posting} />
             <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               <label style={{ fontSize: 12, color: "var(--ink-3)" }}>{t("ratingOptional")}</label>
@@ -1062,7 +1075,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
                           doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                           onCookMode, onShop, comments, addComment, deleteComment,
                           allRecipes, onSaveRecipe, openRecipe, onSaveToLab,
-                          authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
+                          authEmail, profile, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
   const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <>
@@ -1140,7 +1153,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
       </div>
       <div>
         <CooksNotes recipe={recipe} defaultOpen={true} scaler={scaler} applied={applied} setApplied={setApplied} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
-        <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={true} />
+        <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} profile={profile} defaultOpen={true} />
       </div>
     </>
   );
@@ -1234,7 +1247,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <span className="label">From the family</span>
       </div>
       <CooksNotes recipe={recipe} defaultOpen={true} scaler={scaler} applied={applied} setApplied={setApplied} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
-      <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={true} />
+      <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} profile={profile} defaultOpen={true} />
     </>
   );
 }
@@ -1247,7 +1260,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
                        doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                        onCookMode, onShop, comments, addComment, deleteComment,
                        allRecipes, onSaveRecipe, openRecipe,
-                       authEmail, onEditRecipe, onDeleteRecipe, simpleMode }) {
+                       authEmail, profile, onEditRecipe, onDeleteRecipe, simpleMode }) {
   const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <div className="recipe-binder">
@@ -1326,7 +1339,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <span className="label">Margin notes</span>
       </div>
       <CooksNotes recipe={recipe} defaultOpen={true} scaler={scaler} applied={applied} setApplied={setApplied} onSaveRecipe={onSaveRecipe} authEmail={authEmail} />
-      <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} defaultOpen={true} />
+      <CommentsPanel recipe={recipe} addComment={addComment} deleteComment={deleteComment} authEmail={authEmail} profile={profile} defaultOpen={true} />
     </div>
   );
 }
@@ -1334,7 +1347,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
 // ─────────────────────────────────────────────────────────────
 // Top-level Recipe detail — holds all state, picks the variant
 // ─────────────────────────────────────────────────────────────
-export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, deleteComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
+export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, deleteComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, profile, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
   const { t } = useLang();
 
   // Log one view per recipe id change. Doesn't dedupe within a session
@@ -1441,7 +1454,7 @@ export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, 
     onCookMode, onShop, comments, addComment, deleteComment,
     allRecipes, onSaveRecipe, onSaveToLab,
     openRecipe: onOpenRecipe || ((r) => {}),
-    authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith,
+    authEmail, profile, onEditRecipe, onDeleteRecipe, onBuildMealWith,
     simpleMode,
   };
 

@@ -2647,6 +2647,94 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-family: var(--serif);
 }
 
+/* ─── Author picker (multi-select) ─── */
+.author-picker { position: relative; }
+.author-picker-trigger {
+  width: 100%; min-height: 40px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 6px 36px 6px 10px;
+  background: var(--paper);
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  font: inherit; color: inherit;
+  position: relative;
+}
+.author-picker-trigger:hover { border-color: var(--accent); }
+.author-picker-trigger .placeholder {
+  color: var(--ink-4);
+  font-family: var(--serif); font-style: italic; font-size: 14px;
+}
+.author-picker-trigger .caret {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--ink-3); font-size: 12px;
+}
+.author-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px 3px 10px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent);
+  border-radius: 999px;
+  font-size: 13px;
+}
+.author-pill .x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px;
+  border-radius: 999px;
+  font-size: 14px; line-height: 1;
+  cursor: pointer;
+  color: var(--accent);
+}
+.author-pill .x:hover { background: var(--accent); color: var(--paper); }
+.author-picker-menu {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  z-index: 60;
+  background: var(--paper);
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  box-shadow: 0 12px 28px rgba(0,0,0,.10);
+  padding: 6px;
+  max-height: 280px; overflow-y: auto;
+}
+.author-picker-menu .empty {
+  padding: 10px 12px; color: var(--ink-3);
+  font-family: var(--serif); font-style: italic; font-size: 13px;
+}
+.author-picker-menu .row {
+  display: grid; grid-template-columns: 20px 1fr auto;
+  gap: 8px; align-items: center;
+  padding: 6px 10px;
+  border-radius: 4px; cursor: pointer;
+}
+.author-picker-menu .row:hover { background: var(--paper-2); }
+.author-picker-menu .row .name { font-size: 14px; color: var(--ink); }
+.author-picker-menu .row .email {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+}
+.author-picker-menu .row .self {
+  margin-left: 6px;
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--paper-2); color: var(--ink-3);
+  padding: 1px 6px; border-radius: 999px;
+}
+
+/* "Posting as <Name>" chip for the comment form. */
+.comment-as {
+  display: inline-flex; align-items: center;
+  padding: 6px 12px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-size: 13px; color: var(--ink-3);
+  font-family: var(--serif); font-style: italic;
+  margin-bottom: 8px;
+}
+.comment-as strong {
+  color: var(--ink); font-style: normal; font-weight: 500;
+  margin-left: 4px;
+}
+
 /* ─── Signed-out landing ─── */
 .landing-page {
   min-height: calc(100vh - 80px);

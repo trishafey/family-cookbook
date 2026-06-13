@@ -748,7 +748,98 @@ function StepsEditor({ steps, onChange, sectionOrder, onSectionOrderChange }) {
   );
 }
 
-export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe = null, usedCuisines = [], usedAuthors = [] }) {
+// Author picker — multi-select over the active cookbook's members.
+// Renders selected first names as pills and a checkbox list under
+// a dropdown. The current cook is offered first so the common
+// case ("I made this") is one click.
+function AuthorPicker({ members, selected, onChange, authEmail }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open]);
+
+  const byEmail = useMemo(() => new Map(members.map(m => [m.email, m])), [members]);
+  const firstName = (m) =>
+    m?.firstName
+    || (m?.displayName ? m.displayName.split(" ")[0] : null)
+    || (m?.email ? m.email.split("@")[0] : null)
+    || "(unknown)";
+
+  // Sort: current cook first, then alpha by first name.
+  const sorted = useMemo(() => {
+    return [...members].sort((a, b) => {
+      if (a.email === authEmail) return -1;
+      if (b.email === authEmail) return 1;
+      return firstName(a).localeCompare(firstName(b));
+    });
+  }, [members, authEmail]);
+
+  const toggle = (email) => {
+    if (selected.includes(email)) {
+      onChange(selected.filter(e => e !== email));
+    } else {
+      onChange([...selected, email]);
+    }
+  };
+
+  return (
+    <div className="author-picker" ref={ref}>
+      <button
+        type="button"
+        className="author-picker-trigger"
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        {selected.length === 0 ? (
+          <span className="placeholder">Add who made this — or leave blank</span>
+        ) : (
+          selected.map(email => {
+            const m = byEmail.get(email);
+            return (
+              <span key={email} className="author-pill">
+                {firstName(m)}
+                <span
+                  className="x"
+                  onClick={(e) => { e.stopPropagation(); toggle(email); }}
+                  role="button"
+                  aria-label={`Remove ${firstName(m)}`}
+                >×</span>
+              </span>
+            );
+          })
+        )}
+        <span className="caret" aria-hidden>▾</span>
+      </button>
+      {open && (
+        <div className="author-picker-menu" role="listbox">
+          {sorted.length === 0 ? (
+            <div className="empty">No members to pick from yet.</div>
+          ) : sorted.map(m => (
+            <label key={m.email} className="row">
+              <input
+                type="checkbox"
+                checked={selected.includes(m.email)}
+                onChange={() => toggle(m.email)}
+              />
+              <span className="name">
+                {firstName(m)}
+                {m.email === authEmail && <span className="self">you</span>}
+              </span>
+              <span className="email">{m.email}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function AddRecipe({ onClose, onSave, onDelete, authEmail, profile, activeCookbookId, initialRecipe = null, usedCuisines = [], usedAuthors = [] }) {
   const { t, tCourse, tOccasion, tDiet, tDifficulty, tOrigin, lang, setLang } = useLang();
   const editing = Boolean(initialRecipe);
   const [saving, setSaving] = useState(false);
@@ -802,6 +893,19 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     pendingImages.forEach(p => URL.revokeObjectURL(p.preview));
   }, []);
 
+  // Phase 4b-5: pull the active cookbook's members so the "Added
+  // by" picker can offer first-name multi-select. Fetched once on
+  // mount; falls back to an empty list if the call fails (the
+  // form still works — author is then uncredited).
+  const [cookbookMembers, setCookbookMembers] = useState([]);
+  useEffect(() => {
+    if (!activeCookbookId || !authEmail) return;
+    fetch(`/api/admin/cookbooks/${activeCookbookId}`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.members) setCookbookMembers(data.members); })
+      .catch(() => {});
+  }, [activeCookbookId, authEmail]);
+
   // Manual form initial
   const newDraft = () => ({
     id: `recipe-${Date.now()}`,
@@ -812,7 +916,14 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
     canonical_lang: lang || "en",
     title: "",
     subtitle: "",
-    author: "",
+    // Phase 4b-5: default to crediting the current cook. Pre-
+    // populated with their first name so the display works even
+    // before the cookbook members fetch returns.
+    author: profile?.firstName || (profile?.displayName ? profile.displayName.split(" ")[0] : "") || "",
+    // Multi-select authors (emails). Display pills are looked up
+    // by first_name via the cookbook members list. Empty array
+    // means the recipe is uncredited.
+    authorEmails: authEmail ? [authEmail] : [],
     cuisine: "",
     course: "Dinner",
     diet: [],
@@ -1325,15 +1436,26 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, initialRecipe 
           <div className="input-row">
             <label>{t("addedByLbl")}</label>
             <div>
-              {/* Plain free-text. The past-authors datalist used to
-                  drop down a list of every name seen in the cookbook,
-                  but it turns out cooks would rather just type their
-                  own name without being nudged into "Patricia" by
-                  default. */}
-              <input
-                value={draft.author}
-                onChange={(e) => setDraft({ ...draft, author: e.target.value })}
-                placeholder={t("yourName")}
+              {/* Phase 4b-5: multi-select picker drawn from the
+                  active cookbook's members. Pills show first
+                  names only. Empty selection = uncredited. */}
+              <AuthorPicker
+                members={cookbookMembers}
+                selected={draft.authorEmails || []}
+                onChange={(emails) => {
+                  // Keep recipe.author in sync as a comma-joined
+                  // string of first names so the existing
+                  // display code (recipe-tag.author, hero
+                  // byline, etc.) renders correctly without a
+                  // separate code path.
+                  const byEmail = new Map(cookbookMembers.map(m => [m.email, m]));
+                  const names = emails
+                    .map(e => byEmail.get(e))
+                    .map(m => m?.firstName || (m?.displayName ? m.displayName.split(" ")[0] : null) || (m?.email ? m.email.split("@")[0] : null))
+                    .filter(Boolean);
+                  setDraft({ ...draft, authorEmails: emails, author: names.join(", ") });
+                }}
+                authEmail={authEmail}
               />
             </div>
           </div>

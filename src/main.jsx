@@ -695,6 +695,7 @@ function App() {
           onOpenRecipe={openRecipe}
           onSaveToLab={onSaveToLab}
           authEmail={authEmail}
+          profile={profile}
           onEditRecipe={onEditRecipe}
           onDeleteRecipe={onDeleteRecipe}
           onBuildMealWith={(paired) => buildMealWith(recipe, paired)}
@@ -703,7 +704,15 @@ function App() {
         </ErrorBoundary>
       )}
       {view === "add" && (
-        <AddRecipe onClose={backToBrowse} onSave={onSaveRecipe} authEmail={authEmail} usedCuisines={usedCuisines} usedAuthors={usedAuthors} />
+        <AddRecipe
+          onClose={backToBrowse}
+          onSave={onSaveRecipe}
+          authEmail={authEmail}
+          profile={profile}
+          activeCookbookId={activeCookbookId}
+          usedCuisines={usedCuisines}
+          usedAuthors={usedAuthors}
+        />
       )}
       {view === "edit" && (() => {
         // IMPORTANT: read from canonicalRecipes, NOT the localized
@@ -727,6 +736,8 @@ function App() {
               onSave={onSaveRecipe}
               onDelete={onDeleteRecipe}
               authEmail={authEmail}
+              profile={profile}
+              activeCookbookId={activeCookbookId}
               initialRecipe={editingRecipe}
               usedCuisines={usedCuisines}
               usedAuthors={usedAuthors}
