@@ -443,7 +443,12 @@ export function applySectionOrder(items, getSection, order, defaultName = "") {
 export const BOOTSTRAP_COOKBOOK_ID = "family-cookbook";
 
 export function useRecipes(cookbookId = BOOTSTRAP_COOKBOOK_ID) {
-  const cacheKey = `recipes:cache:${cookbookId}`;
+  // Phase 4b-5 fix: bump the cache version so any localStorage
+  // entries written under the old key (which were corrupted by
+  // the pre-fix useStorage bug — wrong cookbook's recipes
+  // landed under the new cookbook's key) get ignored. A fresh
+  // fetch populates the v2 key with the right data.
+  const cacheKey = `recipes:cache:v2:${cookbookId}`;
   const [rawRecipes, setRecipes] = useStorage(cacheKey, []);
   // Re-normalize cached recipes too — a stale cache from before the
   // normalizer existed might still be missing fields.
