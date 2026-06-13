@@ -45,19 +45,18 @@ function useIsTabletUp() {
 // the cook is typing; clicking one opens the recipe.
 function NavSearch({ query, setQuery, placeholder, mobilePlaceholder, simpleMode, onOpenFilters, filtersLabel, recipes, onOpenRecipe }) {
   const isTabletUp = useIsTabletUp();
-  // On tablet/desktop the bar starts collapsed; on mobile it's
-  // always expanded.
-  const [expanded, setExpanded] = useState(!isTabletUp);
+  // Bar starts collapsed on every viewport — the pill icon next to
+  // the brand. Tapping expands; blur or click-away with an empty
+  // input collapses again. On mobile the expanded bar drops to
+  // row 2 of the nav (full width); on tablet/desktop it inflates
+  // inline.
+  const [expanded, setExpanded] = useState(false);
   const inputRef = useRef(null);
   const wrapRef = useRef(null);
   const [focused, setFocused] = useState(false);
-  // Re-sync when the breakpoint flips (rotating an iPad, etc.).
   useEffect(() => {
-    if (!isTabletUp) setExpanded(true);
-  }, [isTabletUp]);
-  useEffect(() => {
-    if (expanded && isTabletUp) inputRef.current?.focus();
-  }, [expanded, isTabletUp]);
+    if (expanded) inputRef.current?.focus();
+  }, [expanded]);
   // Close suggestions when clicking outside the search wrapper.
   useEffect(() => {
     if (!focused) return;
@@ -68,16 +67,14 @@ function NavSearch({ query, setQuery, placeholder, mobilePlaceholder, simpleMode
     return () => document.removeEventListener("mousedown", onDown);
   }, [focused]);
   const handleBlur = () => {
-    // Only collapse on tablet/desktop, and only when empty.
-    if (isTabletUp && !query) setExpanded(false);
+    // Collapse on blur whenever the input is empty — same rule on
+    // mobile and desktop now.
+    if (!query) setExpanded(false);
   };
   // Single DOM tree in both states — toggling a .collapsed class
   // on the wrapper lets CSS transitions animate width AND opacity
   // symmetrically (the open animation is the reverse of close).
-  // The old implementation returned two completely different
-  // component trees per state, which React swapped instantly with
-  // no transition possible.
-  const collapsed = isTabletUp && !expanded;
+  const collapsed = !expanded;
   const suggestions = focused && !collapsed ? recipeSuggestions(query, recipes) : [];
   // Pick the right placeholder for the viewport — the long
   // "Search by recipe, cook, cuisine, or ingredient…" gets
