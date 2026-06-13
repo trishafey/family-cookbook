@@ -633,6 +633,8 @@ function parsePath(p) {
   if (p === "/meal-plan" || p === "/meal-plan/") return { view: "meal-plan", recipeId: null, editingId: null };
   if (p === "/lab" || p === "/lab/") return { view: "lab", recipeId: null, editingId: null };
   if (p === "/cookbooks" || p === "/cookbooks/") return { view: "cookbooks", recipeId: null, editingId: null };
+  if (p === "/settings" || p === "/settings/") return { view: "settings", recipeId: null, editingId: null };
+  if (p === "/admin/users" || p === "/admin/users/") return { view: "admin-users", recipeId: null, editingId: null };
   if (p === "/admin/ai-usage" || p === "/admin/ai-usage/") return { view: "admin-ai-usage", recipeId: null, editingId: null };
   // Unknown path → fall back to browse instead of 404ing the SPA.
   return { view: "browse", recipeId: null, editingId: null };
@@ -648,6 +650,8 @@ function buildPath({ view, recipeId, editingId, inviteToken }) {
     case "meal-plan":       return "/meal-plan";
     case "lab":             return "/lab";
     case "cookbooks":       return "/cookbooks";
+    case "settings":        return "/settings";
+    case "admin-users":     return "/admin/users";
     case "admin-ai-usage":  return "/admin/ai-usage";
     case "browse":
     default:                return "/";

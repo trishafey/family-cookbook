@@ -14,6 +14,8 @@ import { ExperimentationLab } from "./experiment.jsx";
 import { CookbooksIndex } from "./cookbooks.jsx";
 import { InviteAccept } from "./invite.jsx";
 import { ProfileSetupGate } from "./profile.jsx";
+import { AccountSettings, AdminUsers } from "./settings.jsx";
+import { SignedOutLanding } from "./landing.jsx";
 import { BuildAMeal } from "./meal.jsx";
 import { PlanMealModal, MealPlanPage } from "./meal-plan.jsx";
 import { ShoppingList } from "./shopping.jsx";
@@ -283,7 +285,7 @@ function App() {
   const { t, tDiet, tOccasion, tCourse } = useLang();
 
   // ─── Sign-in state ───
-  const { email: authEmail } = useAuth();
+  const { email: authEmail, loading: authLoading } = useAuth();
   // Phase 4a-2: the cook's cookbook memberships. Drives the nav
   // switcher (hidden when there's only one), the cookbooks index,
   // and the active-cookbook validation below.
@@ -520,6 +522,16 @@ function App() {
   const openRecipe = (r) => { setRecipeId(r.id); setView("recipe"); window.scrollTo(0, 0); };
   const backToBrowse = () => { setView("browse"); window.scrollTo(0, 0); };
 
+  // Signed-out landing: if the cook isn't authenticated and isn't
+  // hitting a path that has its own public surface (recipe deep
+  // link, invite acceptance), render the marketing / sign-in
+  // landing instead of dropping them on the empty browse view.
+  // Wait for authLoading so we don't flicker the landing during
+  // the initial auth probe.
+  if (!authLoading && !authEmail && view !== "invite" && view !== "recipe") {
+    return <SignedOutLanding />;
+  }
+
   // Profile gate: signed-in cooks without first/last name on file
   // see a setup form before anything else. Skipped on the public
   // /invite/:token page so the invitee can see who invited them
@@ -602,9 +614,12 @@ function App() {
               <AvatarMenu
                 email={authEmail}
                 simpleMode={simpleMode}
+                isAdmin={!!profile?.isAdmin}
                 onToggleSimpleMode={() => setSimpleMode(m => !m)}
                 onAdminAIUsage={() => setView("admin-ai-usage")}
                 onMyCookbooks={() => setView("cookbooks")}
+                onSettings={() => setView("settings")}
+                onAdminUsers={() => setView("admin-users")}
               />
             ) : (
               <a className="btn sm sign-in" href={signInUrl()} title={t("signIn")}>
@@ -741,6 +756,20 @@ function App() {
           token={inviteToken}
           authEmail={authEmail}
           onAccepted={(cookbookId) => { setActiveCookbookId(cookbookId); backToBrowse(); }}
+          onClose={backToBrowse}
+        />
+      )}
+      {view === "settings" && (
+        <AccountSettings
+          profile={profile}
+          saveProfile={saveProfile}
+          refreshProfile={refreshProfile}
+          onClose={backToBrowse}
+        />
+      )}
+      {view === "admin-users" && (
+        <AdminUsers
+          authEmail={authEmail}
           onClose={backToBrowse}
         />
       )}
@@ -996,11 +1025,14 @@ function MobileMenuDrawer({
   );
 }
 
-function AvatarMenu({ email, simpleMode, onToggleSimpleMode, onAdminAIUsage, onMyCookbooks }) {
+function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, onToggleSimpleMode, onAdminAIUsage, onMyCookbooks, onSettings, onAdminUsers }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const initial = (email[0] || "?").toUpperCase();
   const { t } = useLang();
+  // Legacy email-based admin allowlist still gates the AI-usage
+  // entry. The new isSystemAdmin prop (from users.is_admin) gates
+  // the user-management entry — they may overlap or not.
   const isAdmin = ADMIN_EMAILS.includes(email);
 
   useEffect(() => {
@@ -1030,6 +1062,26 @@ function AvatarMenu({ email, simpleMode, onToggleSimpleMode, onAdminAIUsage, onM
               style={itemBtnStyle}
             >
               My cookbooks
+            </button>
+          )}
+          {onSettings && (
+            <button
+              type="button"
+              className="item"
+              onClick={() => { setOpen(false); onSettings(); }}
+              style={itemBtnStyle}
+            >
+              Account settings
+            </button>
+          )}
+          {isSystemAdmin && onAdminUsers && (
+            <button
+              type="button"
+              className="item"
+              onClick={() => { setOpen(false); onAdminUsers(); }}
+              style={itemBtnStyle}
+            >
+              Admin · users
             </button>
           )}
           <button

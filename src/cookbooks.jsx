@@ -167,7 +167,9 @@ function MembersSection({ cookbook, authEmail, onMembersChanged }) {
         setTimeout(() => setLastSentEmail(null), 3500);
       } else {
         try { await navigator.clipboard.writeText(link); setCopiedToken(invitation.token); setTimeout(() => setCopiedToken(null), 2200); } catch {}
-        if (emailError && emailError !== "no recipient" && emailError !== "not configured") {
+        if (emailError === "not configured" && invitation.email) {
+          setError("Email delivery isn't configured yet (no RESEND_API_KEY on the Worker). The invite link's on your clipboard — paste it into a message for them.");
+        } else if (emailError && emailError !== "no recipient") {
           setError(`Created the invite, but email delivery failed (${emailError}). The link's been copied to your clipboard.`);
         }
       }

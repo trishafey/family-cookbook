@@ -3463,7 +3463,7 @@ app.get("/api/admin/me/profile", async (c) => {
   if (!email) return c.json({ error: "not signed in" }, 401);
   await ensureUserBootstrap(c);
   const row = await c.env.DB.prepare(
-    "SELECT email, display_name, first_name, last_name, phone FROM users WHERE email = ?"
+    "SELECT email, display_name, first_name, last_name, phone, is_admin FROM users WHERE email = ?"
   ).bind(email).first();
   const firstName = row?.first_name || "";
   const lastName = row?.last_name || "";
@@ -3473,6 +3473,7 @@ app.get("/api/admin/me/profile", async (c) => {
     firstName,
     lastName,
     phone: row?.phone || "",
+    isAdmin: !!row?.is_admin,
     // Names are required; phone is recommended but not enforced
     // because phone verification (MFA) is a later state.
     profileComplete: !!(firstName && lastName),
@@ -3498,6 +3499,115 @@ app.put("/api/admin/me/profile", async (c) => {
   return c.json({
     email, displayName, firstName, lastName, phone, profileComplete: true,
   });
+});
+
+// ─── Account deletion ───
+// Cascading delete for a user. Owned cookbooks (and their
+// recipes/comments/favourites/ai_events/invitations/members)
+// are removed. Memberships in other cookbooks are removed.
+// Personal data (favorites, lab_experiments, user_prefs,
+// pending invites the cook sent) goes too. The users row is
+// removed last. ai_events history is preserved with the
+// original email so usage analytics survive — a future
+// "fully erase" path could anonymise these.
+async function deleteUserCascade(env, email) {
+  const cookbooks = (await env.DB.prepare(
+    "SELECT id FROM cookbooks WHERE owner_email = ?"
+  ).bind(email).all()).results || [];
+
+  for (const { id: cbId } of cookbooks) {
+    const recipes = (await env.DB.prepare(
+      "SELECT id FROM recipes WHERE cookbook_id = ?"
+    ).bind(cbId).all()).results || [];
+    for (const { id: rid } of recipes) {
+      await env.DB.prepare("DELETE FROM comments WHERE recipe_id = ?").bind(rid).run().catch(() => {});
+      await env.DB.prepare("DELETE FROM favorites WHERE recipe_id = ?").bind(rid).run().catch(() => {});
+    }
+    await env.DB.prepare("DELETE FROM recipes WHERE cookbook_id = ?").bind(cbId).run().catch(() => {});
+    await env.DB.prepare("DELETE FROM invitations WHERE cookbook_id = ?").bind(cbId).run().catch(() => {});
+    await env.DB.prepare("DELETE FROM cookbook_members WHERE cookbook_id = ?").bind(cbId).run().catch(() => {});
+    await env.DB.prepare("DELETE FROM cookbooks WHERE id = ?").bind(cbId).run().catch(() => {});
+  }
+
+  await env.DB.prepare("DELETE FROM cookbook_members WHERE user_email = ?").bind(email).run().catch(() => {});
+  await env.DB.prepare("DELETE FROM favorites WHERE user_email = ?").bind(email).run().catch(() => {});
+  await env.DB.prepare("DELETE FROM lab_experiments WHERE owner_email = ?").bind(email).run().catch(() => {});
+  await env.DB.prepare("DELETE FROM user_prefs WHERE user_email = ?").bind(email).run().catch(() => {});
+  await env.DB.prepare("DELETE FROM invitations WHERE invited_by = ? AND accepted_at IS NULL").bind(email).run().catch(() => {});
+  await env.DB.prepare("DELETE FROM users WHERE email = ?").bind(email).run().catch(() => {});
+}
+
+// Self-delete. Refuses if the user still owns the historical
+// bootstrap family cookbook — that cookbook predates the
+// multi-tenant work and is the family's shared root, so we
+// require ownership to be transferred via the Members tab
+// before letting the cook walk away.
+app.delete("/api/admin/me/account", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const bootstrap = await c.env.DB.prepare(
+    "SELECT id FROM cookbooks WHERE id = ? AND owner_email = ?"
+  ).bind(BOOTSTRAP_COOKBOOK_ID, email).first();
+  if (bootstrap) {
+    return c.json({
+      error: "transfer ownership of the Heirloom Family Cookbook before deleting your account",
+    }, 400);
+  }
+  await deleteUserCascade(c.env, email);
+  return c.json({ ok: true });
+});
+
+// Admin user management: list all users + delete a user.
+app.get("/api/admin/users", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
+  const rows = await c.env.DB.prepare(`
+    SELECT u.email, u.display_name, u.first_name, u.last_name, u.phone,
+           u.tier, u.status, u.is_admin, u.created_at, u.last_seen_at,
+           (SELECT COUNT(*) FROM cookbooks WHERE owner_email = u.email) AS owned_count,
+           (SELECT COUNT(*) FROM cookbook_members WHERE user_email = u.email) AS membership_count
+    FROM users u
+    ORDER BY (u.email = ?) DESC, u.created_at ASC
+  `).bind(email).all();
+  return c.json({
+    users: (rows.results || []).map(r => ({
+      email: r.email,
+      displayName: r.display_name || null,
+      firstName: r.first_name || null,
+      lastName: r.last_name || null,
+      phone: r.phone || null,
+      tier: r.tier,
+      status: r.status,
+      isAdmin: !!r.is_admin,
+      createdAt: r.created_at,
+      lastSeenAt: r.last_seen_at,
+      ownedCount: r.owned_count,
+      membershipCount: r.membership_count,
+    })),
+  });
+});
+
+app.delete("/api/admin/users/:email", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
+  const target = c.req.param("email").toLowerCase();
+  if (target === email.toLowerCase()) {
+    return c.json({ error: "use /api/admin/me/account to delete your own account" }, 400);
+  }
+  // Refuse to nuke the bootstrap cookbook owner — Patricia keeps
+  // a guard rail against accidentally deleting the root account.
+  const ownsBootstrap = await c.env.DB.prepare(
+    "SELECT id FROM cookbooks WHERE id = ? AND owner_email = ?"
+  ).bind(BOOTSTRAP_COOKBOOK_ID, target).first();
+  if (ownsBootstrap) {
+    return c.json({
+      error: "this user owns the Heirloom Family Cookbook — transfer ownership first",
+    }, 400);
+  }
+  await deleteUserCascade(c.env, target);
+  return c.json({ ok: true });
 });
 
 // ─── Cooking preferences ───
