@@ -79,7 +79,9 @@ app.get("/api/admin/cookbooks", async (c) => {
     ? await c.env.DB.prepare(`
         SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
                c.cover_photo, c.created_at, c.updated_at,
-               m.role AS your_role, m.joined_at
+               m.role AS your_role, m.joined_at,
+               (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
+               (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count
         FROM cookbooks c
         LEFT JOIN cookbook_members m
           ON m.cookbook_id = c.id AND m.user_email = ?
@@ -88,7 +90,9 @@ app.get("/api/admin/cookbooks", async (c) => {
     : await c.env.DB.prepare(`
         SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
                c.cover_photo, c.created_at, c.updated_at,
-               m.role AS your_role, m.joined_at
+               m.role AS your_role, m.joined_at,
+               (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
+               (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count
         FROM cookbooks c
         JOIN cookbook_members m ON m.cookbook_id = c.id
         WHERE m.user_email = ?
@@ -110,6 +114,8 @@ app.get("/api/admin/cookbooks", async (c) => {
       yourRole: r.your_role || (admin ? "admin" : null),
       adminAccess: admin && !r.your_role,
       joinedAt: r.joined_at,
+      memberCount: r.member_count || 0,
+      recipeCount: r.recipe_count || 0,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     })),

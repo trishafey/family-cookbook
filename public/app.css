@@ -2647,6 +2647,65 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-family: var(--serif);
 }
 
+/* Admin · all cookbooks searchable table. */
+.admin-cookbooks .head-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin-bottom: 12px; flex-wrap: wrap;
+}
+.admin-cookbooks .admin-search {
+  flex: 0 1 320px;
+  padding: 8px 12px;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  background: var(--paper);
+  font-size: 14px; font: inherit;
+}
+.admin-cookbooks .admin-search:focus { outline: none; border-color: var(--accent); }
+.admin-table-wrap {
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  overflow: auto;
+  background: var(--paper);
+}
+.admin-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px;
+}
+.admin-table th, .admin-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: middle;
+}
+.admin-table th {
+  background: var(--paper-2);
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 600;
+}
+.admin-table td.num, .admin-table th.num { text-align: right; }
+.admin-table tbody tr:last-child td { border-bottom: 0; }
+.admin-table tbody tr:hover { background: var(--paper-2); }
+.admin-table tr.active { background: color-mix(in srgb, var(--accent) 6%, var(--paper)); }
+.admin-table .email {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+}
+.admin-table .link {
+  background: none; border: 0; padding: 0;
+  cursor: pointer;
+  font: inherit; font-family: var(--serif); font-style: italic;
+  color: var(--ink); text-align: left;
+}
+.admin-table .link:hover { color: var(--accent); text-decoration: underline; }
+.admin-table .empty {
+  text-align: center;
+  font-family: var(--serif); font-style: italic;
+  color: var(--ink-3); padding: 24px;
+}
+.admin-table-foot {
+  margin-top: 8px;
+  font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+  letter-spacing: 0.08em;
+}
+
 /* Pending-approval badge on the admin avatar + menu entry. */
 .avatar { position: relative; }
 .avatar-badge {

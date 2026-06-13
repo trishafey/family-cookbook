@@ -25,6 +25,94 @@ function buildInviteMessage(cookbookName, inviteEmail, link) {
   return parts.join(" ");
 }
 
+// Admin · all cookbooks — searchable table covering every
+// cookbook in the system. Used in the "My cookbooks" view for
+// admins; for non-admins the underlying section just hides.
+function AdminCookbookTable({ cookbooks, activeCookbookId, authEmail, onOpenCookbook, onEdit }) {
+  const [q, setQ] = useState("");
+  const filtered = cookbooks.filter(c => {
+    if (!q.trim()) return true;
+    const needle = q.toLowerCase();
+    return (
+      c.name?.toLowerCase().includes(needle) ||
+      c.ownerEmail?.toLowerCase().includes(needle) ||
+      c.blurb?.toLowerCase().includes(needle) ||
+      c.visibility?.toLowerCase().includes(needle) ||
+      c.yourRole?.toLowerCase().includes(needle)
+    );
+  });
+  return (
+    <div className="admin-cookbooks">
+      <div className="head-row">
+        <div className="section-head">Admin · All cookbooks</div>
+        <input
+          type="search"
+          className="admin-search"
+          placeholder="Search name, owner, visibility…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </div>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Owner</th>
+              <th>Visibility</th>
+              <th className="num">Members</th>
+              <th className="num">Recipes</th>
+              <th>Your role</th>
+              <th aria-label="Actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={7} className="empty">No cookbooks match "{q}".</td></tr>
+            ) : filtered.map(cb => (
+              <tr key={cb.id} className={cb.id === activeCookbookId ? "active" : ""}>
+                <td>
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => onOpenCookbook?.(cb)}
+                    title="Switch to this cookbook"
+                  >
+                    {cb.name}
+                  </button>
+                </td>
+                <td className="email">{cb.ownerEmail === authEmail ? "you" : cb.ownerEmail}</td>
+                <td><span className={`vis-badge vis-${cb.visibility}`}>{cb.visibility}</span></td>
+                <td className="num">{cb.memberCount}</td>
+                <td className="num">{cb.recipeCount}</td>
+                <td>
+                  <span className={`role-badge role-${cb.yourRole}`}>
+                    {cb.adminAccess ? "admin" : cb.yourRole}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn ghost icon-only"
+                    onClick={() => onEdit?.(cb)}
+                    title="Cookbook settings"
+                    aria-label="Cookbook settings"
+                  >
+                    <Icon name="edit" size={14} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="admin-table-foot">
+        {filtered.length} of {cookbooks.length} cookbooks
+      </div>
+    </div>
+  );
+}
+
 function CreateCookbookModal({ onClose, onCreated }) {
   const [name, setName] = useState("");
   const [blurb, setBlurb] = useState("");
@@ -647,10 +735,21 @@ export function CookbooksIndex({ authEmail, activeCookbookId, onClose, onOpenCoo
                 <div className="cookbooks-grid">{shared.map(renderCard)}</div>
               </section>
             )}
+            {/* Admin · all cookbooks — table view of every
+                cookbook in the system. Replaces the previous
+                card-grid "Admin access" section so we can scan
+                + search a long list. Only renders when there's
+                at least one cookbook the cook is touching via
+                admin access (i.e. they're an admin). */}
             {adminAccess.length > 0 && (
               <section className="cookbook-section">
-                <div className="section-head">Admin access</div>
-                <div className="cookbooks-grid">{adminAccess.map(renderCard)}</div>
+                <AdminCookbookTable
+                  cookbooks={cookbooks}
+                  activeCookbookId={activeCookbookId}
+                  authEmail={authEmail}
+                  onOpenCookbook={onOpenCookbook}
+                  onEdit={(cb) => setEditing({ cookbook: cb })}
+                />
               </section>
             )}
           </>
