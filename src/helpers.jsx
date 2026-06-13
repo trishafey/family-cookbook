@@ -419,19 +419,29 @@ export function applySectionOrder(items, getSection, order, defaultName = "") {
 // fetches /api/recipes in the background and updates when fresh data arrives.
 // `loading` is only true when the cache is empty AND the network hasn't
 // resolved yet — so returning visitors never see a loading spinner.
-export function useRecipes() {
-  const [rawRecipes, setRecipes] = useStorage("recipes:cache", []);
+// Phase 4a-2: useRecipes is now per-cookbook. Passing the
+// cookbookId fetches that cookbook's recipes and caches them
+// under a separate localStorage key so switching cookbooks
+// doesn't cross-contaminate the cache. Default keeps the
+// pre-multi-tenant behaviour for callers that haven't been
+// migrated yet (they get the bootstrap family cookbook).
+export const BOOTSTRAP_COOKBOOK_ID = "family-cookbook";
+
+export function useRecipes(cookbookId = BOOTSTRAP_COOKBOOK_ID) {
+  const cacheKey = `recipes:cache:${cookbookId}`;
+  const [rawRecipes, setRecipes] = useStorage(cacheKey, []);
   // Re-normalize cached recipes too — a stale cache from before the
   // normalizer existed might still be missing fields.
   const recipes = useMemo(() => rawRecipes.map(normalizeRecipe), [rawRecipes]);
   const [loading, setLoading] = useState(() => {
-    try { return !localStorage.getItem("recipes:cache"); } catch { return true; }
+    try { return !localStorage.getItem(cacheKey); } catch { return true; }
   });
   const [error, setError] = useState(null);
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/recipes");
+      const qs = cookbookId ? `?cookbookId=${encodeURIComponent(cookbookId)}` : "";
+      const res = await fetch(`/api/recipes${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setRecipes(data.map(normalizeRecipe));
@@ -441,11 +451,41 @@ export function useRecipes() {
     } finally {
       setLoading(false);
     }
-  }, [setRecipes]);
+  }, [setRecipes, cookbookId]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
   return { recipes, loading, error, refresh };
+}
+
+// Phase 4a-2: list the cookbooks the signed-in user is a member
+// of. Empty array when signed out. Returns refresh() so the
+// switcher can re-poll after a join/create flow (4b).
+export function useUserCookbooks(authEmail) {
+  const [cookbooks, setCookbooks] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const refresh = useCallback(async () => {
+    if (!authEmail) { setCookbooks([]); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/cookbooks", { credentials: "include" });
+      if (res.ok) {
+        const { cookbooks: list } = await res.json();
+        setCookbooks(list || []);
+      } else {
+        setCookbooks([]);
+      }
+    } catch {
+      setCookbooks([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [authEmail]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  return { cookbooks, loading, refresh };
 }
 
 // ───── Auth (via Cloudflare Access) ─────

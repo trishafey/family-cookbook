@@ -133,6 +133,19 @@ app.get("/api/cookbooks/:id", async (c) => {
 });
 
 app.get("/api/recipes", async (c) => {
+  // Phase 4a-2: scope by cookbookId when provided. Defaults to the
+  // bootstrap family cookbook so legacy callers (no query param)
+  // see exactly the same recipes they always have.
+  const cookbookId = c.req.query("cookbookId") || BOOTSTRAP_COOKBOOK_ID;
+  // If a real cookbook is requested, verify the caller is a
+  // member. We allow unauthenticated callers to read the bootstrap
+  // cookbook (it's the public landing) but require membership for
+  // any other cookbook — this also future-proofs against someone
+  // probing private cookbooks via the query string.
+  if (cookbookId !== BOOTSTRAP_COOKBOOK_ID) {
+    const role = await cookbookRole(c, cookbookId);
+    if (!role) return c.json({ error: "not a member" }, 403);
+  }
   // Fetch recipes and their D1 comments in one query. SQLite's
   // json_group_array lets us build the per-recipe comment list inline
   // so the React app doesn't need a second fetch when opening a
@@ -146,9 +159,10 @@ app.get("/api/recipes", async (c) => {
      ) FILTER (WHERE c.id IS NOT NULL), '[]') AS live_comments
      FROM recipes r
      LEFT JOIN comments c ON c.recipe_id = r.id
+     WHERE r.cookbook_id = ? OR (r.cookbook_id IS NULL AND ? = ?)
      GROUP BY r.id
      ORDER BY r.created_at DESC`
-  ).all();
+  ).bind(cookbookId, cookbookId, BOOTSTRAP_COOKBOOK_ID).all();
   const recipes = rows.results.map((r) => ({
     ...JSON.parse(r.blob),
     liveComments: JSON.parse(r.live_comments).map(formatComment),
@@ -260,21 +274,24 @@ async function cookbookRole(c, cookbookId) {
 // Hono context to read the email from (background tasks like
 // translateAndStore that run after a save returns). Returns a
 // promise so callers can pass it to waitUntil.
-function recordAiEvent(env, email, feature, recipeId, meta, ok = true) {
+// Phase 4a-2: ai_events now carries a cookbook_id so tier
+// accounting can be per-cookbook in 4d. Meta-only callers (no
+// cookbookId in scope) get the bootstrap id by default.
+function recordAiEvent(env, email, feature, recipeId, meta, ok = true, cookbookId = BOOTSTRAP_COOKBOOK_ID) {
   if (!email) return Promise.resolve();
   const created = new Date().toISOString();
   const metaStr = meta ? JSON.stringify(meta) : null;
   return env.DB.prepare(
-    "INSERT INTO ai_events (created_at, user_email, feature, recipe_id, ok, meta) VALUES (?, ?, ?, ?, ?, ?)"
+    "INSERT INTO ai_events (created_at, user_email, feature, recipe_id, ok, meta, cookbook_id) VALUES (?, ?, ?, ?, ?, ?, ?)"
   )
-    .bind(created, email, feature, recipeId || null, ok ? 1 : 0, metaStr)
+    .bind(created, email, feature, recipeId || null, ok ? 1 : 0, metaStr, cookbookId)
     .run()
     .catch((err) => console.error("ai_events insert failed", err));
 }
 
-function logAiEvent(c, feature, recipeId, meta, ok = true) {
+function logAiEvent(c, feature, recipeId, meta, ok = true, cookbookId = BOOTSTRAP_COOKBOOK_ID) {
   const email = authedEmail(c);
-  c.executionCtx.waitUntil(recordAiEvent(c.env, email, feature, recipeId, meta, ok));
+  c.executionCtx.waitUntil(recordAiEvent(c.env, email, feature, recipeId, meta, ok, cookbookId));
 }
 
 // Pull model name + token usage out of an OpenAI response so the

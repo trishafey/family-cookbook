@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions } from "./helpers.jsx";
+import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, useUserCookbooks, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions, BOOTSTRAP_COOKBOOK_ID } from "./helpers.jsx";
 import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
@@ -44,6 +44,64 @@ function useIsTabletUp() {
 //     Auto-collapses on blur when the input is empty.
 // Predictive recipe matches drop down beneath the input while
 // the cook is typing; clicking one opens the recipe.
+
+// Phase 4a-2: dropdown that switches the active cookbook. Only
+// renders when the cook is in 2+ cookbooks — single-cookbook
+// users (the family today) see nothing.
+function CookbookSwitcher({ active, cookbooks, onSwitch, onManage }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open]);
+  if (!cookbooks || cookbooks.length < 2) return null;
+  const current = cookbooks.find(c => c.id === active) || cookbooks[0];
+  return (
+    <div className="cookbook-switcher" ref={ref}>
+      <button
+        type="button"
+        className="cookbook-switcher-toggle"
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={current?.name}
+      >
+        <span className="name">{current?.name}</span>
+        <Icon name="chevR" size={13} />
+      </button>
+      {open && (
+        <div className="cookbook-switcher-menu" role="menu">
+          {cookbooks.map(c => (
+            <button
+              key={c.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={c.id === active}
+              className={`item ${c.id === active ? "active" : ""}`}
+              onClick={() => { setOpen(false); onSwitch(c.id); }}
+            >
+              <div className="t">{c.name}</div>
+              <div className="s">{c.yourRole}</div>
+            </button>
+          ))}
+          {onManage && (
+            <button
+              type="button"
+              role="menuitem"
+              className="item manage"
+              onClick={() => { setOpen(false); onManage(); }}
+            >
+              My cookbooks
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 function NavSearch({ query, setQuery, placeholder, mobilePlaceholder, simpleMode, onOpenFilters, filtersLabel, recipes, onOpenRecipe }) {
   const isTabletUp = useIsTabletUp();
   // Bar starts collapsed on every viewport — the pill icon next to
@@ -176,7 +234,12 @@ function App() {
   // the response in localStorage so the site loads instantly for returning
   // visitors. `extraRecipes` is the legacy per-device list from before the
   // shared backend — merged in so old additions don't disappear.
-  const { recipes: serverRecipes, refresh: refreshRecipes } = useRecipes();
+  // Phase 4a-2: active cookbook context. Defaults to the family
+  // cookbook so existing users see no change. Switching cookbooks
+  // via the nav switcher (built in 4b) updates this; the recipe
+  // fetch refetches under a new cache key.
+  const [activeCookbookId, setActiveCookbookId] = useStorage("nav:cookbookId", BOOTSTRAP_COOKBOOK_ID);
+  const { recipes: serverRecipes, refresh: refreshRecipes } = useRecipes(activeCookbookId);
   const [extraRecipes, setExtraRecipes] = useStorage("recipes:added", []);
   // Read language up-front so the recipes list can flow through
   // localizeRecipe before anything downstream sees it. Cards, recipe
@@ -218,6 +281,10 @@ function App() {
 
   // ─── Sign-in state ───
   const { email: authEmail } = useAuth();
+  // Phase 4a-2: the cook's cookbook memberships. Drives the nav
+  // switcher (hidden when there's only one), the cookbooks index,
+  // and the active-cookbook validation below.
+  const { cookbooks: userCookbooks } = useUserCookbooks(authEmail);
 
   // ─── Simplified view ───
   // Accessibility-first mode for less technical cooks (especially
@@ -461,6 +528,14 @@ function App() {
             <img className="brand-logo" src="images/heirloom-tomato-long.png" alt="Heirloom" />
             <img className="brand-mark" src="images/heirloom-tomato-h.PNG" alt="Heirloom" />
           </div>
+          {FLAGS.cookbooks && (
+            <CookbookSwitcher
+              active={activeCookbookId}
+              cookbooks={userCookbooks}
+              onSwitch={(id) => { setActiveCookbookId(id); backToBrowse(); }}
+              onManage={() => setView("cookbooks")}
+            />
+          )}
           <NavSearch
             query={query}
             setQuery={(v) => { setQuery(v); if (view !== "browse") setView("browse"); }}
@@ -620,8 +695,9 @@ function App() {
       {FLAGS.cookbooks && view === "cookbooks" && (
         <CookbooksIndex
           authEmail={authEmail}
+          activeCookbookId={activeCookbookId}
           onClose={backToBrowse}
-          onOpenCookbook={() => backToBrowse() /* 4a-2 wires per-cookbook scoping */}
+          onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); backToBrowse(); }}
         />
       )}
       {view === "meal" && (

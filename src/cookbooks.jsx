@@ -14,7 +14,7 @@
 import { useEffect, useState } from "react";
 import { Icon, signInUrl } from "./helpers.jsx";
 
-export function CookbooksIndex({ authEmail, onClose, onOpenCookbook }) {
+export function CookbooksIndex({ authEmail, activeCookbookId, onClose, onOpenCookbook }) {
   const [cookbooks, setCookbooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -73,12 +73,15 @@ export function CookbooksIndex({ authEmail, onClose, onOpenCookbook }) {
             <button
               key={cb.id}
               type="button"
-              className="cookbook-card"
+              className={`cookbook-card ${cb.id === activeCookbookId ? "active" : ""}`}
               onClick={() => onOpenCookbook?.(cb)}
             >
               <div className="cookbook-card-head">
                 <div className={`role-badge role-${cb.yourRole}`}>{cb.yourRole}</div>
                 <div className={`vis-badge vis-${cb.visibility}`}>{cb.visibility}</div>
+                {cb.id === activeCookbookId && (
+                  <div className="role-badge active-badge">Active</div>
+                )}
               </div>
               <h3 className="cookbook-name">{cb.name}</h3>
               <div className="cookbook-blurb">{cb.blurb}</div>
