@@ -65,6 +65,10 @@ const app = new Hono();
 app.get("/api/admin/cookbooks", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
+  // Guarantee the cook has a users row + personal cookbook before
+  // we read membership. Idempotent — no-op for everyone after the
+  // first hit.
+  await ensureUserBootstrap(c);
   const rows = await c.env.DB.prepare(`
     SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
            c.cover_photo, c.created_at, c.updated_at,
@@ -134,6 +138,98 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
     recipeCount: countRow?.n || 0,
     yourRole: role,
   });
+});
+
+// ─── Multi-tenant: create a new cookbook (Phase 4b-1) ───
+// Caller becomes the owner. Visibility defaults to private.
+// Returns the new cookbook + the caller's membership row.
+app.post("/api/admin/cookbooks", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  await ensureUserBootstrap(c);
+  const body = await c.req.json().catch(() => ({}));
+  const name = (body?.name || "").toString().trim();
+  if (!name) return c.json({ error: "name required" }, 400);
+  if (name.length > 80) return c.json({ error: "name too long" }, 400);
+  const blurb = (body?.blurb || "").toString().slice(0, 280);
+  const visibility = ["private", "unlisted", "public"].includes(body?.visibility)
+    ? body.visibility : "private";
+
+  const now = new Date().toISOString();
+  const suffix = Math.random().toString(36).slice(2, 8);
+  const id = `cb-${slugifyServer(name) || "cookbook"}-${suffix}`;
+  const slug = `${slugifyServer(name) || "cookbook"}-${suffix}`;
+  try {
+    await c.env.DB.prepare(
+      "INSERT INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    ).bind(id, email, name, slug, visibility, blurb, now, now).run();
+    await c.env.DB.prepare(
+      "INSERT INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
+    ).bind(id, email, now).run();
+  } catch (err) {
+    console.error("create cookbook failed", err);
+    return c.json({ error: "could not create cookbook" }, 500);
+  }
+  return c.json({
+    cookbook: {
+      id, ownerEmail: email, name, slug, visibility,
+      blurb, coverPhoto: null,
+      createdAt: now, updatedAt: now,
+      yourRole: "owner",
+    },
+  });
+});
+
+// PATCH — rename, change blurb or visibility. Owner-only.
+app.patch("/api/admin/cookbooks/:id", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const id = c.req.param("id");
+  const role = await cookbookRole(c, id);
+  if (role !== "owner") return c.json({ error: "owner only" }, 403);
+  const body = await c.req.json().catch(() => ({}));
+  const sets = [];
+  const args = [];
+  if (typeof body?.name === "string") {
+    const name = body.name.trim();
+    if (!name || name.length > 80) return c.json({ error: "invalid name" }, 400);
+    sets.push("name = ?"); args.push(name);
+  }
+  if (typeof body?.blurb === "string") {
+    sets.push("blurb = ?"); args.push(body.blurb.slice(0, 280));
+  }
+  if (["private", "unlisted", "public"].includes(body?.visibility)) {
+    sets.push("visibility = ?"); args.push(body.visibility);
+  }
+  if (!sets.length) return c.json({ ok: true });
+  const now = new Date().toISOString();
+  sets.push("updated_at = ?"); args.push(now, id);
+  await c.env.DB.prepare(
+    `UPDATE cookbooks SET ${sets.join(", ")} WHERE id = ?`
+  ).bind(...args).run();
+  return c.json({ ok: true, updatedAt: now });
+});
+
+// DELETE — owner-only. Refuses to delete the bootstrap family
+// cookbook (it's the historical root) and refuses to delete a
+// cookbook that still has recipes — caller has to move/delete
+// recipes first.
+app.delete("/api/admin/cookbooks/:id", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const id = c.req.param("id");
+  if (id === BOOTSTRAP_COOKBOOK_ID) return c.json({ error: "cannot delete the bootstrap cookbook" }, 400);
+  const role = await cookbookRole(c, id);
+  if (role !== "owner") return c.json({ error: "owner only" }, 403);
+  const countRow = await c.env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM recipes WHERE cookbook_id = ?"
+  ).bind(id).first();
+  if ((countRow?.n || 0) > 0) {
+    return c.json({ error: "cookbook still has recipes — move or delete them first" }, 400);
+  }
+  await c.env.DB.prepare("DELETE FROM cookbook_members WHERE cookbook_id = ?").bind(id).run();
+  await c.env.DB.prepare("DELETE FROM cookbooks WHERE id = ?").bind(id).run();
+  return c.json({ ok: true });
 });
 
 app.get("/api/recipes", async (c) => {
@@ -259,6 +355,86 @@ async function cookbookRole(c, cookbookId) {
     "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
   ).bind(cookbookId, email).first();
   return row?.role || null;
+}
+
+// URL-safe slug from a string. Same shape as the client-side
+// slugify in helpers.jsx so cookbook slugs read consistently.
+function slugifyServer(s) {
+  return (s || "")
+    .toString().toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 48);
+}
+
+// Phase 4b-1: idempotent bootstrap for the signed-in user.
+// Ensures a users row exists and that the cook has a personal
+// cookbook they own. Called from cookbook endpoints — every
+// authenticated visit to /api/admin/cookbooks runs this once.
+//
+// Existing family members hit this after deploy and pick up a
+// personal cookbook on top of their family-cookbook membership;
+// from that point the nav switcher appears.
+async function ensureUserBootstrap(c) {
+  const email = authedEmail(c);
+  if (!email) return;
+  const now = new Date().toISOString();
+
+  // users row
+  const userRow = await c.env.DB.prepare(
+    "SELECT email, display_name FROM users WHERE email = ?"
+  ).bind(email).first();
+
+  let displayName = userRow?.display_name || null;
+  if (!userRow) {
+    // First-ever sign-in: insert with a sensible default display
+    // name pulled from the email's local-part. tier=full and
+    // status=approved keep behaviour open — tier gating lands in 4d.
+    displayName = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, x => x.toUpperCase());
+    await c.env.DB.prepare(
+      "INSERT INTO users (email, display_name, tier, status, created_at, last_seen_at) VALUES (?, ?, 'full', 'approved', ?, ?)"
+    ).bind(email, displayName, now, now).run().catch(() => {});
+  } else {
+    // Touch last_seen_at best-effort — never block the request.
+    c.executionCtx.waitUntil(
+      c.env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE email = ?")
+        .bind(now, email).run().catch(() => {})
+    );
+  }
+
+  // personal cookbook (owner)
+  const personal = await c.env.DB.prepare(
+    "SELECT id FROM cookbooks WHERE owner_email = ? AND id != ? LIMIT 1"
+  ).bind(email, BOOTSTRAP_COOKBOOK_ID).first();
+  if (personal) return;
+
+  const localPart = email.split("@")[0];
+  const idSuffix = Math.random().toString(36).slice(2, 8);
+  const id = `personal-${slugifyServer(localPart) || "cook"}-${idSuffix}`;
+  let slug = `${slugifyServer(displayName || localPart)}-${idSuffix}`;
+  const name = `${displayName || localPart}'s Cookbook`;
+  try {
+    await c.env.DB.prepare(
+      "INSERT INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?)"
+    ).bind(id, email, name, slug, now, now).run();
+    await c.env.DB.prepare(
+      "INSERT INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
+    ).bind(id, email, now).run();
+  } catch (err) {
+    // Slug collision is the realistic failure — retry once with
+    // a fresh suffix.
+    const id2 = `personal-${slugifyServer(localPart) || "cook"}-${Math.random().toString(36).slice(2, 8)}`;
+    const slug2 = `${slugifyServer(displayName || localPart)}-${Math.random().toString(36).slice(2, 8)}`;
+    await c.env.DB.prepare(
+      "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?)"
+    ).bind(id2, email, name, slug2, now, now).run().catch(() => {});
+    await c.env.DB.prepare(
+      "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
+    ).bind(id2, email, now).run().catch(() => {});
+  }
 }
 
 // ─── AI usage analytics ───

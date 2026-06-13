@@ -2160,6 +2160,128 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cookbook-card .role-badge.active-badge {
   background: var(--accent); color: #fff;
 }
+/* Card body becomes a click target so the gear icon can live in
+   the head without becoming the only thing that fires. */
+.cookbook-card-body {
+  display: block; text-align: left; padding: 0;
+  background: transparent; border: 0; cursor: pointer;
+  font: inherit; color: inherit; width: 100%;
+}
+.cookbook-card-edit {
+  margin-left: auto;
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  background: transparent; border: 0; cursor: pointer;
+  color: var(--ink-3);
+  border-radius: 999px;
+  transition: background .14s ease, color .14s ease;
+}
+.cookbook-card-edit:hover { background: var(--paper-2); color: var(--accent); }
+
+/* Header layout — title block on the left, primary CTA on the right. */
+.cookbooks-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap;
+}
+.cookbooks-header .lhs { flex: 1 1 auto; min-width: 0; }
+
+/* ─── Cookbook create / edit modal ─── */
+.cookbook-modal {
+  max-width: 520px;
+  padding: 28px;
+  position: relative;
+}
+.cookbook-modal .modal-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  background: transparent; border: 0; cursor: pointer;
+  color: var(--ink-3); border-radius: 999px;
+}
+.cookbook-modal .modal-close:hover { background: var(--paper-2); color: var(--ink); }
+.cookbook-modal .eyebrow {
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 600;
+}
+.cookbook-modal h2 {
+  font-family: var(--serif); font-size: 28px; font-weight: 500;
+  margin: 6px 0 4px;
+}
+.cookbook-modal .modal-sub {
+  font-family: var(--serif); font-size: 15px; color: var(--ink-3);
+  margin: 0 0 18px;
+}
+.cookbook-modal .modal-field {
+  display: block; margin-bottom: 14px;
+}
+.cookbook-modal .modal-field > span,
+.cookbook-modal .modal-field > legend {
+  display: block;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 600;
+  margin-bottom: 6px;
+}
+.cookbook-modal .modal-field input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit; font-size: 15px;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  background: var(--paper);
+}
+.cookbook-modal .modal-field input[type="text"]:focus {
+  outline: none; border-color: var(--accent);
+}
+.cookbook-modal fieldset.modal-field {
+  border: 0; padding: 0; margin-top: 16px;
+}
+.cookbook-modal .radio {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 8px 0;
+  font-size: 14px; color: var(--ink-2);
+  cursor: pointer;
+}
+.cookbook-modal .radio input { margin-top: 3px; }
+.cookbook-modal .radio strong { color: var(--ink); }
+.cookbook-modal .modal-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(147, 51, 51, 0.3);
+  background: rgba(147, 51, 51, 0.06);
+  border-radius: var(--radius);
+  color: #933; font-size: 13px;
+}
+.cookbook-modal .modal-actions {
+  margin-top: 20px;
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+.cookbook-modal .modal-danger {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+}
+.cookbook-modal .modal-danger .head {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #933; font-weight: 600;
+  margin-bottom: 10px;
+}
+.cookbook-modal .modal-danger .danger-link {
+  color: #933;
+}
+.cookbook-modal .modal-danger .danger-link:hover {
+  background: rgba(147, 51, 51, 0.06);
+  border-color: rgba(147, 51, 51, 0.3);
+}
+.cookbook-modal .modal-danger .danger-actions p {
+  font-size: 14px; color: var(--ink-2);
+  margin: 0 0 12px;
+}
+.cookbook-modal .btn.danger {
+  background: #933; color: #fff; border-color: #933;
+}
+.cookbook-modal .btn.danger:hover { background: #7a2929; border-color: #7a2929; }
 
 /* ─── Nav: cookbook switcher (Phase 4a-2) ───
    Sits between the brand and the search pill. Only renders for
