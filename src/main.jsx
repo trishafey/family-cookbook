@@ -775,6 +775,7 @@ function App() {
       {FLAGS.cookbooks && view === "cookbooks" && (
         <CookbooksIndex
           authEmail={authEmail}
+          isAdmin={!!profile?.isAdmin}
           activeCookbookId={activeCookbookId}
           onClose={backToBrowse}
           onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); backToBrowse(); }}

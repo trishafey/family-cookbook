@@ -3542,6 +3542,41 @@ app.post("/api/admin/users/:email/decline", async (c) => {
   return c.json({ ok: true });
 });
 
+// Admin: edit another user's profile (name, phone, admin flag).
+app.patch("/api/admin/users/:email", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
+  const target = c.req.param("email").toLowerCase();
+  const body = await c.req.json().catch(() => ({}));
+  const sets = [];
+  const args = [];
+  if (typeof body?.firstName === "string") {
+    sets.push("first_name = ?"); args.push(body.firstName.trim().slice(0, 60) || null);
+  }
+  if (typeof body?.lastName === "string") {
+    sets.push("last_name = ?"); args.push(body.lastName.trim().slice(0, 60) || null);
+  }
+  if (typeof body?.phone === "string") {
+    sets.push("phone = ?"); args.push(body.phone.trim().slice(0, 32) || null);
+  }
+  if (typeof body?.displayName === "string") {
+    sets.push("display_name = ?"); args.push(body.displayName.trim().slice(0, 120) || null);
+  }
+  if (typeof body?.isAdmin === "boolean") {
+    sets.push("is_admin = ?"); args.push(body.isAdmin ? 1 : 0);
+  }
+  if (["approved", "pending", "declined"].includes(body?.status)) {
+    sets.push("status = ?"); args.push(body.status);
+  }
+  if (!sets.length) return c.json({ ok: true });
+  args.push(target);
+  await c.env.DB.prepare(
+    `UPDATE users SET ${sets.join(", ")} WHERE email = ?`
+  ).bind(...args).run();
+  return c.json({ ok: true });
+});
+
 app.put("/api/admin/me/profile", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);

@@ -210,7 +210,18 @@ function CreateCookbookModal({ onClose, onCreated }) {
   );
 }
 
-function MembersSection({ cookbook, authEmail, onMembersChanged }) {
+// Lightly mask a member's email so it doesn't leak in shared
+// cookbook member lists. Owners/editors see the masked form
+// ("g***@gmail.com") — only admins see the full address.
+function maskEmail(email) {
+  if (!email) return "";
+  const [local, domain] = email.split("@");
+  if (!domain) return email;
+  const head = local.slice(0, 1);
+  return `${head}***@${domain}`;
+}
+
+function MembersSection({ cookbook, authEmail, isAdmin, onMembersChanged }) {
   const [members, setMembers] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -342,8 +353,8 @@ function MembersSection({ cookbook, authEmail, onMembersChanged }) {
         {members.map(m => (
           <li key={m.email} className="member-row">
             <div className="who">
-              <div className="name">{m.displayName || m.email}</div>
-              {m.displayName && <div className="email">{m.email}</div>}
+              <div className="name">{m.displayName || (isAdmin ? m.email : maskEmail(m.email))}</div>
+              {m.displayName && <div className="email">{isAdmin ? m.email : maskEmail(m.email)}</div>}
             </div>
             <select
               className="role-select"
@@ -426,7 +437,7 @@ function MembersSection({ cookbook, authEmail, onMembersChanged }) {
   );
 }
 
-function EditCookbookModal({ cookbook, initialTab, authEmail, onClose, onSaved, onDeleted, onMembersChanged }) {
+function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, onSaved, onDeleted, onMembersChanged }) {
   const [tab, setTab] = useState(initialTab || "settings");
   const [name, setName] = useState(cookbook.name);
   const [blurb, setBlurb] = useState(cookbook.blurb || "");
@@ -556,14 +567,14 @@ function EditCookbookModal({ cookbook, initialTab, authEmail, onClose, onSaved, 
         )}
 
         {tab === "members" && (
-          <MembersSection cookbook={cookbook} authEmail={authEmail} onMembersChanged={onMembersChanged} />
+          <MembersSection cookbook={cookbook} authEmail={authEmail} isAdmin={isAdmin} onMembersChanged={onMembersChanged} />
         )}
       </div>
     </div>
   );
 }
 
-export function CookbooksIndex({ authEmail, activeCookbookId, onClose, onOpenCookbook }) {
+export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, onOpenCookbook }) {
   const [cookbooks, setCookbooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -770,6 +781,7 @@ export function CookbooksIndex({ authEmail, activeCookbookId, onClose, onOpenCoo
           cookbook={editing.cookbook}
           initialTab={editing.tab || "settings"}
           authEmail={authEmail}
+          isAdmin={isAdmin}
           onClose={() => setEditing(null)}
           onSaved={(updated) => {
             setEditing(null);

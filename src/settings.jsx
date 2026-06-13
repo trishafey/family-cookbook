@@ -191,15 +191,156 @@ export function AccountSettings({ profile, refreshProfile, onClose, saveProfile 
   );
 }
 
-// Admin users panel — Patricia (or future admins) can see every
-// user and delete accounts. Lists the user's profile + how many
-// cookbooks they own / are members of.
+// Edit-user modal: admin can change first/last name, phone,
+// approval status, admin flag, or delete the account.
+function EditUserModal({ user, onClose, onSaved, onDeleted }) {
+  const [firstName, setFirstName] = useState(user.firstName || "");
+  const [lastName, setLastName] = useState(user.lastName || "");
+  const [phone, setPhone] = useState(user.phone || "");
+  const [status, setStatus] = useState(user.status || "approved");
+  const [makeAdmin, setMakeAdmin] = useState(!!user.isAdmin);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const save = async (e) => {
+    e?.preventDefault?.();
+    setSaving(true); setError(null);
+    try {
+      const displayName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(user.email)}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phone.trim(),
+          displayName,
+          status,
+          isAdmin: makeAdmin,
+        }),
+      });
+      if (!res.ok) {
+        const { error: msg } = await res.json().catch(() => ({}));
+        throw new Error(msg || `Save failed (${res.status})`);
+      }
+      onSaved({
+        ...user,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim(),
+        displayName,
+        status,
+        isAdmin: makeAdmin,
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const doDelete = async () => {
+    setSaving(true); setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(user.email)}`, {
+        method: "DELETE", credentials: "include",
+      });
+      if (!res.ok) {
+        const { error: msg } = await res.json().catch(() => ({}));
+        throw new Error(msg || "Could not delete account.");
+      }
+      onDeleted(user.email);
+    } catch (err) {
+      setError(err.message);
+      setConfirmDelete(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal cookbook-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Edit user">
+        <button className="modal-close" onClick={onClose} aria-label="Close">
+          <Icon name="x" size={16} />
+        </button>
+        <div className="eyebrow">User settings</div>
+        <h2>{user.displayName || user.email}</h2>
+
+        <form onSubmit={save}>
+          <label className="modal-field">
+            <span>First name</span>
+            <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} maxLength={60} />
+          </label>
+          <label className="modal-field">
+            <span>Last name</span>
+            <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} maxLength={60} />
+          </label>
+          <label className="modal-field">
+            <span>Phone</span>
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={32} />
+          </label>
+          <label className="modal-field">
+            <span>Email</span>
+            <input type="email" value={user.email} disabled />
+          </label>
+          <label className="modal-field">
+            <span>Approval status</span>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className="modal-select">
+              <option value="approved">approved</option>
+              <option value="pending">pending</option>
+              <option value="declined">declined</option>
+            </select>
+          </label>
+          <label className="modal-field admin-toggle">
+            <input type="checkbox" checked={makeAdmin} onChange={(e) => setMakeAdmin(e.target.checked)} />
+            <span>Admin (can see + edit every cookbook + manage users)</span>
+          </label>
+
+          {error && <div className="modal-error">{error}</div>}
+
+          <div className="modal-actions">
+            <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn primary" disabled={saving}>
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </form>
+
+        <div className="modal-danger">
+          <div className="head">Danger zone</div>
+          {confirmDelete ? (
+            <div className="danger-actions">
+              <p>Delete <strong>{user.email}</strong>? Cascades through their cookbooks, recipes, memberships, favorites, and lab experiments.</p>
+              <div className="modal-actions">
+                <button type="button" className="btn ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                <button type="button" className="btn danger" onClick={doDelete} disabled={saving}>
+                  {saving ? "Deleting…" : "Delete account"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="btn ghost danger-link" onClick={() => setConfirmDelete(true)}>
+              Delete this account
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Admin users panel — searchable table of every account with
+// inline approve / decline + an edit modal for full profile +
+// admin flag + status + delete.
 export function AdminUsers({ authEmail, onClose }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pendingDelete, setPendingDelete] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [q, setQ] = useState("");
 
   const load = async () => {
     setError(null);
@@ -220,26 +361,6 @@ export function AdminUsers({ authEmail, onClose }) {
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
-  const remove = async (email) => {
-    setDeleting(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(email)}`, {
-        method: "DELETE", credentials: "include",
-      });
-      if (!res.ok) {
-        const { error: msg } = await res.json().catch(() => ({}));
-        throw new Error(msg || `Could not delete user (${res.status}).`);
-      }
-      setUsers(prev => prev.filter(u => u.email !== email));
-      setPendingDelete(null);
-    } catch (err) {
-      setError(err.message || "Could not delete user.");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const updateStatus = async (email, action) => {
     setError(null);
     try {
@@ -258,6 +379,18 @@ export function AdminUsers({ authEmail, onClose }) {
 
   const pendingUsers = users.filter(u => u.status === "pending");
   const otherUsers = users.filter(u => u.status !== "pending");
+  const filteredOthers = otherUsers.filter(u => {
+    if (!q.trim()) return true;
+    const needle = q.toLowerCase();
+    return (
+      u.email?.toLowerCase().includes(needle) ||
+      u.displayName?.toLowerCase().includes(needle) ||
+      u.firstName?.toLowerCase().includes(needle) ||
+      u.lastName?.toLowerCase().includes(needle) ||
+      u.phone?.toLowerCase().includes(needle) ||
+      u.status?.toLowerCase().includes(needle)
+    );
+  });
 
   return (
     <div className="settings-page" data-screen-label="12 Admin · Users">
@@ -269,7 +402,7 @@ export function AdminUsers({ authEmail, onClose }) {
         <div className="eyebrow">Admin</div>
         <h1>All <em>users</em></h1>
         <div className="intro">
-          Every account on Heirloom. Deleting a user cascades through their owned cookbooks, recipes, memberships, and personal data.
+          Every account on Heirloom. Edit a user to change their name, phone, approval status, or admin flag; delete to cascade-remove their cookbooks, recipes, and memberships.
         </div>
       </div>
 
@@ -297,18 +430,10 @@ export function AdminUsers({ authEmail, onClose }) {
                       <div className="meta">requested {u.createdAt?.slice(0, 10)}</div>
                     </div>
                     <div className="row-actions">
-                      <button
-                        type="button"
-                        className="btn primary sm"
-                        onClick={() => updateStatus(u.email, "approve")}
-                      >
+                      <button type="button" className="btn primary sm" onClick={() => updateStatus(u.email, "approve")}>
                         Approve
                       </button>
-                      <button
-                        type="button"
-                        className="btn ghost sm danger-link"
-                        onClick={() => updateStatus(u.email, "decline")}
-                      >
+                      <button type="button" className="btn ghost sm danger-link" onClick={() => updateStatus(u.email, "decline")}>
                         Decline
                       </button>
                     </div>
@@ -318,56 +443,88 @@ export function AdminUsers({ authEmail, onClose }) {
             </section>
           )}
 
-          <div className="section-head">All users</div>
-        <ul className="admin-users-list">
-          {otherUsers.map(u => {
-            const isSelf = u.email === authEmail;
-            return (
-              <li key={u.email} className="admin-user-row">
-                <div className="who">
-                  <div className="name">
-                    {u.displayName || u.email}
-                    {u.isAdmin && <span className="role-tag admin-tag">admin</span>}
-                    {isSelf && <span className="role-tag self-tag">you</span>}
-                  </div>
-                  <div className="email">{u.email}</div>
-                  {u.phone && <div className="meta">{u.phone}</div>}
-                  <div className="meta">
-                    {u.ownedCount} owned · {u.membershipCount} membership{u.membershipCount === 1 ? "" : "s"} · joined {u.createdAt?.slice(0, 10)}
-                  </div>
-                </div>
-                {!isSelf && (
-                  pendingDelete === u.email ? (
-                    <div className="row-actions">
-                      <button
-                        type="button"
-                        className="btn ghost sm"
-                        onClick={() => setPendingDelete(null)}
-                      >Cancel</button>
-                      <button
-                        type="button"
-                        className="btn danger sm"
-                        onClick={() => remove(u.email)}
-                        disabled={deleting}
-                      >
-                        {deleting ? "Deleting…" : "Confirm delete"}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn ghost sm danger-link"
-                      onClick={() => setPendingDelete(u.email)}
-                    >
-                      Delete account
-                    </button>
-                  )
-                )}
-              </li>
-            );
-          })}
-        </ul>
+          <div className="admin-cookbooks">
+            <div className="head-row">
+              <div className="section-head">All users</div>
+              <input
+                type="search"
+                className="admin-search"
+                placeholder="Search name, email, phone…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </div>
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th className="num">Owned</th>
+                    <th className="num">Member of</th>
+                    <th aria-label="Actions"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOthers.length === 0 ? (
+                    <tr><td colSpan={7} className="empty">No users match "{q}".</td></tr>
+                  ) : filteredOthers.map(u => {
+                    const isSelf = u.email === authEmail;
+                    return (
+                      <tr key={u.email} className={isSelf ? "active" : ""}>
+                        <td>
+                          {u.displayName || "—"}
+                          {u.isAdmin && <span className="role-tag admin-tag" style={{ marginLeft: 6 }}>admin</span>}
+                          {isSelf && <span className="role-tag self-tag" style={{ marginLeft: 6 }}>you</span>}
+                        </td>
+                        <td className="email">{u.email}</td>
+                        <td className="email">{u.phone || "—"}</td>
+                        <td>
+                          <span className={`role-badge role-${u.status === "approved" ? "owner" : u.status === "declined" ? "viewer" : "editor"}`}>
+                            {u.status}
+                          </span>
+                        </td>
+                        <td className="num">{u.ownedCount}</td>
+                        <td className="num">{u.membershipCount}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn ghost icon-only"
+                            onClick={() => setEditing(u)}
+                            title="Edit user"
+                            aria-label="Edit user"
+                          >
+                            <Icon name="edit" size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="admin-table-foot">
+              {filteredOthers.length} of {otherUsers.length} users
+            </div>
+          </div>
         </>
+      )}
+
+      {editing && (
+        <EditUserModal
+          user={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(updated) => {
+            setEditing(null);
+            setUsers(prev => prev.map(u => u.email === updated.email ? { ...u, ...updated } : u));
+          }}
+          onDeleted={(email) => {
+            setEditing(null);
+            setUsers(prev => prev.filter(u => u.email !== email));
+          }}
+        />
       )}
     </div>
   );

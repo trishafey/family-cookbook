@@ -2252,6 +2252,20 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .cookbook-modal .radio input { margin-top: 3px; }
 .cookbook-modal .radio strong { color: var(--ink); }
+.cookbook-modal .modal-select {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit; font-size: 15px;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  background: var(--paper);
+}
+.cookbook-modal .admin-toggle {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; color: var(--ink-2);
+  cursor: pointer;
+  margin-top: 14px;
+}
+.cookbook-modal .admin-toggle input { margin: 0; }
 .cookbook-modal .modal-error {
   margin-top: 12px;
   padding: 10px 12px;
