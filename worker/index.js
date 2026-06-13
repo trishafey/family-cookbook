@@ -258,7 +258,12 @@ app.delete("/api/admin/cookbooks/:id", async (c) => {
 
 // ─── Phase 4b-2: invitations + member management ───
 const INVITE_TTL_DAYS = 14;
-function randomToken(bytes = 24) {
+// 12 bytes = 96 bits of entropy = unguessable, and the hex
+// representation is 24 chars — about half what 24-byte tokens
+// produced. Combined with the /i/ short path the invite link
+// is roughly 25 chars shorter, comfortably under 60 chars on
+// the heirloomcookbook.net domain.
+function randomToken(bytes = 12) {
   const arr = new Uint8Array(bytes);
   crypto.getRandomValues(arr);
   return [...arr].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -388,7 +393,7 @@ app.post("/api/admin/cookbooks/:id/invitations", async (c) => {
   ).bind(token, cookbookId, inviteEmail, inviteRole, email, now.toISOString(), expires.toISOString()).run();
 
   const origin = new URL(c.req.url).origin;
-  const link = `${origin}/invite/${token}`;
+  const link = `${origin}/i/${token}`;
 
   // Send the magic link via Resend if configured. Best-effort —
   // a delivery failure doesn't roll back the invitation; the
@@ -445,7 +450,7 @@ app.get("/api/admin/cookbooks/:id/invitations", async (c) => {
       invitedBy: r.invited_by,
       createdAt: r.created_at,
       expiresAt: r.expires_at,
-      link: `${origin}/invite/${r.token}`,
+      link: `${origin}/i/${r.token}`,
     })),
   });
 });

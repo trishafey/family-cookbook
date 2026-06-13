@@ -646,7 +646,9 @@ function parsePath(p) {
   if (recipe) return { view: "recipe", recipeId: decodeURIComponent(recipe[1]), editingId: null };
   const edit = p.match(/^\/edit\/([^\/]+)\/?$/);
   if (edit) return { view: "edit", recipeId: null, editingId: decodeURIComponent(edit[1]) };
-  const invite = p.match(/^\/invite\/([^\/]+)\/?$/);
+  // Accept both /i/<token> (current short URL) and /invite/<token>
+  // (legacy long URL — existing pending invites stay valid).
+  const invite = p.match(/^\/(?:i|invite)\/([^\/]+)\/?$/);
   if (invite) return { view: "invite", recipeId: null, editingId: null, inviteToken: decodeURIComponent(invite[1]) };
   if (p === "/add" || p === "/add/") return { view: "add", recipeId: null, editingId: null };
   if (p === "/meal" || p === "/meal/") return { view: "meal", recipeId: null, editingId: null };
@@ -664,7 +666,7 @@ function buildPath({ view, recipeId, editingId, inviteToken }) {
   switch (view) {
     case "recipe":          return recipeId ? `/recipe/${encodeURIComponent(recipeId)}` : "/";
     case "edit":            return editingId ? `/edit/${encodeURIComponent(editingId)}` : "/";
-    case "invite":          return inviteToken ? `/invite/${encodeURIComponent(inviteToken)}` : "/";
+    case "invite":          return inviteToken ? `/i/${encodeURIComponent(inviteToken)}` : "/";
     case "add":             return "/add";
     case "meal":            return "/meal";
     case "meal-plan":       return "/meal-plan";

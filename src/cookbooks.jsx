@@ -9,6 +9,22 @@
 import { useEffect, useState } from "react";
 import { Icon, signInUrl } from "./helpers.jsx";
 
+// Wrap a friendly note around the magic link so the inviter
+// can paste a single block into a text message / DM / email
+// instead of just a bare URL. Names the cookbook and (when
+// the invite is pre-addressed) tells the recipient which email
+// to sign in with — the auto-accept refuses any other address.
+function buildInviteMessage(cookbookName, inviteEmail, link) {
+  const parts = [`You've been invited to ${cookbookName} on Heirloom.`];
+  if (inviteEmail) {
+    parts.push(`Sign in with ${inviteEmail} to accept:`);
+  } else {
+    parts.push(`Accept here:`);
+  }
+  parts.push(link);
+  return parts.join(" ");
+}
+
 function CreateCookbookModal({ onClose, onCreated }) {
   const [name, setName] = useState("");
   const [blurb, setBlurb] = useState("");
@@ -158,12 +174,13 @@ function MembersSection({ cookbook, authEmail, onMembersChanged }) {
       const { invitation, link } = await res.json();
       setInvitations(prev => [{ ...invitation, link }, ...prev]);
       setInviteEmail("");
-      // Always clipboard for now — inviter shares the link
-      // however they want (text, email, etc.). Backend email
-      // delivery via Resend stays wired but the surface is
-      // deliberately quiet about it until we turn it on.
+      // Always clipboard for now — inviter shares the message
+      // however they want (text, email, etc.). Bundle a friendly
+      // note around the link so the recipient knows which
+      // cookbook they're being invited to and which email to
+      // sign in with.
       try {
-        await navigator.clipboard.writeText(link);
+        await navigator.clipboard.writeText(buildInviteMessage(cookbook.name, invitation.email, link));
         setCopiedToken(invitation.token);
         setTimeout(() => setCopiedToken(null), 2200);
       } catch {}
@@ -183,8 +200,12 @@ function MembersSection({ cookbook, authEmail, onMembersChanged }) {
     } catch {}
   };
 
-  const copyLink = async (link, token) => {
-    try { await navigator.clipboard.writeText(link); setCopiedToken(token); setTimeout(() => setCopiedToken(null), 1800); } catch {}
+  const copyLink = async (link, token, inviteEmail) => {
+    try {
+      await navigator.clipboard.writeText(buildInviteMessage(cookbook.name, inviteEmail, link));
+      setCopiedToken(token);
+      setTimeout(() => setCopiedToken(null), 1800);
+    } catch {}
   };
 
   const changeRole = async (email, role) => {
@@ -296,7 +317,7 @@ function MembersSection({ cookbook, authEmail, onMembersChanged }) {
                 <button
                   type="button"
                   className="btn ghost sm"
-                  onClick={() => copyLink(inv.link, inv.token)}
+                  onClick={() => copyLink(inv.link, inv.token, inv.email)}
                 >
                   {copiedToken === inv.token ? "Copied!" : "Copy link"}
                 </button>
