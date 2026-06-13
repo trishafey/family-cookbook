@@ -1008,6 +1008,10 @@ app.delete("/api/admin/recipes/:id", async (c) => {
 // place (writes were removed) in case we want to re-introduce
 // tracking later.
 const AI_OPENAI_MODEL = "gpt-4o-mini";
+// Help endpoint needs more context-faithful reasoning — gpt-4o-mini
+// tends to fall back on its training prior when the recipe context
+// is unfamiliar (e.g. Polish goulash vs Hungarian default).
+const AI_HELP_MODEL = "gpt-4o";
 
 const AI_EXTRACT_SYSTEM_PROMPT = `You are a recipe extraction assistant for a family cookbook. The user will paste text containing a recipe — could be an email from a relative, a blog post copy-paste, a screenshot transcript, or freeform notes. Extract the recipe into structured JSON matching the provided schema.
 
@@ -1770,30 +1774,54 @@ app.post("/api/admin/ai/help", async (c) => {
   //  • multi-recipe meal — each dish summarised so the model can
   //    reason about prep order, substitutions, and pairings without
   //    being flooded by every ingredient.
+  // Format a single step as "N. Title — full body". Include the
+  // FULL step description, not just the title — without the body
+  // the model has no idea whether this is a stove-top dish or an
+  // oven braise, whether pork goes in before or after the onions,
+  // whether water is added or not. Truncate per-step to 600 chars
+  // so the whole context stays under a few KB.
+  const fmtStep = (s, i) => {
+    const head = s.t ? `${i + 1}. ${s.t}` : `${i + 1}.`;
+    const body = (s.d || "").trim();
+    const bodyOut = body.length > 600 ? body.slice(0, 600) + "…" : body;
+    return bodyOut ? `${head} — ${bodyOut}` : head;
+  };
+  const fmtIng = (i) => {
+    const head = `${i.qty ?? ""} ${i.unit ?? ""} ${i.item}`.trim();
+    return i.note ? `${head} (${i.note})` : head;
+  };
+
   const context = mealRecipes
     ? {
         meal: mealRecipes.map(r => r.title).join(" + "),
         dishes: mealRecipes.map(r => ({
           title:    r.title,
           subtitle: r.subtitle || "",
+          author:   r.author || null,
           cuisine:  r.cuisine,
           course:   r.course,
           servings: r.servingsDefault,
           totalMin: r.total,
           diet:     r.diet || [],
-          ingredients: (r.ingredients || []).map(i => `${i.qty ?? ""} ${i.unit ?? ""} ${i.item}`.trim()),
-          steps:       (r.steps || []).map((s, i) => `${i + 1}. ${s.t || s.d?.slice(0, 60)}`),
+          ingredients: (r.ingredients || []).map(fmtIng),
+          steps:       (r.steps || []).map(fmtStep),
+          tips:        Array.isArray(r.tips) && r.tips.length ? r.tips : null,
         })),
       }
     : {
         title:    recipe.title,
         subtitle: recipe.subtitle || "",
+        author:   recipe.author || null,
         cuisine:  recipe.cuisine,
         course:   recipe.course,
         servings: body?.servings ?? recipe.servingsDefault,
         weight:   body?.weight ?? null,
-        ingredients: (recipe.ingredients || []).map(i => `${i.qty ?? ""} ${i.unit ?? ""} ${i.item}`.trim()),
-        steps:    (recipe.steps || []).map((s, i) => `${i + 1}. ${s.t || s.d?.slice(0, 60)}`),
+        weightUnit: recipe.weightUnit || null,
+        cookMinsPerLb: recipe.cookMinsPerLb || null,
+        diet:     recipe.diet || [],
+        ingredients: (recipe.ingredients || []).map(fmtIng),
+        steps:    (recipe.steps || []).map(fmtStep),
+        tips:     Array.isArray(recipe.tips) && recipe.tips.length ? recipe.tips : null,
         currentStep: body?.currentStep
           ? `Cook is currently on step "${body.currentStep.t}" — ${body.currentStep.d}`
           : null,
@@ -1802,9 +1830,15 @@ app.post("/api/admin/ai/help", async (c) => {
           : null,
       };
 
+  // CRITICAL: the recipe in CONTEXT is the source of truth. The
+  // model must defer to it over its training prior — many family
+  // recipes (Polish goulash, Babcia's bigos, regional barbecue)
+  // diverge from the canonical version the model "knows."
+  const anchorRule = `GROUND TRUTH: The recipe in the CONTEXT below is the source of truth for THIS cook's THIS dish. It may diverge from the canonical/most-common version of the dish you know from training (regional variants, family adaptations, dietary tweaks). When the recipe's ingredients, method, ingredient order, cooking surface (stove vs oven), liquid amounts, or timing differ from what you'd expect, FOLLOW THE RECIPE — do not "correct" it toward the version you know. Before giving advice, re-read the relevant steps from the context and quote/paraphrase them. Never tell the cook to add an ingredient that isn't in the recipe, change the cooking surface the recipe specifies, or reorder ingredients the recipe explicitly orders. If the cook's question implies they're doing something different from the recipe, gently point them back to the actual step.`;
+
   const systemPrompt = mealRecipes
-    ? `You are the kitchen-side AI helper inside a family cookbook. The cook is planning or cooking a multi-dish meal — keep the whole meal in mind, not just one dish. Reply in 2-4 short paragraphs, plain prose, written like a thoughtful family cook giving real advice. When asked about substitutions or scaling, name which dish you mean. When asked about prep order, think about what can be made ahead vs what has to be timed to finishing. Never invent ingredients that aren't in the recipes you were given.`
-    : `You are the kitchen-side AI helper inside a family cookbook. The cook is mid-recipe and needs a practical answer fast. Reply in 2-4 short paragraphs, plain prose, written like a thoughtful family cook giving real advice — not a list of caveats. Reference the recipe's actual ingredients and the cook's current step or servings when it helps. If the cook hasn't told you which ingredient/step they mean, ask ONE focused clarifying question first. Never invent ingredients that aren't in the recipe.`;
+    ? `You are the kitchen-side AI helper inside a family cookbook. The cook is planning or cooking a multi-dish meal — keep the whole meal in mind, not just one dish. ${anchorRule} Reply in 2-4 short paragraphs, plain prose, written like a thoughtful family cook giving real advice. When asked about substitutions or scaling, name which dish you mean. When asked about prep order, think about what can be made ahead vs what has to be timed to finishing.`
+    : `You are the kitchen-side AI helper inside a family cookbook. The cook is mid-recipe and needs a practical answer fast. ${anchorRule} Reply in 2-4 short paragraphs, plain prose, written like a thoughtful family cook giving real advice — not a list of caveats. Reference the recipe's actual ingredients and the cook's current step or servings when it helps. If the cook hasn't told you which ingredient/step they mean, ask ONE focused clarifying question first.`;
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -1821,7 +1855,7 @@ app.post("/api/admin/ai/help", async (c) => {
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
-    body: JSON.stringify({ model: AI_OPENAI_MODEL, messages }),
+    body: JSON.stringify({ model: AI_HELP_MODEL, messages }),
   });
   if (!openaiRes.ok) {
     console.error("OpenAI help error", openaiRes.status, await openaiRes.text());
