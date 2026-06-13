@@ -1167,7 +1167,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
                          doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                          onCookMode, onShop, comments, addComment, deleteComment,
                          allRecipes, onSaveRecipe, openRecipe, onSaveToLab,
-                         authEmail, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
+                         authEmail, profile, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
   const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <>
