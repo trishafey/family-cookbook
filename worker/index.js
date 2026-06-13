@@ -815,31 +815,30 @@ async function ensureUserBootstrap(c) {
   const baseSlug = slugifyServer(displayName || localPart) || "cook";
   const personName = displayName || localPart;
 
+  // Phase 4b-5 fix: deterministic IDs so concurrent calls to
+  // ensureUserBootstrap can't race and create duplicate personal
+  // /family pairs. The email is hashed (SHA-256, first 12 hex
+  // chars) so the IDs are stable per-user but don't reveal the
+  // email in URLs.
+  const emailHash = await sha256Hex(email);
   const insertCookbook = async (kind /* 'personal' | 'family' */, name) => {
-    const suffix = Math.random().toString(36).slice(2, 8);
-    const id = `${kind}-${slugifyServer(localPart) || "cook"}-${suffix}`;
-    const slug = `${baseSlug}-${kind}-${suffix}`;
-    try {
-      await c.env.DB.prepare(
-        "INSERT INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?)"
-      ).bind(id, email, name, slug, now, now).run();
-      await c.env.DB.prepare(
-        "INSERT INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
-      ).bind(id, email, now).run();
-    } catch (err) {
-      const id2 = `${kind}-${slugifyServer(localPart) || "cook"}-${Math.random().toString(36).slice(2, 8)}`;
-      const slug2 = `${baseSlug}-${kind}-${Math.random().toString(36).slice(2, 8)}`;
-      await c.env.DB.prepare(
-        "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?)"
-      ).bind(id2, email, name, slug2, now, now).run().catch(() => {});
-      await c.env.DB.prepare(
-        "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
-      ).bind(id2, email, now).run().catch(() => {});
-    }
+    const id = `${kind}-${emailHash.slice(0, 12)}`;
+    const slug = `${baseSlug}-${kind}-${emailHash.slice(0, 6)}`;
+    await c.env.DB.prepare(
+      "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?)"
+    ).bind(id, email, name, slug, now, now).run().catch(() => {});
+    await c.env.DB.prepare(
+      "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
+    ).bind(id, email, now).run().catch(() => {});
   };
 
   if (!hasPersonal) await insertCookbook("personal", `${personName}'s Cookbook`);
   if (!hasFamily)   await insertCookbook("family",   `${personName}'s Family Cookbook`);
+}
+
+async function sha256Hex(s) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 // ─── AI usage analytics ───
@@ -3511,6 +3510,19 @@ app.post("/api/admin/users/:email/approve", async (c) => {
     "UPDATE users SET status = 'approved' WHERE email = ?"
   ).bind(target).run();
   return c.json({ ok: true });
+});
+
+// Lightweight pending-approval count for the avatar badge.
+// Admin-only — non-admins get { count: 0 } so the client
+// doesn't need to special-case the response.
+app.get("/api/admin/pending-count", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ count: 0 });
+  if (!(await isAdmin(c))) return c.json({ count: 0 });
+  const row = await c.env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM users WHERE status = 'pending'"
+  ).first();
+  return c.json({ count: row?.n || 0 });
 });
 
 app.post("/api/admin/users/:email/decline", async (c) => {

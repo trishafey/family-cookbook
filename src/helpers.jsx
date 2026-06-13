@@ -521,6 +521,30 @@ export function useProfile(authEmail) {
   return { profile, loading, refresh, save };
 }
 
+// Phase 4b-5: pending-approval count for the admin avatar
+// badge. Refreshes on a slow interval so a new pending sign-up
+// surfaces within a minute of landing without polling
+// aggressively.
+export function usePendingApprovalCount(isAdmin) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!isAdmin) { setCount(0); return; }
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetch("/api/admin/pending-count", { credentials: "include" });
+        if (!res.ok || cancelled) return;
+        const { count: n } = await res.json();
+        if (!cancelled) setCount(n || 0);
+      } catch {}
+    };
+    tick();
+    const id = setInterval(tick, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [isAdmin]);
+  return count;
+}
+
 // Phase 4a-2: list the cookbooks the signed-in user is a member
 // of. Empty array when signed out. Returns refresh() so the
 // switcher can re-poll after a join/create flow (4b).

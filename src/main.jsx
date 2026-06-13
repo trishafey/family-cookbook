@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, useUserCookbooks, useProfile, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions, BOOTSTRAP_COOKBOOK_ID } from "./helpers.jsx";
+import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, useUserCookbooks, useProfile, usePendingApprovalCount, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions, BOOTSTRAP_COOKBOOK_ID } from "./helpers.jsx";
 import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
@@ -294,6 +294,9 @@ function App() {
   // aren't on file yet, the app renders the setup form before
   // anything else.
   const { profile, loading: profileLoading, save: saveProfile, refresh: refreshProfile } = useProfile(authEmail);
+  // Pending-approval count for the admin avatar badge. 0 for
+  // non-admins / signed-out cooks.
+  const pendingCount = usePendingApprovalCount(!!profile?.isAdmin);
 
   // ─── Simplified view ───
   // Accessibility-first mode for less technical cooks (especially
@@ -629,6 +632,7 @@ function App() {
                 email={authEmail}
                 simpleMode={simpleMode}
                 isAdmin={!!profile?.isAdmin}
+                pendingCount={pendingCount}
                 onToggleSimpleMode={() => setSimpleMode(m => !m)}
                 onAdminAIUsage={() => setView("admin-ai-usage")}
                 onMyCookbooks={() => setView("cookbooks")}
@@ -1050,7 +1054,7 @@ function MobileMenuDrawer({
   );
 }
 
-function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, onToggleSimpleMode, onAdminAIUsage, onMyCookbooks, onSettings, onAdminUsers }) {
+function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 0, onToggleSimpleMode, onAdminAIUsage, onMyCookbooks, onSettings, onAdminUsers }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const initial = (email[0] || "?").toUpperCase();
@@ -1073,8 +1077,16 @@ function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, onToggleSimpleM
 
   return (
     <div className="avatar-menu" ref={ref}>
-      <button className="avatar" onClick={() => setOpen(o => !o)} title={email} aria-label="Menu">
+      <button
+        className="avatar"
+        onClick={() => setOpen(o => !o)}
+        title={pendingCount > 0 ? `${pendingCount} pending approval${pendingCount === 1 ? "" : "s"}` : email}
+        aria-label="Menu"
+      >
         {initial}
+        {pendingCount > 0 && (
+          <span className="avatar-badge" aria-label={`${pendingCount} pending approval`}>{pendingCount}</span>
+        )}
       </button>
       {open && (
         <div className="menu" role="menu">
@@ -1107,6 +1119,9 @@ function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, onToggleSimpleM
               style={itemBtnStyle}
             >
               Admin · users
+              {pendingCount > 0 && (
+                <span className="menu-item-badge">{pendingCount}</span>
+              )}
             </button>
           )}
           <button
