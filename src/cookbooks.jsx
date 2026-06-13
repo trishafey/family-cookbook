@@ -563,54 +563,89 @@ export function CookbooksIndex({ authEmail, activeCookbookId, onClose, onOpenCoo
         <div className="cookbooks-empty">
           <p>No cookbooks yet. Hit <em>New cookbook</em> to start one.</p>
         </div>
-      ) : (
-        <div className="cookbooks-grid">
-          {cookbooks.map(cb => {
-            const isOwner = cb.yourRole === "owner";
-            // Admins can open settings on any cookbook even when
-            // they're not a real member.
-            const canManage = isOwner || cb.yourRole === "admin";
-            return (
-              <div
-                key={cb.id}
-                className={`cookbook-card ${cb.id === activeCookbookId ? "active" : ""}`}
-              >
-                <div className="cookbook-card-head">
-                  <div className={`role-badge role-${cb.yourRole}`}>
-                    {cb.adminAccess ? "admin access" : cb.yourRole}
-                  </div>
-                  <div className={`vis-badge vis-${cb.visibility}`}>{cb.visibility}</div>
-                  {cb.id === activeCookbookId && (
-                    <div className="role-badge active-badge">Active</div>
-                  )}
-                  {canManage && (
-                    <button
-                      type="button"
-                      className="cookbook-card-edit"
-                      onClick={(e) => { e.stopPropagation(); setEditing({ cookbook: cb }); }}
-                      title="Cookbook settings"
-                      aria-label="Cookbook settings"
-                    >
-                      <Icon name="edit" size={14} />
-                    </button>
-                  )}
+      ) : (() => {
+        // Bucket cookbooks into three sections:
+        //   - owned: cookbooks the cook owns (their personal +
+        //     family come first here)
+        //   - shared: cookbooks where they're editor/viewer
+        //   - adminAccess: cookbooks they see only via admin
+        const owned = cookbooks.filter(c => c.yourRole === "owner");
+        const shared = cookbooks.filter(c => c.yourRole === "editor" || c.yourRole === "viewer");
+        const adminAccess = cookbooks.filter(c => c.adminAccess || (c.yourRole === "admin" && !c.adminAccess));
+        // Sort owned so personal + family come first, custom cookbooks after.
+        const ownedSorted = [...owned].sort((a, b) => {
+          const score = (c) => {
+            if (/^personal-/i.test(c.id) || /'s Cookbook$/i.test(c.name)) return 0;
+            if (/family/i.test(c.id) || /Family Cookbook/i.test(c.name)) return 1;
+            return 2;
+          };
+          return score(a) - score(b);
+        });
+        const renderCard = (cb) => {
+          const isOwner = cb.yourRole === "owner";
+          const canManage = isOwner || cb.yourRole === "admin";
+          return (
+            <div
+              key={cb.id}
+              className={`cookbook-card ${cb.id === activeCookbookId ? "active" : ""}`}
+            >
+              <div className="cookbook-card-head">
+                <div className={`role-badge role-${cb.yourRole}`}>
+                  {cb.adminAccess ? "admin access" : cb.yourRole}
                 </div>
-                <button
-                  type="button"
-                  className="cookbook-card-body"
-                  onClick={() => onOpenCookbook?.(cb)}
-                >
-                  <h3 className="cookbook-name">{cb.name}</h3>
-                  <div className="cookbook-blurb">{cb.blurb}</div>
-                  <div className="cookbook-meta">
-                    <span>{cb.ownerEmail === authEmail ? "You own this" : `owned by ${cb.ownerEmail}`}</span>
-                  </div>
-                </button>
+                <div className={`vis-badge vis-${cb.visibility}`}>{cb.visibility}</div>
+                {cb.id === activeCookbookId && (
+                  <div className="role-badge active-badge">Active</div>
+                )}
+                {canManage && (
+                  <button
+                    type="button"
+                    className="cookbook-card-edit"
+                    onClick={(e) => { e.stopPropagation(); setEditing({ cookbook: cb }); }}
+                    title="Cookbook settings"
+                    aria-label="Cookbook settings"
+                  >
+                    <Icon name="edit" size={14} />
+                  </button>
+                )}
               </div>
-            );
-          })}
-        </div>
-      )}
+              <button
+                type="button"
+                className="cookbook-card-body"
+                onClick={() => onOpenCookbook?.(cb)}
+              >
+                <h3 className="cookbook-name">{cb.name}</h3>
+                <div className="cookbook-blurb">{cb.blurb}</div>
+                <div className="cookbook-meta">
+                  <span>{cb.ownerEmail === authEmail ? "You own this" : `owned by ${cb.ownerEmail}`}</span>
+                </div>
+              </button>
+            </div>
+          );
+        };
+        return (
+          <>
+            {ownedSorted.length > 0 && (
+              <section className="cookbook-section">
+                <div className="section-head">Your cookbooks</div>
+                <div className="cookbooks-grid">{ownedSorted.map(renderCard)}</div>
+              </section>
+            )}
+            {shared.length > 0 && (
+              <section className="cookbook-section">
+                <div className="section-head">Shared with you</div>
+                <div className="cookbooks-grid">{shared.map(renderCard)}</div>
+              </section>
+            )}
+            {adminAccess.length > 0 && (
+              <section className="cookbook-section">
+                <div className="section-head">Admin access</div>
+                <div className="cookbooks-grid">{adminAccess.map(renderCard)}</div>
+              </section>
+            )}
+          </>
+        );
+      })()}
 
       {createOpen && (
         <CreateCookbookModal

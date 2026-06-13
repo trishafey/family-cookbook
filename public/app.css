@@ -2140,6 +2140,14 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
+.cookbook-section { margin-top: 28px; }
+.cookbook-section:first-of-type { margin-top: 16px; }
+.cookbook-section > .section-head {
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 600;
+  margin-bottom: 12px;
+}
 .cookbook-card {
   display: flex; flex-direction: column;
   text-align: left;
