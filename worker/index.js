@@ -240,6 +240,100 @@ function randomToken(bytes = 24) {
   return [...arr].map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Phase 4b-2.5: invite email delivery via Resend.
+//
+// Resend is the simplest path for transactional email on
+// Cloudflare Workers — single HTTP POST, no SDK, free tier
+// covers far more than the family cookbook will send. The
+// caller MUST have RESEND_API_KEY set as an env var in
+// Cloudflare Pages → Settings → Environment variables, AND
+// must verify their sending domain inside Resend (DKIM/SPF
+// DNS records). Without those, the helper returns
+// { ok: false, reason: "not configured" } and the invitation
+// still works — the link is just returned for clipboard copy.
+//
+// Optional env vars:
+//   RESEND_API_KEY      — required to actually send mail
+//   INVITE_FROM_EMAIL   — defaults to "invites@heirloomcookbook.net"
+//   INVITE_FROM_NAME    — defaults to "Heirloom Cookbook"
+async function sendInviteEmail(env, { toEmail, inviterEmail, cookbookName, cookbookBlurb, role, link }) {
+  if (!env.RESEND_API_KEY) return { ok: false, reason: "not configured" };
+  if (!toEmail) return { ok: false, reason: "no recipient" };
+  const fromEmail = env.INVITE_FROM_EMAIL || "invites@heirloomcookbook.net";
+  const fromName = env.INVITE_FROM_NAME || "Heirloom Cookbook";
+
+  const subject = `${inviterEmail} invited you to ${cookbookName}`;
+  const text = `${inviterEmail} invited you to ${cookbookName} on Heirloom.
+
+${cookbookBlurb ? cookbookBlurb + "\n\n" : ""}You'll join as a ${role}.
+
+Accept the invitation: ${link}
+
+This link expires in ${INVITE_TTL_DAYS} days.`;
+
+  const html = `<!doctype html>
+<html><body style="margin:0;padding:0;background:#fdfcfa;font-family:Georgia,serif;color:#1c1813;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:48px 20px;">
+    <table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0" style="background:#fdfcfa;border:1px solid #e6dfd0;border-radius:12px;">
+      <tr><td style="padding:40px 36px;">
+        <div style="font-family:'IBM Plex Mono',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#6e7a3a;font-weight:600;margin-bottom:10px;">Invitation</div>
+        <h1 style="font-family:Georgia,serif;font-size:24px;font-weight:500;margin:0 0 16px;line-height:1.3;color:#1c1813;">
+          <em style="color:#b04a2a;">${escapeHtml(inviterEmail)}</em> invited you to
+        </h1>
+        <div style="font-family:Georgia,serif;font-size:30px;font-weight:500;font-style:italic;margin:4px 0 16px;color:#1c1813;">
+          ${escapeHtml(cookbookName)}
+        </div>
+        ${cookbookBlurb ? `<p style="font-family:Georgia,serif;font-size:15px;color:#3d362c;margin:0 0 16px;line-height:1.5;">${escapeHtml(cookbookBlurb)}</p>` : ""}
+        <p style="font-size:14px;color:#8a8170;margin:0 0 28px;">You'll join as a <strong>${escapeHtml(role)}</strong>.</p>
+        <p style="margin:0 0 24px;">
+          <a href="${link}" style="display:inline-block;background:#1c1813;color:#fdfcfa;padding:14px 24px;border-radius:999px;text-decoration:none;font-family:Georgia,serif;font-size:15px;">Verify your email &amp; accept</a>
+        </p>
+        <p style="font-family:Georgia,serif;font-style:italic;font-size:13px;color:#8a8170;margin:0;">
+          This link expires in ${INVITE_TTL_DAYS} days. If you weren't expecting this, just ignore the email.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: `${fromName} <${fromEmail}>`,
+        to: [toEmail],
+        reply_to: inviterEmail,
+        subject,
+        text,
+        html,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error("resend send failed", res.status, body);
+      return { ok: false, reason: `provider error ${res.status}` };
+    }
+    const data = await res.json().catch(() => ({}));
+    return { ok: true, id: data?.id || null };
+  } catch (err) {
+    console.error("resend send threw", err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+function escapeHtml(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Create an invitation. Owner-only.
 app.post("/api/admin/cookbooks/:id/invitations", async (c) => {
   const email = authedEmail(c);
@@ -270,6 +364,26 @@ app.post("/api/admin/cookbooks/:id/invitations", async (c) => {
   ).bind(token, cookbookId, inviteEmail, inviteRole, email, now.toISOString(), expires.toISOString()).run();
 
   const origin = new URL(c.req.url).origin;
+  const link = `${origin}/invite/${token}`;
+
+  // Send the magic link via Resend if configured. Best-effort —
+  // a delivery failure doesn't roll back the invitation; the
+  // inviter can still copy/share the link manually.
+  let emailDelivery = { ok: false, reason: "no recipient" };
+  if (inviteEmail) {
+    const cb = await c.env.DB.prepare(
+      "SELECT name, blurb FROM cookbooks WHERE id = ?"
+    ).bind(cookbookId).first();
+    emailDelivery = await sendInviteEmail(c.env, {
+      toEmail: inviteEmail,
+      inviterEmail: email,
+      cookbookName: cb?.name || "a cookbook",
+      cookbookBlurb: cb?.blurb || "",
+      role: inviteRole,
+      link,
+    });
+  }
+
   return c.json({
     invitation: {
       token, cookbookId, email: inviteEmail, role: inviteRole,
@@ -277,7 +391,9 @@ app.post("/api/admin/cookbooks/:id/invitations", async (c) => {
       createdAt: now.toISOString(),
       expiresAt: expires.toISOString(),
     },
-    link: `${origin}/invite/${token}`,
+    link,
+    emailSent: emailDelivery.ok,
+    emailError: emailDelivery.ok ? null : emailDelivery.reason,
   });
 });
 
@@ -1253,6 +1369,16 @@ app.post("/api/admin/recipes", async (c) => {
     return c.json({ error: "id and title are required" }, 400);
   }
 
+  // Phase 4b-3: scope the write to the chosen cookbook. Defaults
+  // to the bootstrap family cookbook so legacy clients (no
+  // cookbookId in the body) keep working. Requires editor+ on
+  // the destination cookbook.
+  const cookbookId = (draft?.cookbookId || draft?.cookbook_id || BOOTSTRAP_COOKBOOK_ID).toString();
+  const writerRole = await cookbookRole(c, cookbookId);
+  if (!["owner", "editor"].includes(writerRole)) {
+    return c.json({ error: "not allowed to add recipes to this cookbook" }, 403);
+  }
+
   const now = Date.now();
   // Collision-retry: if the caller's id is taken, append -2 / -3 /
   // … until one works. Keeps URLs readable when two recipes share
@@ -1267,8 +1393,8 @@ app.post("/api/admin/recipes", async (c) => {
     try {
       await c.env.DB.prepare(
         `INSERT INTO recipes
-           (id, title, subtitle, author, cuisine, course, photo, blob, created_by, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           (id, title, subtitle, author, cuisine, course, photo, blob, created_by, created_at, updated_at, cookbook_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(
         finalDraft.id,
         finalDraft.title,
@@ -1280,7 +1406,8 @@ app.post("/api/admin/recipes", async (c) => {
         JSON.stringify(finalDraft),
         email,
         now,
-        now
+        now,
+        cookbookId
       ).run();
       finalId = tryId;
       // Fire-and-forget translation. Cook doesn't wait for it;
@@ -1330,9 +1457,17 @@ app.patch("/api/admin/recipes/:id", async (c) => {
   const patch = await c.req.json();
 
   const existing = await c.env.DB.prepare(
-    "SELECT blob FROM recipes WHERE id = ?"
+    "SELECT blob, cookbook_id FROM recipes WHERE id = ?"
   ).bind(id).first();
   if (!existing) return c.json({ error: "not found" }, 404);
+
+  // Phase 4b-3: editing requires editor+ on the recipe's
+  // cookbook (or admin in 4b-4). Falls back to bootstrap for
+  // any legacy row that escaped the backfill.
+  const editorRole = await cookbookRole(c, existing.cookbook_id || BOOTSTRAP_COOKBOOK_ID);
+  if (!["owner", "editor"].includes(editorRole)) {
+    return c.json({ error: "not allowed to edit recipes in this cookbook" }, 403);
+  }
 
   const oldRecipe = JSON.parse(existing.blob);
   const merged = { ...oldRecipe, ...patch, id };
@@ -1500,12 +1635,85 @@ app.delete("/api/admin/recipes/:id", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
 
+  const id = c.req.param("id");
+  // Phase 4b-3: deleting requires editor+ on the recipe's
+  // cookbook.
+  const existing = await c.env.DB.prepare(
+    "SELECT cookbook_id FROM recipes WHERE id = ?"
+  ).bind(id).first();
+  if (!existing) return c.json({ error: "not found" }, 404);
+  const role = await cookbookRole(c, existing.cookbook_id || BOOTSTRAP_COOKBOOK_ID);
+  if (!["owner", "editor"].includes(role)) {
+    return c.json({ error: "not allowed to delete recipes in this cookbook" }, 403);
+  }
+
   const res = await c.env.DB.prepare(
     "DELETE FROM recipes WHERE id = ?"
-  ).bind(c.req.param("id")).run();
+  ).bind(id).run();
 
   if (!res.meta.changes) return c.json({ error: "not found" }, 404);
   return c.json({ ok: true });
+});
+
+// Phase 4b-3: copy a recipe into another cookbook. The caller
+// must be editor+ on the destination cookbook. Creates a new
+// recipe row with a fresh id and a forked_from pointer back to
+// the source for attribution.
+app.post("/api/admin/recipes/:id/copy-to/:cookbookId", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const sourceId = c.req.param("id");
+  const destCookbook = c.req.param("cookbookId");
+
+  const destRole = await cookbookRole(c, destCookbook);
+  if (!["owner", "editor"].includes(destRole)) {
+    return c.json({ error: "not allowed to add recipes to this cookbook" }, 403);
+  }
+
+  const row = await c.env.DB.prepare(
+    "SELECT blob, cookbook_id FROM recipes WHERE id = ?"
+  ).bind(sourceId).first();
+  if (!row) return c.json({ error: "not found" }, 404);
+  const source = JSON.parse(row.blob);
+
+  // Slug-collision retry as in the create handler.
+  const baseId = sourceId;
+  const now = Date.now();
+  let attempt = 0;
+  while (attempt < 25) {
+    const tryId = attempt === 0 ? baseId : `${baseId}-${attempt + 1}`;
+    const finalDraft = {
+      ...source,
+      id: tryId,
+      forkedFrom: sourceId,
+      cookbookId: destCookbook,
+    };
+    try {
+      await c.env.DB.prepare(
+        `INSERT INTO recipes
+           (id, title, subtitle, author, cuisine, course, photo, blob, created_by, created_at, updated_at, cookbook_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        finalDraft.id,
+        finalDraft.title,
+        finalDraft.subtitle ?? null,
+        finalDraft.author ?? null,
+        finalDraft.cuisine ?? null,
+        finalDraft.course ?? null,
+        finalDraft.photo ?? null,
+        JSON.stringify(finalDraft),
+        email,
+        now, now,
+        destCookbook
+      ).run();
+      return c.json({ ok: true, id: tryId, cookbookId: destCookbook });
+    } catch (err) {
+      const msg = String(err?.message || err);
+      if (/UNIQUE constraint|already exists|PRIMARY KEY/i.test(msg)) { attempt++; continue; }
+      return c.json({ error: msg }, 500);
+    }
+  }
+  return c.json({ error: "Too many slug collisions" }, 409);
 });
 
 // Upload a recipe photo. Multipart with a single 'file' part; stored in

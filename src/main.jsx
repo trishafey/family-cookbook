@@ -433,11 +433,16 @@ function App() {
     const isUpdate = !isLegacy && serverRecipes.some(r => r.id === draft.id);
     const url = isUpdate ? `/api/admin/recipes/${encodeURIComponent(draft.id)}` : "/api/admin/recipes";
     const method = isUpdate ? "PATCH" : "POST";
+    // Phase 4b-3: stamp the active cookbook on new drafts so the
+    // server scopes the write correctly. Updates keep their
+    // existing cookbook_id — the recipe doesn't move between
+    // cookbooks on edit.
+    const body = isUpdate ? draft : { ...draft, cookbookId: activeCookbookId };
     const res = await fetch(url, {
       method,
       credentials: "include",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(draft),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({}));

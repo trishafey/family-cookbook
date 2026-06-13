@@ -115,6 +115,7 @@ function MembersSection({ cookbook, authEmail, onMembersChanged }) {
   const [inviteRole, setInviteRole] = useState("editor");
   const [inviting, setInviting] = useState(false);
   const [copiedToken, setCopiedToken] = useState(null);
+  const [lastSentEmail, setLastSentEmail] = useState(null);
 
   const load = async () => {
     setError(null);
@@ -155,10 +156,21 @@ function MembersSection({ cookbook, authEmail, onMembersChanged }) {
         const { error: msg } = await res.json().catch(() => ({}));
         throw new Error(msg || `Invite failed (${res.status})`);
       }
-      const { invitation, link } = await res.json();
-      setInvitations(prev => [{ ...invitation, link }, ...prev]);
+      const { invitation, link, emailSent, emailError } = await res.json();
+      setInvitations(prev => [{ ...invitation, link, emailSent }, ...prev]);
       setInviteEmail("");
-      try { await navigator.clipboard.writeText(link); setCopiedToken(invitation.token); setTimeout(() => setCopiedToken(null), 2200); } catch {}
+      // Email-delivered invites get a "Sent to email@" toast; if
+      // delivery failed (or the inviter created an open invite),
+      // copy the link to the clipboard so they can share it.
+      if (emailSent) {
+        setLastSentEmail(invitation.email);
+        setTimeout(() => setLastSentEmail(null), 3500);
+      } else {
+        try { await navigator.clipboard.writeText(link); setCopiedToken(invitation.token); setTimeout(() => setCopiedToken(null), 2200); } catch {}
+        if (emailError && emailError !== "no recipient" && emailError !== "not configured") {
+          setError(`Created the invite, but email delivery failed (${emailError}). The link's been copied to your clipboard.`);
+        }
+      }
     } catch (err) {
       setError(err.message || "Could not create invitation.");
     } finally {
@@ -270,8 +282,14 @@ function MembersSection({ cookbook, authEmail, onMembersChanged }) {
         </button>
       </form>
       <div className="invite-hint">
-        The invite expires in 14 days. Share the link however you like — it grants access on first click.
+        Email gets sent automatically when configured. Otherwise the link is copied to your clipboard — share it however you like. Expires in 14 days.
       </div>
+
+      {lastSentEmail && (
+        <div className="invite-toast">
+          <Icon name="check" size={13} /> Invitation sent to <strong>{lastSentEmail}</strong>.
+        </div>
+      )}
 
       {invitations.length > 0 && (
         <>
@@ -282,6 +300,7 @@ function MembersSection({ cookbook, authEmail, onMembersChanged }) {
                 <div className="who">
                   <div className="name">
                     {inv.email || "Anyone with the link"} <span className="role-tag">{inv.role}</span>
+                    {inv.emailSent && <span className="email-sent-tag" title="Invite emailed">emailed</span>}
                   </div>
                   <div className="meta">expires {new Date(inv.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
                 </div>
