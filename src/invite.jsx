@@ -68,6 +68,19 @@ export function InviteAccept({ token, authEmail, onAccepted, onClose }) {
     }
   };
 
+  // Auto-accept once the invite is loaded and the cook is signed
+  // in — removes the redundant "click accept" step after the
+  // Cloudflare Access email-pin round trip. The wrong-account
+  // panel still catches mismatches; the existing-accept and
+  // expired states already short-circuit before this runs.
+  useEffect(() => {
+    if (!invite || !authEmail) return;
+    if (invite.acceptedAt || invite.expired) return;
+    if (accepting || done || wrongAccount) return;
+    accept();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invite, authEmail]);
+
   return (
     <div className="invite-page" data-screen-label="09 Accept invitation">
       <div className="invite-card">
@@ -125,23 +138,28 @@ export function InviteAccept({ token, authEmail, onAccepted, onClose }) {
             {!authEmail ? (
               <>
                 <a className="btn primary" href={signInUrl()}>
-                  <Icon name="chef" size={15} /> Sign in to accept
+                  <Icon name="chef" size={15} /> Verify your email & accept
                 </a>
                 <p className="invite-hint">
-                  After signing in, you'll be brought back here to accept.
+                  Sign in with <strong>{invite.email || "the invited address"}</strong> to confirm and join — you'll come straight back to {invite.cookbookName}.
                 </p>
+                <button className="btn ghost" onClick={onClose}>Decline</button>
+              </>
+            ) : accepting ? (
+              <>
+                <div className="invite-loading">Adding you to {invite.cookbookName}…</div>
               </>
             ) : (
               <>
-                <button className="btn primary" onClick={accept} disabled={accepting}>
-                  {accepting ? "Joining…" : "Accept invitation"}
+                <button className="btn primary" onClick={accept}>
+                  Accept invitation
                 </button>
                 <p className="invite-hint">
                   Signed in as <strong>{authEmail}</strong>.
                 </p>
+                <button className="btn ghost" onClick={onClose}>Decline</button>
               </>
             )}
-            <button className="btn ghost" onClick={onClose}>Decline</button>
           </>
         )}
       </div>

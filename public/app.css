@@ -2419,8 +2419,20 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   color: #933;
   font-size: 14px;
 }
-.invite-card .btn { align-self: center; min-width: 220px; }
-.invite-card .invite-loading { color: var(--ink-3); padding: 24px; }
+.invite-card .btn {
+  align-self: center; min-width: 220px;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px;
+  /* Force consistent vertical metrics so the icon+text don't
+     baseline-drift inside the rounded pill. */
+  padding: 12px 18px;
+  line-height: 1;
+}
+.invite-card .btn svg { display: block; flex-shrink: 0; }
+.invite-card .invite-loading {
+  color: var(--ink-3); padding: 24px;
+  font-family: var(--serif); font-style: italic; font-size: 15px;
+}
 
 /* ─── Profile setup gate ─── */
 .profile-gate {

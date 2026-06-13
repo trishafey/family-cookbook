@@ -547,8 +547,8 @@ function App() {
             {selection.length > 0 && <span className="hamburger-badge">{selection.length}</span>}
           </button>
           <div className="brand" onClick={backToBrowse}>
-            <img className="brand-logo" src="images/heirloom-tomato-long.png" alt="Heirloom" />
-            <img className="brand-mark" src="images/heirloom-tomato-h.PNG" alt="Heirloom" />
+            <img className="brand-logo" src="/images/heirloom-tomato-long.png" alt="Heirloom" />
+            <img className="brand-mark" src="/images/heirloom-tomato-h.PNG" alt="Heirloom" />
           </div>
           {FLAGS.cookbooks && (
             <CookbookSwitcher
