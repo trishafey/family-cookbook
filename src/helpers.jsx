@@ -469,7 +469,7 @@ export function useUserCookbooks(authEmail) {
     if (!authEmail) { setCookbooks([]); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/cookbooks", { credentials: "include" });
+      const res = await fetch("/api/admin/cookbooks", { credentials: "include" });
       if (res.ok) {
         const { cookbooks: list } = await res.json();
         setCookbooks(list || []);

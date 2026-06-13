@@ -58,7 +58,11 @@ const app = new Hono();
 // Powers the "My cookbooks" view + the cookbook switcher in the
 // nav. Returns one row per membership, joined with cookbook
 // metadata. yourRole comes from the membership row.
-app.get("/api/cookbooks", async (c) => {
+//
+// Hosted under /api/admin/ because Cloudflare Access only injects
+// the cf-access-authenticated-user-email header on the protected
+// /api/admin/* paths.
+app.get("/api/admin/cookbooks", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const rows = await c.env.DB.prepare(`
@@ -88,7 +92,7 @@ app.get("/api/cookbooks", async (c) => {
 });
 
 // Cookbook details + members. Membership-gated.
-app.get("/api/cookbooks/:id", async (c) => {
+app.get("/api/admin/cookbooks/:id", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const id = c.req.param("id");

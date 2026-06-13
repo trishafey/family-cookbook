@@ -24,7 +24,7 @@ export function CookbooksIndex({ authEmail, activeCookbookId, onClose, onOpenCoo
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/cookbooks", { credentials: "include" });
+        const res = await fetch("/api/admin/cookbooks", { credentials: "include" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const { cookbooks: list } = await res.json();
         if (!cancelled) setCookbooks(list || []);
