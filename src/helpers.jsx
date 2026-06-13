@@ -698,7 +698,7 @@ export const Icon = ({ name, size = 18 }) => {
     arch:      <><path d="M5 21 V12 A7 7 0 0 1 19 12 V21" /><path d="M3.5 21 H6.5 M17.5 21 H20.5" /></>,
 
     // ── Core navigation (animated on hover) ──
-    search:    <><circle cx="10.5" cy="10.5" r="5.5" /><path d="m14.5 14.5 4 4" /><path className="s-handleleaf" d="M17.2 17 C16.9 15.2 17.9 13.9 19.6 13.8 C19.9 15.6 18.9 16.9 17.2 17 Z" /><g className="s-bloom"><circle cx="10.5" cy="9" r="1.2" /><circle cx="8.95" cy="10.1" r="1.2" /><circle cx="12.05" cy="10.1" r="1.2" /><circle cx="9.55" cy="11.95" r="1.2" /><circle cx="11.45" cy="11.95" r="1.2" /></g></>,
+    search:    <><path d="m16 16 4 4" /><path className="s-handleleaf" d="M18.7 18.5 C18.4 16.7 19.4 15.4 21.1 15.3 C21.4 17.1 20.4 18.4 18.7 18.5 Z" /><circle className="sg-glass" cx="11" cy="11" r="6" /><g className="sg-bloom"><circle cx="12" cy="8" r="2.1" /><circle cx="8.4" cy="11" r="2.1" /><circle cx="15.6" cy="11" r="2.1" /><circle cx="9.8" cy="15" r="2.1" /><circle cx="14.2" cy="15" r="2.1" /></g></>,
     plus:      <><path d="M12 8.5 V17.5" /><path d="M7.5 13 H16.5" /><path className="p-leaf" d="M12 8.5 C12 6 13.8 4.3 16.2 4.3 C16.2 6.8 14.4 8.5 12 8.5 Z" /></>,
     timer:     <><circle cx="12" cy="13.7" r="7.4" /><path className="sweep" d="M12 13.7 V8.4" /><path d="M9.6 3 H14.4 M12 3 V5.6" /></>,
     // Recipe-card ingredient list — bound card with seed bullets.

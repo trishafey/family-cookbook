@@ -289,8 +289,8 @@ h4 { font-size: 17px; line-height: 1.3; }
    overflow: hidden clips the absolutely-positioned filter
    button so it doesn't peek out from behind the pill. */
 .search.collapsed {
-  flex: 0 0 40px; max-width: 40px; width: 40px;
-  height: 40px;
+  flex: 0 0 56px; max-width: 56px; width: 56px;
+  height: 56px;
   padding: 0;
   cursor: pointer;
   background: var(--paper);
@@ -298,11 +298,24 @@ h4 { font-size: 17px; line-height: 1.3; }
   border-radius: 999px;
   justify-content: center;
   overflow: hidden;
+  transition: width .34s cubic-bezier(.4, 0, .2, 1),
+              max-width .34s cubic-bezier(.4, 0, .2, 1),
+              flex-basis .34s cubic-bezier(.4, 0, .2, 1),
+              background .14s ease,
+              box-shadow .18s ease,
+              border-color .14s ease;
 }
-.search.collapsed:hover { background: var(--paper-2); border-color: var(--ink-3); }
-/* The search SVG was rebalanced (lens + handle visual bounding
-   box is now centred in the 24×24 viewBox) so no transform is
-   needed for the collapsed pill. */
+.search.collapsed:hover {
+  background: color-mix(in srgb, var(--accent) 9%, var(--paper));
+  border-color: var(--rule);
+  box-shadow: 0 12px 32px -16px rgba(28, 24, 19, .18);
+}
+/* Expanded: terracotta border + soft shadow so the bar reads
+   as "active surface" matching the new collapsed-hover treatment. */
+.search-wrap:not(.collapsed) .search:not(.collapsed) {
+  border-color: var(--accent);
+  box-shadow: 0 12px 32px -16px rgba(28, 24, 19, .18);
+}
 /* Hide / fade the input + trailing buttons while collapsed.
    They stay in the DOM so React doesn't unmount/remount across
    the transition; the same transition timings as max-width keep
@@ -323,17 +336,41 @@ h4 { font-size: 17px; line-height: 1.3; }
      hidden so it doesn't push the icon off-centre. */
   flex: 0 0 0; width: 0; min-width: 0; padding: 0;
 }
-/* Micro-animation on focus / click — the new search icon's
-   bloom (five circles inside the lens) and handle-leaf spring
-   in when the bar is focused or the collapsed pill is tapped.
-   Same one-shot trigger as the prior .vine curl. */
-.search:focus-within .s-bloom,
-.search.collapsed:active .s-bloom {
-  animation: ic-sbloom 0.5s ease forwards;
+/* Magnifying glass morphs into a five-petal bloom. The lens
+   (.sg-glass) shrinks + fades; the bloom (.sg-bloom group) and
+   handle-leaf (.s-handleleaf) spring in. Trigger fires on
+   collapsed-pill hover AND whenever the bar is expanded — so
+   the expanded state always shows the blossom, the collapsed
+   state shows the lens until hovered. */
+.search .sg-glass { transform-box: view-box; transform-origin: 11px 11px; }
+.search .sg-bloom {
+  opacity: 0;
+  transform-box: view-box; transform-origin: 12px 11.5px;
 }
-.search:focus-within .s-handleleaf,
-.search.collapsed:active .s-handleleaf {
-  animation: ic-shandleleaf 0.55s ease forwards;
+.search .s-handleleaf {
+  opacity: 0;
+  transform-box: view-box; transform-origin: 18.7px 18.5px;
+}
+.search.collapsed:hover .sg-glass,
+.search-wrap:not(.collapsed) .search .sg-glass {
+  animation: ic-glassout .45s ease forwards;
+}
+.search.collapsed:hover .sg-bloom,
+.search-wrap:not(.collapsed) .search .sg-bloom {
+  animation: ic-glassbloom .5s ease forwards;
+}
+.search.collapsed:hover .s-handleleaf,
+.search-wrap:not(.collapsed) .search .s-handleleaf {
+  animation: ic-handleleaf .55s ease forwards;
+}
+@keyframes ic-glassout { to { opacity: 0; transform: scale(.4); } }
+@keyframes ic-glassbloom {
+  from { opacity: 0; transform: scale(.2) rotate(-30deg); }
+  to   { opacity: 1; transform: scale(1) rotate(0); }
+}
+@keyframes ic-handleleaf {
+  from { opacity: 0; transform: scale(0) rotate(-15deg); }
+  to   { opacity: 1; transform: scale(1) rotate(0); }
 }
 /* Wrapper that contains the input row + suggestions panel.
    Position relative so the dropdown anchors below the input.
@@ -342,13 +379,13 @@ h4 { font-size: 17px; line-height: 1.3; }
    would reserve a full 480px slot and the inner pill would
    look stranded). */
 .search-wrap {
-  position: relative; flex: 1 1 480px; max-width: 480px; min-width: 0;
+  position: relative; flex: 1 1 560px; max-width: min(560px, 90vw); min-width: 0;
   transition: flex-basis 0.32s cubic-bezier(.4, 0, .2, 1),
               max-width 0.32s cubic-bezier(.4, 0, .2, 1);
 }
-.search-wrap.collapsed { flex: 0 0 40px; max-width: 40px; }
+.search-wrap.collapsed { flex: 0 0 56px; max-width: 56px; }
 .search-wrap .search { flex: 1 1 auto; max-width: none; width: 100%; box-sizing: border-box; }
-.search-wrap.collapsed .search { width: 40px; max-width: 40px; }
+.search-wrap.collapsed .search { width: 56px; max-width: 56px; }
 /* Below the home-search-row breakpoint, the wrap takes its
    container's full width — explicit `width: 100%` is the
    belt-and-braces version that survives any parent flex
@@ -398,23 +435,30 @@ h4 { font-size: 17px; line-height: 1.3; }
    edge of the search bar regardless of how the input's flex
    width behaves in different parent contexts. The 48px right
    reservation keeps the input from sliding under it. */
-.search:has(.search-filter-btn) { padding-right: 48px; }
+.search:has(.search-filter-btn) { padding-right: 56px; }
 .search .search-filter-btn {
   position: absolute;
-  right: 0; top: 50%; transform: translateY(-50%);
-  height: calc(100% - 8px);
-  display: flex; align-items: center;
-  border-left: 1px solid var(--rule);
-  border-top: 0; border-right: 0; border-bottom: 0;
-  border-radius: 0;
-  padding: 0 12px;
+  right: 8px; top: 50%; transform: translateY(-50%);
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0;
   margin: 0;
-  background: transparent;
-  color: var(--ink-3);
+  background: var(--paper-2);
+  color: var(--ink-2);
+  transition: background .14s ease, border-color .14s ease, color .14s ease;
 }
 .search .search-filter-btn:hover {
-  color: var(--ink);
-  background: transparent;
+  background: color-mix(in srgb, var(--accent-cool) 12%, var(--paper));
+  border-color: color-mix(in srgb, var(--accent-cool) 35%, transparent);
+  color: var(--accent-cool);
+}
+/* Active/toggled filter — solid ink pill matching the
+   reference component (ink bg, white glyph). */
+.search .search-filter-btn.on,
+.search .search-filter-btn[aria-pressed="true"] {
+  background: var(--ink); border-color: var(--ink); color: #fff;
 }
 
 /* Home masthead — lighter title weight + inline search + CTAs */
