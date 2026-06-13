@@ -28,4 +28,5 @@ export const FLAGS = {
   pairings:     on("pairings")     || true,   // Recipe page → AI-generated pairing tiles (curated ones stay)
   needHelp:     on("needHelp")     || true,   // Recipe page + cook mode → "Need help cooking?" Q&A
   lab:          on("lab")          || true,   // The Lab / Kitchen experimentation view
+  cookbooks:    on("cookbooks")    || true,   // Phase 4a — multi-tenant cookbooks index (read-only stub)
 };

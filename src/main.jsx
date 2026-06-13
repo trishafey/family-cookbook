@@ -11,6 +11,7 @@ import { Browse } from "./browse.jsx";
 import { RecipeDetail } from "./recipe.jsx";
 import { AddRecipe } from "./add-recipe.jsx";
 import { ExperimentationLab } from "./experiment.jsx";
+import { CookbooksIndex } from "./cookbooks.jsx";
 import { BuildAMeal } from "./meal.jsx";
 import { PlanMealModal, MealPlanPage } from "./meal-plan.jsx";
 import { ShoppingList } from "./shopping.jsx";
@@ -492,6 +493,7 @@ function App() {
                 simpleMode={simpleMode}
                 onToggleSimpleMode={() => setSimpleMode(m => !m)}
                 onAdminAIUsage={() => setView("admin-ai-usage")}
+                onMyCookbooks={() => setView("cookbooks")}
               />
             ) : (
               <a className="btn sm sign-in" href={signInUrl()} title={t("signIn")}>
@@ -613,6 +615,13 @@ function App() {
           openCook={openCook}
           allRecipes={recipes}
           authEmail={authEmail}
+        />
+      )}
+      {FLAGS.cookbooks && view === "cookbooks" && (
+        <CookbooksIndex
+          authEmail={authEmail}
+          onClose={backToBrowse}
+          onOpenCookbook={() => backToBrowse() /* 4a-2 wires per-cookbook scoping */}
         />
       )}
       {view === "meal" && (
@@ -867,7 +876,7 @@ function MobileMenuDrawer({
   );
 }
 
-function AvatarMenu({ email, simpleMode, onToggleSimpleMode, onAdminAIUsage }) {
+function AvatarMenu({ email, simpleMode, onToggleSimpleMode, onAdminAIUsage, onMyCookbooks }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const initial = (email[0] || "?").toUpperCase();
@@ -893,6 +902,16 @@ function AvatarMenu({ email, simpleMode, onToggleSimpleMode, onAdminAIUsage }) {
       {open && (
         <div className="menu" role="menu">
           <div className="label">{email}</div>
+          {FLAGS.cookbooks && onMyCookbooks && (
+            <button
+              type="button"
+              className="item"
+              onClick={() => { setOpen(false); onMyCookbooks(); }}
+              style={itemBtnStyle}
+            >
+              My cookbooks
+            </button>
+          )}
           <button
             type="button"
             className="item"

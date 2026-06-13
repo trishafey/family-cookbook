@@ -2106,6 +2106,102 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   margin: 0 auto;
   padding: 32px 28px 100px;
 }
+
+/* ─── My cookbooks (Phase 4a stub) ───
+   Reuses .lab-page's rhythm so the new index reads as a sibling
+   of the Lab — same page chrome, different content. */
+.cookbooks-page {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 32px 28px 100px;
+}
+.cookbooks-header {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 24px;
+  margin-bottom: 28px;
+}
+.cookbooks-header .eyebrow {
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 600;
+}
+.cookbooks-header h1 {
+  font-family: var(--serif); font-size: 56px; font-weight: 400;
+  margin: 6px 0 12px; letter-spacing: -0.02em;
+}
+.cookbooks-header h1 em { font-style: italic; color: var(--accent); }
+.cookbooks-header .intro {
+  max-width: 56ch;
+  font-family: var(--serif); font-size: 17px; color: var(--ink-2);
+  line-height: 1.5;
+}
+.cookbooks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.cookbook-card {
+  display: flex; flex-direction: column;
+  text-align: left;
+  padding: 18px 20px 16px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: border-color .14s ease, box-shadow .14s ease, transform .14s ease;
+  font: inherit; color: inherit;
+}
+.cookbook-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 12px 32px -18px rgba(28, 24, 19, .2);
+  transform: translateY(-1px);
+}
+.cookbook-card-head {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.cookbook-card .role-badge,
+.cookbook-card .vis-badge {
+  display: inline-flex; align-items: center;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;
+  padding: 3px 8px; border-radius: 999px;
+}
+.cookbook-card .role-badge.role-owner   { background: rgba(176,74,42,.12); color: var(--accent); }
+.cookbook-card .role-badge.role-editor  { background: rgba(58,90,106,.12); color: var(--accent-cool); }
+.cookbook-card .role-badge.role-viewer  { background: var(--paper-2); color: var(--ink-3); }
+.cookbook-card .vis-badge.vis-private   { background: var(--paper-2); color: var(--ink-3); }
+.cookbook-card .vis-badge.vis-unlisted  { background: rgba(110,122,58,.1); color: var(--accent-2); }
+.cookbook-card .vis-badge.vis-public    { background: rgba(110,122,58,.18); color: var(--accent-2); }
+.cookbook-card .cookbook-name {
+  font-family: var(--serif); font-size: 22px; font-weight: 500;
+  margin: 0 0 6px;
+}
+.cookbook-card .cookbook-blurb {
+  font-family: var(--serif); font-size: 14px; color: var(--ink-2);
+  line-height: 1.45; flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3; -webkit-box-orient: vertical; line-clamp: 3;
+  overflow: hidden;
+}
+.cookbook-card .cookbook-meta {
+  margin-top: 12px;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+.cookbooks-empty {
+  margin-top: 32px;
+  padding: 32px;
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  color: var(--ink-3);
+  font-family: var(--serif);
+}
+@media (max-width: 720px) {
+  .cookbooks-page { padding: 24px 20px 100px; }
+  .cookbooks-header h1 { font-size: 40px; }
+}
 .lab-header {
   border-bottom: 1px solid var(--rule);
   padding-bottom: 24px;

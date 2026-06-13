@@ -54,6 +54,84 @@ CREATE TABLE IF NOT EXISTS favorites (
 
 const app = new Hono();
 
+// ─── Multi-tenant: list cookbooks the caller is a member of ───
+// Powers the "My cookbooks" view + the cookbook switcher in the
+// nav. Returns one row per membership, joined with cookbook
+// metadata. yourRole comes from the membership row.
+app.get("/api/cookbooks", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const rows = await c.env.DB.prepare(`
+    SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
+           c.cover_photo, c.created_at, c.updated_at,
+           m.role AS your_role, m.joined_at
+    FROM cookbooks c
+    JOIN cookbook_members m ON m.cookbook_id = c.id
+    WHERE m.user_email = ?
+    ORDER BY c.created_at ASC
+  `).bind(email).all();
+  return c.json({
+    cookbooks: (rows.results || []).map(r => ({
+      id: r.id,
+      ownerEmail: r.owner_email,
+      name: r.name,
+      slug: r.slug,
+      visibility: r.visibility,
+      blurb: r.blurb || "",
+      coverPhoto: r.cover_photo || null,
+      yourRole: r.your_role,
+      joinedAt: r.joined_at,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    })),
+  });
+});
+
+// Cookbook details + members. Membership-gated.
+app.get("/api/cookbooks/:id", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const id = c.req.param("id");
+  const role = await cookbookRole(c, id);
+  if (!role) return c.json({ error: "not a member" }, 403);
+  const cb = await c.env.DB.prepare(
+    "SELECT id, owner_email, name, slug, visibility, blurb, cover_photo, created_at, updated_at FROM cookbooks WHERE id = ?"
+  ).bind(id).first();
+  if (!cb) return c.json({ error: "not found" }, 404);
+  const members = await c.env.DB.prepare(`
+    SELECT m.user_email, m.role, m.joined_at, u.display_name
+    FROM cookbook_members m
+    LEFT JOIN users u ON u.email = m.user_email
+    WHERE m.cookbook_id = ?
+    ORDER BY (m.role = 'owner') DESC, m.joined_at ASC
+  `).bind(id).all();
+  // Recipe count — for the cookbook index cards.
+  const countRow = await c.env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM recipes WHERE cookbook_id = ?"
+  ).bind(id).first();
+  return c.json({
+    cookbook: {
+      id: cb.id,
+      ownerEmail: cb.owner_email,
+      name: cb.name,
+      slug: cb.slug,
+      visibility: cb.visibility,
+      blurb: cb.blurb || "",
+      coverPhoto: cb.cover_photo || null,
+      createdAt: cb.created_at,
+      updatedAt: cb.updated_at,
+    },
+    members: (members.results || []).map(m => ({
+      email: m.user_email,
+      displayName: m.display_name || null,
+      role: m.role,
+      joinedAt: m.joined_at,
+    })),
+    recipeCount: countRow?.n || 0,
+    yourRole: role,
+  });
+});
+
 app.get("/api/recipes", async (c) => {
   // Fetch recipes and their D1 comments in one query. SQLite's
   // json_group_array lets us build the per-recipe comment list inline
@@ -143,6 +221,26 @@ app.get("/api/setup", async (c) => {
 
 function authedEmail(c) {
   return c.req.header("cf-access-authenticated-user-email") || null;
+}
+
+// ─── Multi-tenant cookbooks (Phase 4a) ───
+// Every recipe / favorite / ai_event belongs to a cookbook. The
+// existing family cookbook is the "bootstrap" — when no cookbook
+// context is supplied (legacy endpoints, default landing) the
+// caller is acting on this one. Personal cookbooks, shared
+// cookbooks, and the public directory all build on top of this.
+const BOOTSTRAP_COOKBOOK_ID = "family-cookbook";
+
+// Look up the caller's role on a given cookbook. Returns
+// "owner" | "editor" | "viewer" | null (null = not a member).
+// Called from auth checks on cookbook-scoped endpoints.
+async function cookbookRole(c, cookbookId) {
+  const email = authedEmail(c);
+  if (!email || !cookbookId) return null;
+  const row = await c.env.DB.prepare(
+    "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
+  ).bind(cookbookId, email).first();
+  return row?.role || null;
 }
 
 // ─── AI usage analytics ───
