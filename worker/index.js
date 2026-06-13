@@ -65,20 +65,37 @@ const app = new Hono();
 app.get("/api/admin/cookbooks", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
-  // Guarantee the cook has a users row + personal cookbook before
-  // we read membership. Idempotent — no-op for everyone after the
-  // first hit.
+  // Guarantee the cook has a users row + personal + family
+  // cookbook before we read membership. Idempotent.
   await ensureUserBootstrap(c);
-  const rows = await c.env.DB.prepare(`
-    SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
-           c.cover_photo, c.created_at, c.updated_at,
-           m.role AS your_role, m.joined_at
-    FROM cookbooks c
-    JOIN cookbook_members m ON m.cookbook_id = c.id
-    WHERE m.user_email = ?
-    ORDER BY c.created_at ASC
-  `).bind(email).all();
+  const admin = await isAdmin(c);
+
+  // Admins see every cookbook (member or not). For non-admins,
+  // only their memberships. The LEFT JOIN against cookbook_members
+  // lets us return the caller's explicit role when they're a
+  // real member, and surface "admin" when they're not but have
+  // system-wide access.
+  const rows = admin
+    ? await c.env.DB.prepare(`
+        SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
+               c.cover_photo, c.created_at, c.updated_at,
+               m.role AS your_role, m.joined_at
+        FROM cookbooks c
+        LEFT JOIN cookbook_members m
+          ON m.cookbook_id = c.id AND m.user_email = ?
+        ORDER BY (c.owner_email = ?) DESC, c.created_at ASC
+      `).bind(email, email).all()
+    : await c.env.DB.prepare(`
+        SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
+               c.cover_photo, c.created_at, c.updated_at,
+               m.role AS your_role, m.joined_at
+        FROM cookbooks c
+        JOIN cookbook_members m ON m.cookbook_id = c.id
+        WHERE m.user_email = ?
+        ORDER BY c.created_at ASC
+      `).bind(email).all();
   return c.json({
+    isAdmin: admin,
     cookbooks: (rows.results || []).map(r => ({
       id: r.id,
       ownerEmail: r.owner_email,
@@ -87,7 +104,11 @@ app.get("/api/admin/cookbooks", async (c) => {
       visibility: r.visibility,
       blurb: r.blurb || "",
       coverPhoto: r.cover_photo || null,
-      yourRole: r.your_role,
+      // yourRole is the explicit membership role if any, else
+      // "admin" (the admin-access fallback) — keeps the client
+      // simple ("if role, you can do X").
+      yourRole: r.your_role || (admin ? "admin" : null),
+      adminAccess: admin && !r.your_role,
       joinedAt: r.joined_at,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -186,7 +207,7 @@ app.patch("/api/admin/cookbooks/:id", async (c) => {
   if (!email) return c.json({ error: "not signed in" }, 401);
   const id = c.req.param("id");
   const role = await cookbookRole(c, id);
-  if (role !== "owner") return c.json({ error: "owner only" }, 403);
+  if (role !== "owner" && role !== "admin") return c.json({ error: "owner only" }, 403);
   const body = await c.req.json().catch(() => ({}));
   const sets = [];
   const args = [];
@@ -220,7 +241,7 @@ app.delete("/api/admin/cookbooks/:id", async (c) => {
   const id = c.req.param("id");
   if (id === BOOTSTRAP_COOKBOOK_ID) return c.json({ error: "cannot delete the bootstrap cookbook" }, 400);
   const role = await cookbookRole(c, id);
-  if (role !== "owner") return c.json({ error: "owner only" }, 403);
+  if (role !== "owner" && role !== "admin") return c.json({ error: "owner only" }, 403);
   const countRow = await c.env.DB.prepare(
     "SELECT COUNT(*) AS n FROM recipes WHERE cookbook_id = ?"
   ).bind(id).first();
@@ -340,7 +361,7 @@ app.post("/api/admin/cookbooks/:id/invitations", async (c) => {
   if (!email) return c.json({ error: "not signed in" }, 401);
   const cookbookId = c.req.param("id");
   const role = await cookbookRole(c, cookbookId);
-  if (role !== "owner") return c.json({ error: "owner only" }, 403);
+  if (role !== "owner" && role !== "admin") return c.json({ error: "owner only" }, 403);
 
   const body = await c.req.json().catch(() => ({}));
   const inviteEmail = (body?.email || "").toString().trim().toLowerCase() || null;
@@ -404,7 +425,7 @@ app.get("/api/admin/cookbooks/:id/invitations", async (c) => {
   if (!email) return c.json({ error: "not signed in" }, 401);
   const cookbookId = c.req.param("id");
   const role = await cookbookRole(c, cookbookId);
-  if (role !== "owner") return c.json({ error: "owner only" }, 403);
+  if (role !== "owner" && role !== "admin") return c.json({ error: "owner only" }, 403);
   const now = new Date().toISOString();
   const rows = await c.env.DB.prepare(
     `SELECT token, email, role, invited_by, created_at, expires_at
@@ -432,7 +453,7 @@ app.delete("/api/admin/cookbooks/:id/invitations/:token", async (c) => {
   if (!email) return c.json({ error: "not signed in" }, 401);
   const cookbookId = c.req.param("id");
   const role = await cookbookRole(c, cookbookId);
-  if (role !== "owner") return c.json({ error: "owner only" }, 403);
+  if (role !== "owner" && role !== "admin") return c.json({ error: "owner only" }, 403);
   await c.env.DB.prepare(
     "DELETE FROM invitations WHERE cookbook_id = ? AND token = ?"
   ).bind(cookbookId, c.req.param("token")).run();
@@ -514,7 +535,7 @@ app.patch("/api/admin/cookbooks/:id/members/:email", async (c) => {
   const cookbookId = c.req.param("id");
   const targetEmail = c.req.param("email").toLowerCase();
   const role = await cookbookRole(c, cookbookId);
-  if (role !== "owner") return c.json({ error: "owner only" }, 403);
+  if (role !== "owner" && role !== "admin") return c.json({ error: "owner only" }, 403);
   const body = await c.req.json().catch(() => ({}));
   const newRole = body?.role;
   if (!["owner", "editor", "viewer"].includes(newRole)) {
@@ -548,7 +569,7 @@ app.delete("/api/admin/cookbooks/:id/members/:email", async (c) => {
   const targetEmail = c.req.param("email").toLowerCase();
   const role = await cookbookRole(c, cookbookId);
   const isSelf = targetEmail === email.toLowerCase();
-  if (role !== "owner" && !isSelf) return c.json({ error: "owner only" }, 403);
+  if (role !== "owner" && role !== "admin" && !isSelf) return c.json({ error: "owner only" }, 403);
   // Don't strand a cookbook with no owners.
   const target = await c.env.DB.prepare(
     "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
@@ -680,15 +701,34 @@ function authedEmail(c) {
 const BOOTSTRAP_COOKBOOK_ID = "family-cookbook";
 
 // Look up the caller's role on a given cookbook. Returns
-// "owner" | "editor" | "viewer" | null (null = not a member).
-// Called from auth checks on cookbook-scoped endpoints.
+// "owner" | "editor" | "viewer" | "admin" | null. "admin" is
+// the system-wide bit (users.is_admin) — admins can read and
+// write any cookbook without being a member. Membership beats
+// admin so Patricia can also be a regular owner/editor on
+// cookbooks where she's been explicitly added.
 async function cookbookRole(c, cookbookId) {
   const email = authedEmail(c);
   if (!email || !cookbookId) return null;
-  const row = await c.env.DB.prepare(
+  const memberRow = await c.env.DB.prepare(
     "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
   ).bind(cookbookId, email).first();
-  return row?.role || null;
+  if (memberRow?.role) return memberRow.role;
+  const adminRow = await c.env.DB.prepare(
+    "SELECT is_admin FROM users WHERE email = ?"
+  ).bind(email).first();
+  return adminRow?.is_admin ? "admin" : null;
+}
+
+// Pure admin check — no cookbook scope. Used by endpoints that
+// gate on system-wide admin access (e.g. listing every cookbook
+// for Patricia's library).
+async function isAdmin(c) {
+  const email = authedEmail(c);
+  if (!email) return false;
+  const row = await c.env.DB.prepare(
+    "SELECT is_admin FROM users WHERE email = ?"
+  ).bind(email).first();
+  return !!row?.is_admin;
 }
 
 // URL-safe slug from a string. Same shape as the client-side
@@ -739,36 +779,50 @@ async function ensureUserBootstrap(c) {
     );
   }
 
-  // personal cookbook (owner)
-  const personal = await c.env.DB.prepare(
-    "SELECT id FROM cookbooks WHERE owner_email = ? AND id != ? LIMIT 1"
-  ).bind(email, BOOTSTRAP_COOKBOOK_ID).first();
-  if (personal) return;
+  // Phase 4b-4: every cook gets two cookbooks on first sign-in:
+  //   - PERSONAL  ("<Name>'s Cookbook") for solo recipes
+  //   - FAMILY    ("<Name>'s Family Cookbook") for the people
+  //                they invite into their household
+  // Patricia already owns the BOOTSTRAP family cookbook ("Heirloom
+  // Family Cookbook") so the structural family creation is skipped
+  // for her — we inspect owned cookbooks before minting either.
+  const owned = (await c.env.DB.prepare(
+    "SELECT id, name FROM cookbooks WHERE owner_email = ?"
+  ).bind(email).all()).results || [];
+  const looksLikePersonal = (c) => /^personal-/i.test(c.id) || /'s Cookbook$/i.test(c.name);
+  const looksLikeFamily   = (c) => /family/i.test(c.id) || /Family Cookbook/i.test(c.name);
+  const hasPersonal = owned.some(looksLikePersonal);
+  const hasFamily   = owned.some(looksLikeFamily);
 
   const localPart = email.split("@")[0];
-  const idSuffix = Math.random().toString(36).slice(2, 8);
-  const id = `personal-${slugifyServer(localPart) || "cook"}-${idSuffix}`;
-  let slug = `${slugifyServer(displayName || localPart)}-${idSuffix}`;
-  const name = `${displayName || localPart}'s Cookbook`;
-  try {
-    await c.env.DB.prepare(
-      "INSERT INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?)"
-    ).bind(id, email, name, slug, now, now).run();
-    await c.env.DB.prepare(
-      "INSERT INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
-    ).bind(id, email, now).run();
-  } catch (err) {
-    // Slug collision is the realistic failure — retry once with
-    // a fresh suffix.
-    const id2 = `personal-${slugifyServer(localPart) || "cook"}-${Math.random().toString(36).slice(2, 8)}`;
-    const slug2 = `${slugifyServer(displayName || localPart)}-${Math.random().toString(36).slice(2, 8)}`;
-    await c.env.DB.prepare(
-      "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?)"
-    ).bind(id2, email, name, slug2, now, now).run().catch(() => {});
-    await c.env.DB.prepare(
-      "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
-    ).bind(id2, email, now).run().catch(() => {});
-  }
+  const baseSlug = slugifyServer(displayName || localPart) || "cook";
+  const personName = displayName || localPart;
+
+  const insertCookbook = async (kind /* 'personal' | 'family' */, name) => {
+    const suffix = Math.random().toString(36).slice(2, 8);
+    const id = `${kind}-${slugifyServer(localPart) || "cook"}-${suffix}`;
+    const slug = `${baseSlug}-${kind}-${suffix}`;
+    try {
+      await c.env.DB.prepare(
+        "INSERT INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?)"
+      ).bind(id, email, name, slug, now, now).run();
+      await c.env.DB.prepare(
+        "INSERT INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
+      ).bind(id, email, now).run();
+    } catch (err) {
+      const id2 = `${kind}-${slugifyServer(localPart) || "cook"}-${Math.random().toString(36).slice(2, 8)}`;
+      const slug2 = `${baseSlug}-${kind}-${Math.random().toString(36).slice(2, 8)}`;
+      await c.env.DB.prepare(
+        "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?)"
+      ).bind(id2, email, name, slug2, now, now).run().catch(() => {});
+      await c.env.DB.prepare(
+        "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
+      ).bind(id2, email, now).run().catch(() => {});
+    }
+  };
+
+  if (!hasPersonal) await insertCookbook("personal", `${personName}'s Cookbook`);
+  if (!hasFamily)   await insertCookbook("family",   `${personName}'s Family Cookbook`);
 }
 
 // ─── AI usage analytics ───
@@ -1375,7 +1429,7 @@ app.post("/api/admin/recipes", async (c) => {
   // the destination cookbook.
   const cookbookId = (draft?.cookbookId || draft?.cookbook_id || BOOTSTRAP_COOKBOOK_ID).toString();
   const writerRole = await cookbookRole(c, cookbookId);
-  if (!["owner", "editor"].includes(writerRole)) {
+  if (!["owner", "editor", "admin"].includes(writerRole)) {
     return c.json({ error: "not allowed to add recipes to this cookbook" }, 403);
   }
 
@@ -1465,7 +1519,7 @@ app.patch("/api/admin/recipes/:id", async (c) => {
   // cookbook (or admin in 4b-4). Falls back to bootstrap for
   // any legacy row that escaped the backfill.
   const editorRole = await cookbookRole(c, existing.cookbook_id || BOOTSTRAP_COOKBOOK_ID);
-  if (!["owner", "editor"].includes(editorRole)) {
+  if (!["owner", "editor", "admin"].includes(editorRole)) {
     return c.json({ error: "not allowed to edit recipes in this cookbook" }, 403);
   }
 
@@ -1643,7 +1697,7 @@ app.delete("/api/admin/recipes/:id", async (c) => {
   ).bind(id).first();
   if (!existing) return c.json({ error: "not found" }, 404);
   const role = await cookbookRole(c, existing.cookbook_id || BOOTSTRAP_COOKBOOK_ID);
-  if (!["owner", "editor"].includes(role)) {
+  if (!["owner", "editor", "admin"].includes(role)) {
     return c.json({ error: "not allowed to delete recipes in this cookbook" }, 403);
   }
 
@@ -1666,7 +1720,7 @@ app.post("/api/admin/recipes/:id/copy-to/:cookbookId", async (c) => {
   const destCookbook = c.req.param("cookbookId");
 
   const destRole = await cookbookRole(c, destCookbook);
-  if (!["owner", "editor"].includes(destRole)) {
+  if (!["owner", "editor", "admin"].includes(destRole)) {
     return c.json({ error: "not allowed to add recipes to this cookbook" }, 403);
   }
 

@@ -529,7 +529,16 @@ function App() {
       <ProfileSetupGate
         authEmail={authEmail}
         save={saveProfile}
-        onSaved={() => refreshProfile()}
+        onSaved={async () => {
+          await refreshProfile();
+          // Phase 4b-4: drop the new cook on the My-cookbooks index
+          // so they see their freshly-bootstrapped personal +
+          // family cookbooks and can hit "Members" on the family
+          // one to invite their household. Patricia and other
+          // pre-seeded cooks finishing the gate also land here so
+          // it's a consistent first-touch.
+          setView("cookbooks");
+        }}
         onSignOut={SIGN_OUT_URL}
       />
     );

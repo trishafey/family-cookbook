@@ -2609,6 +2609,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cookbook-card .role-badge.role-owner   { background: rgba(176,74,42,.12); color: var(--accent); }
 .cookbook-card .role-badge.role-editor  { background: rgba(58,90,106,.12); color: var(--accent-cool); }
 .cookbook-card .role-badge.role-viewer  { background: var(--paper-2); color: var(--ink-3); }
+.cookbook-card .role-badge.role-admin   { background: var(--ink); color: var(--paper); }
 .cookbook-card .vis-badge.vis-private   { background: var(--paper-2); color: var(--ink-3); }
 .cookbook-card .vis-badge.vis-unlisted  { background: rgba(110,122,58,.1); color: var(--accent-2); }
 .cookbook-card .vis-badge.vis-public    { background: rgba(110,122,58,.18); color: var(--accent-2); }
@@ -2636,6 +2637,35 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   text-align: center;
   color: var(--ink-3);
   font-family: var(--serif);
+}
+
+/* Onboarding banner — nudges new cooks to invite people to
+   their freshly-bootstrapped family cookbook. */
+.onboarding-prompt {
+  margin: 18px 0;
+  padding: 20px 24px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--paper));
+  border-radius: var(--radius-lg);
+  display: flex; gap: 24px;
+  align-items: center; flex-wrap: wrap;
+}
+.onboarding-prompt .t { flex: 1; min-width: 240px; }
+.onboarding-prompt .eyebrow {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); font-weight: 600;
+}
+.onboarding-prompt h3 {
+  font-family: var(--serif); font-size: 22px; font-weight: 500;
+  margin: 4px 0 6px;
+}
+.onboarding-prompt p {
+  font-family: var(--serif); font-size: 14px; color: var(--ink-2);
+  margin: 0; line-height: 1.5;
+}
+.onboarding-prompt .actions {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
 }
 @media (max-width: 720px) {
   .cookbooks-page { padding: 24px 20px 100px; }

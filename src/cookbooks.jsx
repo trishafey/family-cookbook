@@ -328,8 +328,8 @@ function MembersSection({ cookbook, authEmail, onMembersChanged }) {
   );
 }
 
-function EditCookbookModal({ cookbook, authEmail, onClose, onSaved, onDeleted, onMembersChanged }) {
-  const [tab, setTab] = useState("settings");
+function EditCookbookModal({ cookbook, initialTab, authEmail, onClose, onSaved, onDeleted, onMembersChanged }) {
+  const [tab, setTab] = useState(initialTab || "settings");
   const [name, setName] = useState(cookbook.name);
   const [blurb, setBlurb] = useState(cookbook.blurb || "");
   const [visibility, setVisibility] = useState(cookbook.visibility);
@@ -470,7 +470,18 @@ export function CookbooksIndex({ authEmail, activeCookbookId, onClose, onOpenCoo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [editing, setEditing] = useState(null); // cookbook being edited
+  // editing = { cookbook, tab? } so the onboarding banner can
+  // open the modal directly on the Members tab.
+  const [editing, setEditing] = useState(null);
+  // Local one-time dismiss for the "invite your family" prompt
+  // so it doesn't keep nagging cooks who've decided to skip.
+  const [familyPromptDismissed, setFamilyPromptDismissed] = useState(() => {
+    try { return localStorage.getItem("onboarding:familyPromptDismissed") === "1"; } catch { return false; }
+  });
+  const dismissFamilyPrompt = () => {
+    setFamilyPromptDismissed(true);
+    try { localStorage.setItem("onboarding:familyPromptDismissed", "1"); } catch {}
+  };
 
   const load = async () => {
     if (!authEmail) { setLoading(false); return; }
@@ -518,6 +529,34 @@ export function CookbooksIndex({ authEmail, activeCookbookId, onClose, onOpenCoo
 
       {error && <div className="cookbooks-empty" style={{ color: "#933" }}>{error}</div>}
 
+      {/* Onboarding: prompt the cook to invite people to their
+          freshly-bootstrapped family cookbook. Detected
+          structurally so it works for any cook, not just
+          Patricia. Dismissable, but reappears across devices
+          until they've actually invited someone (4b-5). */}
+      {!familyPromptDismissed && (() => {
+        const family = cookbooks.find(c =>
+          (/family/i.test(c.id) || /Family Cookbook/i.test(c.name)) &&
+          c.yourRole === "owner"
+        );
+        if (!family) return null;
+        return (
+          <div className="onboarding-prompt">
+            <div className="t">
+              <div className="eyebrow">Get started</div>
+              <h3>Invite your family to {family.name}</h3>
+              <p>Family cookbooks shine when they're shared. Send an invite link by email — they'll join with viewer or editor access.</p>
+            </div>
+            <div className="actions">
+              <button className="btn primary" onClick={() => setEditing({ cookbook: family, tab: "members" })}>
+                <Icon name="plus" size={14} /> Invite people
+              </button>
+              <button className="btn ghost sm" onClick={dismissFamilyPrompt}>Dismiss</button>
+            </div>
+          </div>
+        );
+      })()}
+
       {loading ? (
         <div style={{ marginTop: 32, color: "var(--ink-3)" }}>Loading your cookbooks…</div>
       ) : cookbooks.length === 0 && authEmail && !error ? (
@@ -528,22 +567,27 @@ export function CookbooksIndex({ authEmail, activeCookbookId, onClose, onOpenCoo
         <div className="cookbooks-grid">
           {cookbooks.map(cb => {
             const isOwner = cb.yourRole === "owner";
+            // Admins can open settings on any cookbook even when
+            // they're not a real member.
+            const canManage = isOwner || cb.yourRole === "admin";
             return (
               <div
                 key={cb.id}
                 className={`cookbook-card ${cb.id === activeCookbookId ? "active" : ""}`}
               >
                 <div className="cookbook-card-head">
-                  <div className={`role-badge role-${cb.yourRole}`}>{cb.yourRole}</div>
+                  <div className={`role-badge role-${cb.yourRole}`}>
+                    {cb.adminAccess ? "admin access" : cb.yourRole}
+                  </div>
                   <div className={`vis-badge vis-${cb.visibility}`}>{cb.visibility}</div>
                   {cb.id === activeCookbookId && (
                     <div className="role-badge active-badge">Active</div>
                   )}
-                  {isOwner && (
+                  {canManage && (
                     <button
                       type="button"
                       className="cookbook-card-edit"
-                      onClick={(e) => { e.stopPropagation(); setEditing(cb); }}
+                      onClick={(e) => { e.stopPropagation(); setEditing({ cookbook: cb }); }}
                       title="Cookbook settings"
                       aria-label="Cookbook settings"
                     >
@@ -579,7 +623,8 @@ export function CookbooksIndex({ authEmail, activeCookbookId, onClose, onOpenCoo
       )}
       {editing && (
         <EditCookbookModal
-          cookbook={editing}
+          cookbook={editing.cookbook}
+          initialTab={editing.tab || "settings"}
           authEmail={authEmail}
           onClose={() => setEditing(null)}
           onSaved={(updated) => {
