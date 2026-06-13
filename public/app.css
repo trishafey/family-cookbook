@@ -2422,6 +2422,86 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .invite-card .btn { align-self: center; min-width: 220px; }
 .invite-card .invite-loading { color: var(--ink-3); padding: 24px; }
 
+/* ─── Profile setup gate ─── */
+.profile-gate {
+  min-height: 100vh;
+  display: grid; place-items: center;
+  padding: 32px 20px;
+  background: var(--paper);
+}
+.profile-card {
+  width: 100%; max-width: 520px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  padding: 36px 32px;
+  box-shadow: 0 24px 64px -32px rgba(28,24,19,.18);
+}
+.profile-card .eyebrow {
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 600;
+}
+.profile-card h1 {
+  font-family: var(--serif); font-size: 36px; font-weight: 400;
+  margin: 6px 0 8px; letter-spacing: -0.01em;
+}
+.profile-card .sub {
+  font-family: var(--serif); font-size: 15px; color: var(--ink-2);
+  margin: 0 0 24px; line-height: 1.5;
+}
+.profile-card .row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.profile-card .field {
+  display: block; margin-bottom: 14px;
+}
+.profile-card .field > span {
+  display: block;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 600;
+  margin-bottom: 6px;
+}
+.profile-card .field .opt {
+  letter-spacing: 0.04em; text-transform: none;
+  color: var(--ink-3); font-weight: 400;
+  margin-left: 6px;
+}
+.profile-card .field input {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit; font-size: 15px;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  background: var(--paper);
+}
+.profile-card .field input:focus {
+  outline: none; border-color: var(--accent);
+}
+.profile-card .profile-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(147, 51, 51, 0.3);
+  background: rgba(147, 51, 51, 0.06);
+  border-radius: var(--radius);
+  color: #933; font-size: 13px;
+}
+.profile-card .actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+  margin-top: 20px;
+}
+.profile-card .footnote {
+  margin-top: 22px;
+  font-family: var(--serif); font-style: italic;
+  font-size: 13px; color: var(--ink-3);
+  display: flex; align-items: center; gap: 6px;
+}
+@media (max-width: 520px) {
+  .profile-card { padding: 28px 20px; }
+  .profile-card h1 { font-size: 28px; }
+  .profile-card .row { grid-template-columns: 1fr; }
+}
+
 /* ─── Nav: cookbook switcher (Phase 4a-2) ───
    Sits between the brand and the search pill. Only renders for
    cooks with 2+ memberships, so single-cookbook users (the family

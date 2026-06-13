@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, useUserCookbooks, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions, BOOTSTRAP_COOKBOOK_ID } from "./helpers.jsx";
+import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, useUserCookbooks, useProfile, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions, BOOTSTRAP_COOKBOOK_ID } from "./helpers.jsx";
 import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
@@ -13,6 +13,7 @@ import { AddRecipe } from "./add-recipe.jsx";
 import { ExperimentationLab } from "./experiment.jsx";
 import { CookbooksIndex } from "./cookbooks.jsx";
 import { InviteAccept } from "./invite.jsx";
+import { ProfileSetupGate } from "./profile.jsx";
 import { BuildAMeal } from "./meal.jsx";
 import { PlanMealModal, MealPlanPage } from "./meal-plan.jsx";
 import { ShoppingList } from "./shopping.jsx";
@@ -287,6 +288,10 @@ function App() {
   // switcher (hidden when there's only one), the cookbooks index,
   // and the active-cookbook validation below.
   const { cookbooks: userCookbooks } = useUserCookbooks(authEmail);
+  // Phase 4b-2 follow-up: profile gate. If first_name / last_name
+  // aren't on file yet, the app renders the setup form before
+  // anything else.
+  const { profile, loading: profileLoading, save: saveProfile, refresh: refreshProfile } = useProfile(authEmail);
 
   // ─── Simplified view ───
   // Accessibility-first mode for less technical cooks (especially
@@ -509,6 +514,21 @@ function App() {
   // ─── Open recipe helper ───
   const openRecipe = (r) => { setRecipeId(r.id); setView("recipe"); window.scrollTo(0, 0); };
   const backToBrowse = () => { setView("browse"); window.scrollTo(0, 0); };
+
+  // Profile gate: signed-in cooks without first/last name on file
+  // see a setup form before anything else. Skipped on the public
+  // /invite/:token page so the invitee can see who invited them
+  // before signing in (the gate kicks in after they accept).
+  if (authEmail && profile && profile.profileComplete === false && view !== "invite") {
+    return (
+      <ProfileSetupGate
+        authEmail={authEmail}
+        save={saveProfile}
+        onSaved={() => refreshProfile()}
+        onSignOut={SIGN_OUT_URL}
+      />
+    );
+  }
 
   return (
     <>

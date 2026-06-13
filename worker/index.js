@@ -366,6 +366,16 @@ app.post("/api/admin/invitations/:token/accept", async (c) => {
   if (!row) return c.json({ error: "not found" }, 404);
   if (row.accepted_at) return c.json({ error: "already accepted", cookbookId: row.cookbook_id }, 400);
   if (new Date(row.expires_at) < new Date()) return c.json({ error: "expired" }, 400);
+  // Strict email gate when the inviter pre-addressed the
+  // invitation. Stops Patricia from accidentally "accepting"
+  // an invite meant for grace@ while she's still signed in.
+  if (row.email && row.email.toLowerCase() !== email.toLowerCase()) {
+    return c.json({
+      error: "wrong account",
+      expectedEmail: row.email,
+      signedInAs: email,
+    }, 403);
+  }
 
   const now = new Date().toISOString();
   // Add membership (no-op if they're somehow already a member).
@@ -3182,6 +3192,53 @@ app.delete("/api/admin/lab/experiments/:id", async (c) => {
 // ─── User cooking preferences ───
 // Read + write the cook's freeform "how I like to cook" note.
 // Read also returns an empty string if the row doesn't exist,
+// ─── Profile ───
+// First/last name + phone. Frontend gates the app on
+// profileComplete so first-time cooks can't slip through
+// without filling it in.
+app.get("/api/admin/me/profile", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  await ensureUserBootstrap(c);
+  const row = await c.env.DB.prepare(
+    "SELECT email, display_name, first_name, last_name, phone FROM users WHERE email = ?"
+  ).bind(email).first();
+  const firstName = row?.first_name || "";
+  const lastName = row?.last_name || "";
+  return c.json({
+    email: row?.email || email,
+    displayName: row?.display_name || "",
+    firstName,
+    lastName,
+    phone: row?.phone || "",
+    // Names are required; phone is recommended but not enforced
+    // because phone verification (MFA) is a later state.
+    profileComplete: !!(firstName && lastName),
+  });
+});
+
+app.put("/api/admin/me/profile", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  await ensureUserBootstrap(c);
+  const body = await c.req.json().catch(() => ({}));
+  const firstName = (body?.firstName || "").toString().trim().slice(0, 60);
+  const lastName = (body?.lastName || "").toString().trim().slice(0, 60);
+  const phone = (body?.phone || "").toString().trim().slice(0, 32);
+  if (!firstName || !lastName) return c.json({ error: "first and last name required" }, 400);
+  // display_name follows the cook's chosen name so all other
+  // surfaces (avatar menu, member rows, AI greetings later) read
+  // it without separate lookups.
+  const displayName = `${firstName} ${lastName}`.trim();
+  await c.env.DB.prepare(
+    "UPDATE users SET first_name = ?, last_name = ?, phone = ?, display_name = ? WHERE email = ?"
+  ).bind(firstName, lastName, phone || null, displayName, email).run();
+  return c.json({
+    email, displayName, firstName, lastName, phone, profileComplete: true,
+  });
+});
+
+// ─── Cooking preferences ───
 // so the client doesn't need to handle a 404 on first load.
 app.get("/api/admin/me/prefs", async (c) => {
   const email = authedEmail(c);

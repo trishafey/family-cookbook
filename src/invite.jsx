@@ -8,13 +8,14 @@
 // into the new cookbook.
 
 import { useEffect, useState } from "react";
-import { Icon, signInUrl } from "./helpers.jsx";
+import { Icon, signInUrl, SIGN_OUT_URL } from "./helpers.jsx";
 
 export function InviteAccept({ token, authEmail, onAccepted, onClose }) {
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState(null);
+  const [wrongAccount, setWrongAccount] = useState(null); // { expectedEmail, signedInAs }
   const [done, setDone] = useState(false);
 
   useEffect(() => {
@@ -40,11 +41,19 @@ export function InviteAccept({ token, authEmail, onAccepted, onClose }) {
   const accept = async () => {
     setAccepting(true);
     setError(null);
+    setWrongAccount(null);
     try {
       const res = await fetch(`/api/admin/invitations/${token}/accept`, {
         method: "POST",
         credentials: "include",
       });
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({}));
+        if (data?.error === "wrong account") {
+          setWrongAccount({ expectedEmail: data.expectedEmail, signedInAs: data.signedInAs });
+          return;
+        }
+      }
       if (!res.ok) {
         const { error: msg } = await res.json().catch(() => ({}));
         throw new Error(msg || `Could not accept invitation`);
@@ -84,6 +93,16 @@ export function InviteAccept({ token, authEmail, onAccepted, onClose }) {
             <h2>This invitation has expired</h2>
             <p>Ask the inviter to send you a fresh link.</p>
             <button className="btn ghost" onClick={onClose}>Back to the cookbook</button>
+          </>
+        ) : wrongAccount ? (
+          <>
+            <div className="eyebrow">Wrong account</div>
+            <h2>This invitation is for <span className="from">{wrongAccount.expectedEmail}</span></h2>
+            <p>You're signed in as <strong>{wrongAccount.signedInAs}</strong>. Sign out and sign back in as the invited address.</p>
+            <a className="btn primary" href={SIGN_OUT_URL}>
+              Sign out
+            </a>
+            <button className="btn ghost" onClick={onClose}>Decide later</button>
           </>
         ) : done ? (
           <>

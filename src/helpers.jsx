@@ -458,6 +458,49 @@ export function useRecipes(cookbookId = BOOTSTRAP_COOKBOOK_ID) {
   return { recipes, loading, error, refresh };
 }
 
+// Phase 4b-2 follow-up: profile (first + last name + phone).
+// Returns { profile, loading, refresh, save }. profile is null
+// when signed out. profileComplete=false means the app should
+// gate behind a setup form before letting the cook proceed.
+export function useProfile(authEmail) {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const refresh = useCallback(async () => {
+    if (!authEmail) { setProfile(null); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/me/profile", { credentials: "include" });
+      if (res.ok) setProfile(await res.json());
+      else setProfile(null);
+    } catch {
+      setProfile(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [authEmail]);
+
+  const save = useCallback(async ({ firstName, lastName, phone }) => {
+    const res = await fetch("/api/admin/me/profile", {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firstName, lastName, phone }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      throw new Error(error || `Save failed (${res.status})`);
+    }
+    const data = await res.json();
+    setProfile(data);
+    return data;
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  return { profile, loading, refresh, save };
+}
+
 // Phase 4a-2: list the cookbooks the signed-in user is a member
 // of. Empty array when signed out. Returns refresh() so the
 // switcher can re-poll after a join/create flow (4b).
