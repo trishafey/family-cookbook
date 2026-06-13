@@ -137,18 +137,31 @@ h4 { font-size: 17px; line-height: 1.3; }
    Row 2: search bar spans the full row. */
 .nav-hamburger { display: none; }
 @media (max-width: 720px) {
-  .nav-inner .search-wrap:not(.collapsed),
-  .nav-inner .search:not(.collapsed) { order: 2; flex-basis: 100%; }
+  /* Mobile nav row: brand → search pill → hamburger, all on one
+     line. Tapping the pill expands it inline (smooth length-to-
+     length max-width transition) so the cook gets the same fluid
+     animation as desktop instead of the bar dropping to row 2. */
+  .nav-inner { gap: 8px; flex-wrap: nowrap; }
+  .nav-inner .search-wrap {
+    /* flex-basis 0 keeps the basis length-typed both ways, so the
+       collapsed → expanded transition interpolates smoothly. */
+    flex: 1 1 0;
+    /* Expanded: fill all remaining row width up to the viewport
+       minus brand + hamburger + gaps. calc keeps it length-typed
+       so max-width can interpolate smoothly from 56px → expanded. */
+    max-width: calc(100vw - 140px);
+  }
+  .nav-inner .search-wrap.collapsed { flex: 0 0 56px; max-width: 56px; }
+  .nav-inner .search { max-width: 100%; }
+  .nav-inner .search.collapsed { max-width: 56px; }
   .nav-inner .nav-actions { display: none; }
   .nav-inner .nav-hamburger {
     display: flex; align-items: center; justify-content: center;
-    order: 0;
     position: relative;
     width: 40px; height: 40px; flex-shrink: 0;
     background: var(--paper); border: 1px solid var(--rule);
     border-radius: var(--radius); cursor: pointer; color: var(--ink);
   }
-  .nav-inner .brand { order: 1; }
   .nav-inner .nav-hamburger:hover { background: var(--paper-2); border-color: var(--ink-3); }
   .nav-inner .nav-hamburger .hamburger-badge {
     position: absolute; top: -4px; right: -4px;
