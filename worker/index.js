@@ -232,6 +232,214 @@ app.delete("/api/admin/cookbooks/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// ─── Phase 4b-2: invitations + member management ───
+const INVITE_TTL_DAYS = 14;
+function randomToken(bytes = 24) {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return [...arr].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Create an invitation. Owner-only.
+app.post("/api/admin/cookbooks/:id/invitations", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("id");
+  const role = await cookbookRole(c, cookbookId);
+  if (role !== "owner") return c.json({ error: "owner only" }, 403);
+
+  const body = await c.req.json().catch(() => ({}));
+  const inviteEmail = (body?.email || "").toString().trim().toLowerCase() || null;
+  const inviteRole = ["editor", "viewer"].includes(body?.role) ? body.role : "viewer";
+
+  // If they're already a member, just return the existing row
+  // instead of creating a duplicate invite.
+  if (inviteEmail) {
+    const exists = await c.env.DB.prepare(
+      "SELECT user_email FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
+    ).bind(cookbookId, inviteEmail).first();
+    if (exists) return c.json({ error: "already a member" }, 400);
+  }
+
+  const token = randomToken();
+  const now = new Date();
+  const expires = new Date(now.getTime() + INVITE_TTL_DAYS * 86400 * 1000);
+
+  await c.env.DB.prepare(
+    "INSERT INTO invitations (token, cookbook_id, email, role, invited_by, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+  ).bind(token, cookbookId, inviteEmail, inviteRole, email, now.toISOString(), expires.toISOString()).run();
+
+  const origin = new URL(c.req.url).origin;
+  return c.json({
+    invitation: {
+      token, cookbookId, email: inviteEmail, role: inviteRole,
+      invitedBy: email,
+      createdAt: now.toISOString(),
+      expiresAt: expires.toISOString(),
+    },
+    link: `${origin}/invite/${token}`,
+  });
+});
+
+// List pending (un-accepted, un-expired) invitations for a
+// cookbook. Owner-only — these contain emails.
+app.get("/api/admin/cookbooks/:id/invitations", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("id");
+  const role = await cookbookRole(c, cookbookId);
+  if (role !== "owner") return c.json({ error: "owner only" }, 403);
+  const now = new Date().toISOString();
+  const rows = await c.env.DB.prepare(
+    `SELECT token, email, role, invited_by, created_at, expires_at
+     FROM invitations
+     WHERE cookbook_id = ? AND accepted_at IS NULL AND expires_at > ?
+     ORDER BY created_at DESC`
+  ).bind(cookbookId, now).all();
+  const origin = new URL(c.req.url).origin;
+  return c.json({
+    invitations: (rows.results || []).map(r => ({
+      token: r.token,
+      email: r.email,
+      role: r.role,
+      invitedBy: r.invited_by,
+      createdAt: r.created_at,
+      expiresAt: r.expires_at,
+      link: `${origin}/invite/${r.token}`,
+    })),
+  });
+});
+
+// Revoke an invitation. Owner-only.
+app.delete("/api/admin/cookbooks/:id/invitations/:token", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("id");
+  const role = await cookbookRole(c, cookbookId);
+  if (role !== "owner") return c.json({ error: "owner only" }, 403);
+  await c.env.DB.prepare(
+    "DELETE FROM invitations WHERE cookbook_id = ? AND token = ?"
+  ).bind(cookbookId, c.req.param("token")).run();
+  return c.json({ ok: true });
+});
+
+// Public invitation detail. No auth — the token itself is the
+// capability. Returned shape lets the invite page render
+// "Patricia invited you to Heirloom Family Cookbook" before the
+// invitee has signed in.
+app.get("/api/invitations/:token", async (c) => {
+  const token = c.req.param("token");
+  const row = await c.env.DB.prepare(
+    `SELECT i.token, i.cookbook_id, i.email, i.role, i.invited_by, i.created_at, i.expires_at, i.accepted_at,
+            c.name AS cookbook_name, c.blurb AS cookbook_blurb
+     FROM invitations i
+     LEFT JOIN cookbooks c ON c.id = i.cookbook_id
+     WHERE i.token = ?`
+  ).bind(token).first();
+  if (!row) return c.json({ error: "not found" }, 404);
+  return c.json({
+    token: row.token,
+    cookbookId: row.cookbook_id,
+    cookbookName: row.cookbook_name,
+    cookbookBlurb: row.cookbook_blurb,
+    email: row.email,
+    role: row.role,
+    invitedBy: row.invited_by,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    acceptedAt: row.accepted_at,
+    expired: new Date(row.expires_at) < new Date(),
+  });
+});
+
+// Accept an invitation. Adds the signed-in cook to the cookbook
+// as a member with the invited role; marks the invitation
+// accepted. Authenticated.
+app.post("/api/admin/invitations/:token/accept", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  await ensureUserBootstrap(c);
+  const token = c.req.param("token");
+  const row = await c.env.DB.prepare(
+    "SELECT cookbook_id, email, role, expires_at, accepted_at FROM invitations WHERE token = ?"
+  ).bind(token).first();
+  if (!row) return c.json({ error: "not found" }, 404);
+  if (row.accepted_at) return c.json({ error: "already accepted", cookbookId: row.cookbook_id }, 400);
+  if (new Date(row.expires_at) < new Date()) return c.json({ error: "expired" }, 400);
+
+  const now = new Date().toISOString();
+  // Add membership (no-op if they're somehow already a member).
+  await c.env.DB.prepare(
+    "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, invited_by, joined_at) VALUES (?, ?, ?, (SELECT invited_by FROM invitations WHERE token = ?), ?)"
+  ).bind(row.cookbook_id, email, row.role, token, now).run();
+  // Mark accepted.
+  await c.env.DB.prepare(
+    "UPDATE invitations SET accepted_at = ?, accepted_by = ? WHERE token = ?"
+  ).bind(now, email, token).run();
+  return c.json({ ok: true, cookbookId: row.cookbook_id });
+});
+
+// Change a member's role. Owner-only. The owner can demote
+// themselves (transfer-of-power surface) but not the last
+// remaining owner.
+app.patch("/api/admin/cookbooks/:id/members/:email", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("id");
+  const targetEmail = c.req.param("email").toLowerCase();
+  const role = await cookbookRole(c, cookbookId);
+  if (role !== "owner") return c.json({ error: "owner only" }, 403);
+  const body = await c.req.json().catch(() => ({}));
+  const newRole = body?.role;
+  if (!["owner", "editor", "viewer"].includes(newRole)) {
+    return c.json({ error: "invalid role" }, 400);
+  }
+  // Prevent removing the last owner.
+  if (newRole !== "owner") {
+    const owners = await c.env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM cookbook_members WHERE cookbook_id = ? AND role = 'owner'"
+    ).bind(cookbookId).first();
+    if ((owners?.n || 0) <= 1) {
+      const target = await c.env.DB.prepare(
+        "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
+      ).bind(cookbookId, targetEmail).first();
+      if (target?.role === "owner") return c.json({ error: "promote another member to owner first" }, 400);
+    }
+  }
+  await c.env.DB.prepare(
+    "UPDATE cookbook_members SET role = ? WHERE cookbook_id = ? AND user_email = ?"
+  ).bind(newRole, cookbookId, targetEmail).run();
+  return c.json({ ok: true });
+});
+
+// Remove a member. Owner-only. Can't remove the last owner.
+// A member can also remove themselves (leave) — handled by the
+// same endpoint when the caller targets their own row.
+app.delete("/api/admin/cookbooks/:id/members/:email", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("id");
+  const targetEmail = c.req.param("email").toLowerCase();
+  const role = await cookbookRole(c, cookbookId);
+  const isSelf = targetEmail === email.toLowerCase();
+  if (role !== "owner" && !isSelf) return c.json({ error: "owner only" }, 403);
+  // Don't strand a cookbook with no owners.
+  const target = await c.env.DB.prepare(
+    "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
+  ).bind(cookbookId, targetEmail).first();
+  if (!target) return c.json({ error: "not found" }, 404);
+  if (target.role === "owner") {
+    const owners = await c.env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM cookbook_members WHERE cookbook_id = ? AND role = 'owner'"
+    ).bind(cookbookId).first();
+    if ((owners?.n || 0) <= 1) return c.json({ error: "transfer ownership before removing the last owner" }, 400);
+  }
+  await c.env.DB.prepare(
+    "DELETE FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
+  ).bind(cookbookId, targetEmail).run();
+  return c.json({ ok: true });
+});
+
 app.get("/api/recipes", async (c) => {
   // Phase 4a-2: scope by cookbookId when provided. Defaults to the
   // bootstrap family cookbook so legacy callers (no query param)

@@ -12,6 +12,7 @@ import { RecipeDetail } from "./recipe.jsx";
 import { AddRecipe } from "./add-recipe.jsx";
 import { ExperimentationLab } from "./experiment.jsx";
 import { CookbooksIndex } from "./cookbooks.jsx";
+import { InviteAccept } from "./invite.jsx";
 import { BuildAMeal } from "./meal.jsx";
 import { PlanMealModal, MealPlanPage } from "./meal-plan.jsx";
 import { ShoppingList } from "./shopping.jsx";
@@ -225,6 +226,7 @@ function App() {
   const view = route.view;
   const recipeId = route.recipeId;
   const editingId = route.editingId;
+  const inviteToken = route.inviteToken;
   const setView = (newView) => setRoute(s => ({ ...s, view: newView }));
   const setRecipeId = (id) => setRoute(s => ({ ...s, recipeId: id }));
   const setEditingId = (id) => setRoute(s => ({ ...s, editingId: id }));
@@ -698,6 +700,14 @@ function App() {
           activeCookbookId={activeCookbookId}
           onClose={backToBrowse}
           onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); backToBrowse(); }}
+        />
+      )}
+      {FLAGS.cookbooks && view === "invite" && (
+        <InviteAccept
+          token={inviteToken}
+          authEmail={authEmail}
+          onAccepted={(cookbookId) => { setActiveCookbookId(cookbookId); backToBrowse(); }}
+          onClose={backToBrowse}
         />
       )}
       {view === "meal" && (
