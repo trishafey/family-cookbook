@@ -290,12 +290,27 @@ export function fmtDuration(min) {
 // each child useLang() has its own React state seeded from
 // localStorage only at mount time.
 export function useStorage(key, initial) {
-  const [v, setV] = useState(() => {
+  const readKey = () => {
     try {
       const raw = localStorage.getItem(key);
       return raw == null ? initial : JSON.parse(raw);
     } catch { return initial; }
-  });
+  };
+  const [v, setV] = useState(readKey);
+  // When the key changes mid-life (e.g. useRecipes(cookbookId)
+  // switching between cookbook cache keys), React keeps the
+  // existing state — so the previous cookbook's recipes would
+  // linger AND get re-written to the new key by the persistence
+  // effect below. Detect the key change in-render and re-read
+  // from localStorage so v matches the new key before anything
+  // commits. This is the official React pattern for "derive
+  // state from changing props" (setting state during render is
+  // a no-op + re-run, not a loop).
+  const lastKey = useRef(key);
+  if (lastKey.current !== key) {
+    lastKey.current = key;
+    setV(readKey());
+  }
   useEffect(() => {
     try {
       const next = JSON.stringify(v);
