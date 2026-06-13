@@ -283,16 +283,32 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
               <h2>{recipes.length} {recipes.length === 1 ? t("recipe") : t("recipes")}</h2>
             </div>
           </div>
-          {recipes.length === 0 ?
-        <div style={{ padding: 80, textAlign: "center", color: "var(--ink-3)" }}>
-              <div style={{ fontSize: 48, marginBottom: 16, fontFamily: "var(--serif)", fontStyle: "italic" }}>{t("noResults")}</div>
-              <div>{t("noResultsTryAgain")} <button className="btn ghost sm" onClick={openAddRecipe}>{t("addThisRecipeYourself")}</button>.</div>
-            </div> :
-
-        <div className="grid">
+          {recipes.length === 0 ? (
+            allRecipes.length === 0 ? (
+              // Cookbook is genuinely empty (no recipes at all in
+              // this cookbook). Different copy from the "search
+              // returned nothing" case so the cook knows the
+              // cookbook itself is blank rather than thinking
+              // their filter is too tight.
+              <div className="empty-cookbook">
+                <Icon name="book" size={48} />
+                <div className="t">No recipes here yet.</div>
+                <div className="s">This cookbook is empty. Add the first recipe to get started.</div>
+                <button className="btn primary" onClick={openAddRecipe}>
+                  <Icon name="plus" size={14} /> Add a recipe
+                </button>
+              </div>
+            ) : (
+              <div style={{ padding: 80, textAlign: "center", color: "var(--ink-3)" }}>
+                <div style={{ fontSize: 48, marginBottom: 16, fontFamily: "var(--serif)", fontStyle: "italic" }}>{t("noResults")}</div>
+                <div>{t("noResultsTryAgain")} <button className="btn ghost sm" onClick={openAddRecipe}>{t("addThisRecipeYourself")}</button>.</div>
+              </div>
+            )
+          ) : (
+            <div className="grid">
               {recipes.map((r) => <RecipeCard {...cardProps(r)} />)}
             </div>
-        }
+          )}
         </>
       }
     </div>);
