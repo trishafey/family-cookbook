@@ -2320,8 +2320,13 @@ const AI_LAB_DRAFT_SCHEMA = {
           qty:  { type: "number" },
           unit: { type: "string" },
           item: { type: "string" },
+          // Section name — "Dough", "Filling", "Streusel", "Glaze",
+          // "Sauce", "Garnish", etc. Default "Ingredients" if the
+          // recipe has no natural grouping. Drives the ingredient
+          // list rendering in the Lab card.
+          grp:  { type: "string" },
         },
-        required: ["qty", "unit", "item"],
+        required: ["qty", "unit", "item", "grp"],
         additionalProperties: false,
       },
     },
@@ -2357,24 +2362,39 @@ app.post("/api/admin/ai/lab-iterate", async (c) => {
   const prompt = (body?.prompt || "").trim();
   if (!prompt) return c.json({ error: "missing prompt" }, 400);
   const previousDraft = body?.previousDraft || null;
+  // Full text — no 300-char cap. The model needs the actual
+  // prompts and tasting notes to maintain context across
+  // iterations (e.g. "keep the rhubarb in"). Cap at 16 turns
+  // so the request stays under a few KB.
   const history = Array.isArray(body?.history)
-    ? body.history.slice(-8).map(t => ({
+    ? body.history.slice(-16).map(t => ({
         role: t.role === "ai" ? "assistant" : "user",
-        text: (t.text || "").slice(0, 300),
+        text: (t.text || "").slice(0, 2000),
         tastingNote: t.tastingNote || null,
       }))
     : [];
+  // Cook's freeform cooking preferences (set in their profile).
+  // E.g. "I like things fruit-forward and jammy with extra fruit",
+  // "I cook lower-sugar than the recipe usually calls for",
+  // "We're a kosher household — no pork/shellfish/dairy+meat."
+  const cookPrefs = (body?.cookPrefs || "").toString().slice(0, 1200).trim();
 
   const messages = [
     {
       role: "system",
       content: `You are the kitchen experimentation AI for a family cookbook's "Lab". The cook is iterating on a dish — your job is to produce a recipe draft that incorporates what they just asked for. Voice: warm, opinionated family cook. Don't apologise, don't add caveats, don't list every assumption. Just write the recipe.
 
+CONTEXT CONTINUITY (critical): When the cook has asked for something specific earlier in the conversation, KEEP IT in later drafts unless they explicitly ask you to drop it. If the cook said "strawberry rhubarb muffins" two turns ago and now says "make them less dense", the next draft is STILL strawberry rhubarb muffins. Re-read the whole history before producing a new draft and inventory the constraints the cook has accumulated (key ingredients, dietary needs, format, mood). Never silently drop a previously-requested ingredient.
+
+INGREDIENT SECTIONS: Group ingredients by .grp into sections that mirror the cook's mental model of building the dish: "Dough", "Batter", "Filling", "Streusel", "Topping", "Glaze", "Sauce", "Rub", "Marinade", "Brine", "Garnish", "Serve". If a recipe has only one section (e.g. a simple soup), put everything in "Ingredients". Order sections in the order they're used.
+
+PROACTIVE IMPROVEMENTS: Beyond just doing what was asked, look at the dish holistically and PROPOSE one or two improvements that would round it out — a cream cheese glaze to balance a tart filling, a brown-butter swap for nuttier crumb, a quick pickled-onion topping to cut richness, a streusel for textural contrast. Mention them in the greeting field ("Added a cream cheese glaze — the rhubarb tartness needs it. Want me to push the cardamom too?"). Don't add them silently to the recipe unless they're already part of the cook's request — surface them as questions.
+
 When a previous draft is provided, treat your output as the NEXT iteration — change what the cook asked to change, leave the rest stable. Don't quietly rewrite steps that weren't touched.
 
 The diff field is ONE short clause listing the changes made vs the previous draft, comma-separated ("halved sugar, added cardamom, swapped milk for buttermilk"). If there's no previous draft, diff is "Initial draft".
 
-The greeting field is one short sentence framing the new draft for the cook ("Here's the lighter version — want me to push it further?", "First pass at the brioche. Tell me what to change.").`,
+The greeting field is one to two short sentences framing the new draft AND ending with a concrete question or suggested improvement — give the cook somewhere to go next ("First pass at the brioche. Want me to brown the butter for a nuttier crumb?", "Kept the rhubarb forward — should I add a cream cheese drizzle to balance the tartness?").${cookPrefs ? "\n\nCOOK PREFERENCES (apply to every draft unless the cook explicitly contradicts them):\n" + cookPrefs : ""}`,
     },
     ...(previousDraft ? [{
       role: "user",
@@ -2393,7 +2413,11 @@ The greeting field is one short sentence framing the new draft for the cook ("He
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
     body: JSON.stringify({
-      model: AI_OPENAI_MODEL,
+      // gpt-4o is much better at honouring the accumulated context
+      // (keeping the rhubarb in across iterations, proposing
+      // balancing components, grouping ingredients into natural
+      // sections) than gpt-4o-mini was.
+      model: AI_HELP_MODEL,
       messages,
       response_format: {
         type: "json_schema",
@@ -2455,16 +2479,17 @@ app.post("/api/admin/ai/lab-suggest", async (c) => {
   const tastingNotes = Array.isArray(body?.tastingNotes)
     ? body.tastingNotes.filter(n => n?.note).slice(-6)
     : [];
+  const cookPrefs = (body?.cookPrefs || "").toString().slice(0, 1200).trim();
 
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
     body: JSON.stringify({
-      model: AI_OPENAI_MODEL,
+      model: AI_HELP_MODEL,
       messages: [
         {
           role: "system",
-          content: `Given a draft recipe and a small history of tasting notes from earlier iterations, propose 2-3 concrete next things the cook could try. Each suggestion has:
+          content: (cookPrefs ? `COOK PREFERENCES: ${cookPrefs}\n\n` : "") + `Given a draft recipe and a small history of tasting notes from earlier iterations, propose 2-3 concrete next things the cook could try. Each suggestion has:
   • label — 3-5 words, button-shaped ("Brown the butter", "Swap milk for buttermilk")
   • prompt — the full request the cook would type back ("Brown the butter before adding it — see how it changes the crumb")
   • why — one sentence pointing at what in the recipe or tasting notes makes this worth trying
@@ -2519,7 +2544,7 @@ app.post("/api/admin/ai/lab-promote", async (c) => {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${c.env.OPENAI_API_KEY}` },
     body: JSON.stringify({
-      model: AI_OPENAI_MODEL,
+      model: AI_HELP_MODEL,
       messages: [
         {
           role: "system",
@@ -2563,6 +2588,121 @@ Don't invent new ingredients or steps the cook never tested. If the tasting note
     tastingNoteCount: tastingNotes.length,
   });
   return c.json(parsed);
+});
+
+// ─── Lab: experiments CRUD (server-side persistence) ───
+// Experiments used to live in localStorage so they didn't follow
+// the cook between devices. These four endpoints back the Lab
+// with D1 so a draft started on the desktop shows up on the
+// phone and vice versa.
+app.get("/api/admin/lab/experiments", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const rows = await c.env.DB.prepare(
+    "SELECT id, title, blurb, status, draft_json, chat_json, created_at, updated_at FROM lab_experiments WHERE owner_email = ? ORDER BY updated_at DESC"
+  ).bind(email).all();
+  const experiments = (rows.results || []).map(r => ({
+    id: r.id,
+    title: r.title,
+    blurb: r.blurb || "",
+    status: r.status,
+    draft: JSON.parse(r.draft_json || "null"),
+    chat:  JSON.parse(r.chat_json  || "[]"),
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }));
+  return c.json({ experiments });
+});
+
+app.post("/api/admin/lab/experiments", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const body = await c.req.json().catch(() => ({}));
+  const draft = body?.draft;
+  const chat = Array.isArray(body?.chat) ? body.chat : [];
+  if (!draft?.title) return c.json({ error: "missing draft" }, 400);
+  const id = `exp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    "INSERT INTO lab_experiments (id, owner_email, title, blurb, status, draft_json, chat_json, created_at, updated_at) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)"
+  ).bind(id, email, draft.title, draft.blurb || "", JSON.stringify(draft), JSON.stringify(chat), now, now).run();
+  return c.json({ id, createdAt: now, updatedAt: now });
+});
+
+app.patch("/api/admin/lab/experiments/:id", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const id = c.req.param("id");
+  const body = await c.req.json().catch(() => ({}));
+  const row = await c.env.DB.prepare(
+    "SELECT owner_email FROM lab_experiments WHERE id = ?"
+  ).bind(id).first();
+  if (!row) return c.json({ error: "not found" }, 404);
+  if (row.owner_email !== email) return c.json({ error: "forbidden" }, 403);
+  const sets = [];
+  const args = [];
+  if (body.draft) {
+    sets.push("draft_json = ?", "title = ?", "blurb = ?");
+    args.push(JSON.stringify(body.draft), body.draft.title, body.draft.blurb || "");
+  }
+  if (Array.isArray(body.chat)) {
+    sets.push("chat_json = ?");
+    args.push(JSON.stringify(body.chat));
+  }
+  if (body.status === "pending" || body.status === "promoted") {
+    sets.push("status = ?");
+    args.push(body.status);
+  }
+  if (!sets.length) return c.json({ ok: true });
+  const now = new Date().toISOString();
+  sets.push("updated_at = ?");
+  args.push(now, id);
+  await c.env.DB.prepare(
+    `UPDATE lab_experiments SET ${sets.join(", ")} WHERE id = ?`
+  ).bind(...args).run();
+  return c.json({ ok: true, updatedAt: now });
+});
+
+app.delete("/api/admin/lab/experiments/:id", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const id = c.req.param("id");
+  const row = await c.env.DB.prepare(
+    "SELECT owner_email FROM lab_experiments WHERE id = ?"
+  ).bind(id).first();
+  if (!row) return c.json({ error: "not found" }, 404);
+  if (row.owner_email !== email) return c.json({ error: "forbidden" }, 403);
+  await c.env.DB.prepare("DELETE FROM lab_experiments WHERE id = ?").bind(id).run();
+  return c.json({ ok: true });
+});
+
+// ─── User cooking preferences ───
+// Read + write the cook's freeform "how I like to cook" note.
+// Read also returns an empty string if the row doesn't exist,
+// so the client doesn't need to handle a 404 on first load.
+app.get("/api/admin/me/prefs", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const row = await c.env.DB.prepare(
+    "SELECT prefs_text, updated_at FROM user_prefs WHERE user_email = ?"
+  ).bind(email).first();
+  return c.json({
+    cookPrefs: row?.prefs_text || "",
+    updatedAt: row?.updated_at || null,
+  });
+});
+
+app.put("/api/admin/me/prefs", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const body = await c.req.json().catch(() => ({}));
+  const prefs = (body?.cookPrefs || "").toString().slice(0, 4000);
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `INSERT INTO user_prefs (user_email, prefs_text, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(user_email) DO UPDATE SET prefs_text = excluded.prefs_text, updated_at = excluded.updated_at`
+  ).bind(email, prefs, now).run();
+  return c.json({ ok: true, updatedAt: now });
 });
 
 // ─── AI: Nutrition estimate ───

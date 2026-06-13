@@ -613,6 +613,7 @@ function App() {
         <ExperimentationLab
           onClose={backToBrowse}
           onPromote={onSaveRecipe}
+          openCook={openCook}
           allRecipes={recipes}
           authEmail={authEmail}
         />

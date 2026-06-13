@@ -1,142 +1,25 @@
 // Kitchen Experimentation Lab — chat-based recipe discovery / drafting.
-// Drafts live as "experiments" until promoted to the main cookbook.
+//
+// Architecture:
+//   • ExperimentationLab — the index page (grid of experiments + a
+//     "New experiment" CTA). Loads from D1 via the lab API so the
+//     cook's drafts follow them across devices.
+//   • LabChat — full-page overlay opened by "New experiment" or
+//     clicking an existing card. The chat used to live cramped
+//     below the experiments grid; promoting it to a full screen
+//     gave the cook real estate to type, scroll, and read drafts.
+//
+// Experiments persist on the server (lab_experiments table). User
+// cooking preferences (user_prefs) ride along on every AI call so
+// the cook doesn't have to re-state "I like things fruit-forward"
+// every turn.
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Icon, useStorage, fmtDuration, formatQty, formatIngredientQty } from "./helpers.jsx";
+import { Icon, fmtDuration, formatIngredientQty } from "./helpers.jsx";
 
-// ─────────────────────────────────────────────────────────────
-// Mock AI: turns a free-text request into a structured recipe.
-// In a real impl this would call window.claude.complete with a
-// structured-output prompt.
-// ─────────────────────────────────────────────────────────────
-function generateExperimentDraft(prompt) {
-  const p = prompt.toLowerCase();
-
-  // Seed responses for some plausible prompts. Each returns a recipe object.
-  if (p.includes("blueberry") && p.includes("poppy")) {
-    return {
-      title: "Blueberry Lemon Poppy Seed Rolls",
-      blurb: "A cross between the family blueberry rolls and a classic poppy seed muffin. Bright, nutty, weekend-y.",
-      time: 90,
-      servings: 9,
-      ingredients: [
-        { qty: 3.25, unit: "cups", item: "all-purpose flour" },
-        { qty: 0.25, unit: "cup",  item: "sugar" },
-        { qty: 2.25, unit: "tsp",  item: "instant yeast" },
-        { qty: 1,    unit: "tbsp", item: "poppy seeds (in the dough)" },
-        { qty: 0.75, unit: "cup",  item: "warm whole milk" },
-        { qty: 1,    unit: "",     item: "large egg" },
-        { qty: 4,    unit: "tbsp", item: "butter, melted" },
-        { qty: 2,    unit: "cups", item: "blueberries (frozen, don't thaw)" },
-        { qty: 2,    unit: "",     item: "lemons, zested + juiced" },
-        { qty: 1,    unit: "cup",  item: "powdered sugar (for glaze)" },
-      ],
-      steps: [
-        "Bloom yeast in warm milk + a pinch of sugar. Sit 5 min.",
-        "Mix flour, sugar, salt, poppy seeds. Add yeast mix + egg + butter. Knead 8 min.",
-        "First rise: covered, warm spot, 1 hour.",
-        "Toss berries with sugar, cornstarch, lemon zest, lemon juice.",
-        "Roll dough into a rectangle. Spread filling. Roll up tight.",
-        "Slice 9 rolls using dental floss. Second rise 30 min.",
-        "Bake 375°F until tops are deep gold. ~28 minutes.",
-        "Glaze with powdered sugar + lemon juice + a pinch of poppy seeds.",
-      ],
-      tips: ["The poppy seeds in the dough are subtle but they're what makes this NOT just a riff on Rosa's rolls.", "Use a Microplane for the lemon — no white pith."],
-    };
-  }
-
-  if (p.includes("pear") || (p.includes("dark chocolate") && (p.includes("dessert") || p.includes("cake")))) {
-    return {
-      title: "Pear & Dark Chocolate Skillet Cake",
-      blurb: "One pan, brown butter, brandy-poached pears, a tumble of dark chocolate.",
-      time: 60,
-      servings: 8,
-      ingredients: [
-        { qty: 3,    unit: "",    item: "ripe but firm pears, sliced" },
-        { qty: 2,    unit: "tbsp",item: "brandy or bourbon" },
-        { qty: 6,    unit: "tbsp",item: "unsalted butter (for brown butter)" },
-        { qty: 0.75, unit: "cup", item: "sugar" },
-        { qty: 2,    unit: "",    item: "eggs" },
-        { qty: 1.25, unit: "cups",item: "AP flour" },
-        { qty: 1,    unit: "tsp", item: "baking powder" },
-        { qty: 0.5,  unit: "tsp", item: "kosher salt" },
-        { qty: 0.5,  unit: "cup", item: "whole milk" },
-        { qty: 1,    unit: "tsp", item: "vanilla" },
-        { qty: 4,    unit: "oz",  item: "70% dark chocolate, roughly chopped" },
-      ],
-      steps: [
-        "Toss pears with brandy. Set aside.",
-        "Brown the butter in a 10\" skillet until nutty. Pour into a bowl. Cool slightly.",
-        "Whisk browned butter, sugar, eggs, vanilla.",
-        "Fold in flour, powder, salt, milk.",
-        "Pour batter into a buttered skillet. Scatter pears + chocolate over the top.",
-        "Bake 350°F ~40 min until set and deeply golden at the edges.",
-      ],
-      tips: ["Brown butter the night before if you can — flavor opens up.", "Slightly underbake. The skillet keeps cooking it."],
-    };
-  }
-
-  if (p.includes("ramen") || p.includes("noodle soup")) {
-    return {
-      title: "30-Minute Pantry Ramen",
-      blurb: "Not authentic — fast. Anchovies + miso + soft egg + the noodles you have.",
-      time: 30,
-      servings: 2,
-      ingredients: [
-        { qty: 1, unit: "tbsp", item: "sesame oil" },
-        { qty: 3, unit: "", item: "garlic cloves, smashed" },
-        { qty: 1, unit: "inch", item: "ginger, sliced" },
-        { qty: 2, unit: "", item: "anchovy fillets" },
-        { qty: 3, unit: "tbsp", item: "white miso" },
-        { qty: 4, unit: "cups", item: "chicken or veg stock" },
-        { qty: 2, unit: "tbsp", item: "soy sauce" },
-        { qty: 2, unit: "tsp", item: "rice vinegar" },
-        { qty: 2, unit: "packs", item: "ramen-style noodles" },
-        { qty: 2, unit: "", item: "soft-boiled eggs, halved" },
-        { qty: 1, unit: "bunch", item: "scallions, sliced" },
-      ],
-      steps: [
-        "Toast garlic + ginger + anchovies in sesame oil 2 min.",
-        "Whisk miso into stock. Add to pot. Bring to a simmer.",
-        "Add soy + vinegar. Simmer 8 minutes. Strain if you want a clean broth.",
-        "Cook noodles per package. Drain.",
-        "Bowl: noodles → broth → egg halves → scallions.",
-      ],
-      tips: ["Anchovies vanish — they just deepen the broth.", "Top with chili crisp if you're feeling it."],
-    };
-  }
-
-  // Default template: extract a title-ish phrase from the prompt
-  const cleaned = prompt.replace(/^(make|i want|let'?s try|can you make|how do i make)\s+/i, "").trim();
-  const titleGuess = cleaned.split(/[.,?!]/)[0].slice(0, 60) || "Untitled Experiment";
-
-  return {
-    title: titleGuess.replace(/\b\w/g, c => c.toUpperCase()),
-    blurb: "A first pass — tell me what you'd change and I'll iterate.",
-    time: 45,
-    servings: 4,
-    ingredients: [
-      { qty: 2,    unit: "cups", item: "flour or grain base" },
-      { qty: 1,    unit: "",     item: "main protein (your choice)" },
-      { qty: 3,    unit: "tbsp", item: "aromatic fat (butter / oil / ghee)" },
-      { qty: 4,    unit: "",     item: "garlic cloves" },
-      { qty: 0.5,  unit: "cup",  item: "liquid (stock / wine / dairy)" },
-      { qty: 1,    unit: "",     item: "acid (lemon / vinegar)" },
-      { qty: 0,    unit: "",     item: "salt + pepper to taste" },
-    ],
-    steps: [
-      "Heat the fat. Brown the protein. Set aside.",
-      "Sweat aromatics in the rendered fat 5 min.",
-      "Add base. Toast briefly.",
-      "Add liquid. Simmer 20 minutes.",
-      "Return protein. Adjust seasoning. Finish with acid.",
-    ],
-    tips: ["This is a generic scaffold — push back and I'll give you something specific."],
-  };
-}
-
-// Generates a fridge-inventory draft when photos are attached.
-// In a real impl, vision would actually parse the contents of the photos.
+// Generates a fridge-inventory draft when photos are attached and
+// the user hasn't signed in yet. Real vision flow is wired
+// elsewhere — this is a friendly local fallback.
 function generateFridgeDraft(photoCount, hint) {
   const h = (hint || "").toLowerCase();
   if (h.includes("dinner") || h.includes("tonight")) {
@@ -146,13 +29,13 @@ function generateFridgeDraft(photoCount, hint) {
       time: 35,
       servings: 4,
       ingredients: [
-        { qty: 1,    unit: "lb",   item: "protein I spotted (chicken thighs / sausage / tofu)" },
-        { qty: 1,    unit: "",     item: "yellow onion, diced" },
-        { qty: 3,    unit: "",     item: "garlic cloves" },
-        { qty: 1,    unit: "can",  item: "tomatoes (or 2 fresh, chopped)" },
-        { qty: 1,    unit: "cup",  item: "stock or water" },
-        { qty: 1,    unit: "cup",  item: "starch on hand (rice, pasta, beans)" },
-        { qty: 0,    unit: "",     item: "olive oil, salt, pepper, whatever herb you have" },
+        { qty: 1, unit: "lb",  item: "protein I spotted (chicken thighs / sausage / tofu)", grp: "Main" },
+        { qty: 1, unit: "",    item: "yellow onion, diced", grp: "Main" },
+        { qty: 3, unit: "",    item: "garlic cloves", grp: "Main" },
+        { qty: 1, unit: "can", item: "tomatoes (or 2 fresh, chopped)", grp: "Main" },
+        { qty: 1, unit: "cup", item: "stock or water", grp: "Main" },
+        { qty: 1, unit: "cup", item: "starch on hand (rice, pasta, beans)", grp: "Main" },
+        { qty: 0, unit: "",    item: "olive oil, salt, pepper, whatever herb you have", grp: "To finish" },
       ],
       steps: [
         "Heat olive oil. Brown protein hard on one side, 5 min. Set aside.",
@@ -170,15 +53,15 @@ function generateFridgeDraft(photoCount, hint) {
     time: 20,
     servings: 2,
     ingredients: [
-      { qty: 2,    unit: "tbsp", item: "neutral oil" },
-      { qty: 4,    unit: "",     item: "garlic cloves, smashed" },
-      { qty: 1,    unit: "inch", item: "ginger, julienned" },
-      { qty: 12,   unit: "oz",   item: "mixed vegetables I spotted (peppers, broccoli, scallions, mushrooms)" },
-      { qty: 8,    unit: "oz",   item: "protein on hand (tofu / chicken / shrimp / leftover beef)" },
-      { qty: 2,    unit: "tbsp", item: "soy sauce" },
-      { qty: 1,    unit: "tbsp", item: "rice vinegar or lemon juice" },
-      { qty: 1,    unit: "tsp",  item: "sesame oil to finish" },
-      { qty: 2,    unit: "cups", item: "cooked rice (or noodles)" },
+      { qty: 2,  unit: "tbsp", item: "neutral oil", grp: "Stir-fry" },
+      { qty: 4,  unit: "",     item: "garlic cloves, smashed", grp: "Stir-fry" },
+      { qty: 1,  unit: "inch", item: "ginger, julienned", grp: "Stir-fry" },
+      { qty: 12, unit: "oz",   item: "mixed vegetables I spotted", grp: "Stir-fry" },
+      { qty: 8,  unit: "oz",   item: "protein on hand", grp: "Stir-fry" },
+      { qty: 2,  unit: "tbsp", item: "soy sauce", grp: "Sauce" },
+      { qty: 1,  unit: "tbsp", item: "rice vinegar or lemon juice", grp: "Sauce" },
+      { qty: 1,  unit: "tsp",  item: "sesame oil to finish", grp: "Sauce" },
+      { qty: 2,  unit: "cups", item: "cooked rice (or noodles)", grp: "Serve" },
     ],
     steps: [
       "Heat the oil ripping hot. Sear protein in batches, set aside.",
@@ -193,7 +76,7 @@ function generateFridgeDraft(photoCount, hint) {
 
 export function draftToRecipe(draft, status = "experiment") {
   // Map the lab draft into our full recipe shape so it can live in the
-  // cookbook (or in the experiment list).
+  // cookbook (or in cook mode).
   return {
     id: `experiment-${Date.now()}`,
     title: draft.title,
@@ -212,8 +95,8 @@ export function draftToRecipe(draft, status = "experiment") {
     prep: 10, cook: Math.max(0, (draft.time || 30) - 10), total: draft.time || 30,
     difficulty: "Medium",
     nutrition: { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodium: 0 },
-    ingredients: draft.ingredients.map(i => ({ ...i, grp: "Ingredients" })),
-    steps: draft.steps.map((d) => ({
+    ingredients: (draft.ingredients || []).map(i => ({ ...i, grp: i.grp || "Ingredients" })),
+    steps: (draft.steps || []).map((d) => ({
       t: d.split(/[.:]/)[0].slice(0, 60),
       d, mins: Math.ceil((draft.time || 30) / draft.steps.length), precision: "medium",
     })),
@@ -223,13 +106,11 @@ export function draftToRecipe(draft, status = "experiment") {
   };
 }
 
-// ─────────────────────────────────────────────────────────────
-// TastingNoteEditor — small inline editor attached to AI draft
-// turns. The cook types what they thought after making it; the
-// note follows the chat into subsequent lab-iterate / lab-suggest /
-// lab-promote calls so the AI can lean on real tasting feedback.
-// ─────────────────────────────────────────────────────────────
-function TastingNoteEditor({ value, onSave, disabled }) {
+// "Did you make this?" — replaces the older "Tasting note" affordance.
+// Reads more naturally on the draft card: the AI asks the cook whether
+// they cooked it; the cook says yes/no and leaves feedback that flows
+// into the next iteration.
+function CookedFeedback({ value, onSave, disabled }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(value);
   useEffect(() => { setText(value); }, [value]);
@@ -241,9 +122,9 @@ function TastingNoteEditor({ value, onSave, disabled }) {
         className="lab-tasting add"
         onClick={() => setEditing(true)}
         disabled={disabled}
-        title={disabled ? "Sign in to add tasting notes" : "Add a tasting note"}
+        title={disabled ? "Sign in to leave feedback" : "Tell the AI how it turned out"}
       >
-        <Icon name="plusBare" size={12} /> Tasting note
+        <Icon name="sparkle" size={12} /> Did you make this?
       </button>
     );
   }
@@ -267,63 +148,203 @@ function TastingNoteEditor({ value, onSave, disabled }) {
   return (
     <div className="lab-tasting saved" onClick={() => !disabled && setEditing(true)}>
       <div className="head">
-        <Icon name="bookmark" size={12} /> <span>Tasting note</span>
+        <Icon name="bookmark" size={12} /> <span>You made this</span>
       </div>
       <div className="note">{value}</div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// ExperimentationLab — the page
-// ─────────────────────────────────────────────────────────────
-export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }) {
-  const [experiments, setExperiments] = useStorage("lab:experiments", []);
-  const [activeId, setActiveId] = useState(null);
-  // Chat turn shape:
-  //   { role: "you"|"ai", text, draft?, photos?,
-  //     diff?: string,        // AI-only: one-line "what changed"
-  //     greeting?: string,    // AI-only: one-line framing
-  //     tastingNote?: string, // appended after the cook tries it
-  //   }
-  const [chat, setChat] = useState([]);
+// Cooking preferences bar — inline editor at the top of the chat
+// overlay. The freeform note is sent with every AI call so the cook
+// doesn't have to repeat "fruit-forward and jammy" on every prompt.
+function PrefsBar({ value, onSave, disabled }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(value);
+  useEffect(() => { setText(value); }, [value]);
+
+  if (!editing) {
+    return (
+      <div className="lab-prefs-bar">
+        <div className="t">
+          <Icon name="sparkle" size={12} />
+          <span className="label">How you like to cook</span>
+          <span className="val">{value || "Tell the AI your style — fruit-forward, lower-sugar, no shellfish…"}</span>
+        </div>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => setEditing(true)}
+          disabled={disabled}
+        >
+          {value ? "Edit" : "Set"}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="lab-prefs-bar editing">
+      <textarea
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={3}
+        placeholder="e.g. I like things fruit-forward and jammy, with extra fruit and a soft crumb. Lower-sugar than most recipes call for. No shellfish."
+      />
+      <div className="actions">
+        <button className="btn ghost sm" onClick={() => { setEditing(false); setText(value); }}>Cancel</button>
+        <button className="btn primary sm" onClick={() => { onSave(text.trim()); setEditing(false); }}>Save</button>
+      </div>
+    </div>
+  );
+}
+
+// Renders a draft recipe inside a chat bubble. Ingredients are
+// grouped by .grp ("Dough", "Filling", "Glaze"). Includes a "Cook
+// this" CTA that drops the draft into cook mode, and a "Copy
+// ingredients" button that puts the shopping list on the clipboard.
+function LabRecipeCard({ draft, onCookThis }) {
+  const [copied, setCopied] = useState(false);
+
+  const grouped = useMemo(() => {
+    const byGrp = new Map();
+    for (const ing of draft.ingredients || []) {
+      const g = ing.grp || "Ingredients";
+      if (!byGrp.has(g)) byGrp.set(g, []);
+      byGrp.get(g).push(ing);
+    }
+    return [...byGrp.entries()];
+  }, [draft.ingredients]);
+
+  const copyIngredients = () => {
+    const lines = [`${draft.title}`, `Serves ${draft.servings || 4}`, ""];
+    for (const [grp, items] of grouped) {
+      if (grouped.length > 1) lines.push(grp);
+      for (const i of items) {
+        lines.push(`  ${formatIngredientQty(i)} ${i.item}`.trim());
+      }
+      lines.push("");
+    }
+    const text = lines.join("\n").trim();
+    try {
+      navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {}
+  };
+
+  return (
+    <div className="lab-recipe-card">
+      <div className="head">
+        <div className="ai-tag"><Icon name="sparkle" size={11} /> Draft recipe</div>
+        <h4>{draft.title}</h4>
+        <div className="sub">{draft.blurb}</div>
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <span className="recipe-tag time"><Icon name="clock" size={13} /> {fmtDuration(draft.time || 30)}</span>
+          <span className="recipe-tag"><span className="dot" style={{ background: "var(--accent-2)" }} /> Serves {draft.servings || 4}</span>
+        </div>
+      </div>
+      <div className="body">
+        <div>
+          <h5>Ingredients</h5>
+          {grouped.map(([grp, items]) => (
+            <div key={grp} className="lab-ing-group">
+              {grouped.length > 1 && <div className="lab-ing-grp-head">{grp}</div>}
+              <ul>
+                {items.map((i, idx) => (
+                  <li key={idx}>
+                    <span style={{ fontFamily: "var(--mono)", color: "var(--accent)" }}>{formatIngredientQty(i)}</span>{" "}
+                    {i.item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <div>
+          <h5>Method</h5>
+          <ol>
+            {draft.steps.map((s, idx) => <li key={idx}>{s}</li>)}
+          </ol>
+        </div>
+      </div>
+      <div className="lab-recipe-actions">
+        {onCookThis && (
+          <button className="btn primary sm" onClick={() => onCookThis(draft)}>
+            <Icon name="play" size={13} /> Cook this
+          </button>
+        )}
+        <button className="btn sm" onClick={copyIngredients}>
+          <Icon name={copied ? "check" : "copy"} size={13} /> {copied ? "Copied" : "Copy ingredients"}
+        </button>
+      </div>
+      {draft.tips?.length > 0 && (
+        <div className="actions">
+          <span style={{ fontFamily: "var(--serif)", fontStyle: "italic" }}>
+            💡 {draft.tips[0]}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Full-page chat overlay. Owns the chat array; on every change,
+// debounced-saves the experiment server-side. authEmail's initial
+// is shown in the user avatar bubble; AI avatar is the heirloom
+// (tomato) icon.
+function LabChat({
+  experiment,             // existing experiment row, or null for new
+  isNew,
+  authEmail,
+  cookPrefs,
+  onClose,
+  onPersist,              // (draftToSave, chatToSave, status?) → Promise<id>
+  onPromote,              // (recipe) → void  — adds to cookbook
+  onCookThis,             // (draft) → void  — open cook mode
+}) {
+  const [chat, setChat] = useState(experiment?.chat || []);
   const [text, setText] = useState("");
   const [thinking, setThinking] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [attachMenu, setAttachMenu] = useState(false);
   const [sendError, setSendError] = useState(null);
-  const [suggestions, setSuggestions] = useState(null);   // [{label, prompt, why}, ...] | null
+  const [suggestions, setSuggestions] = useState(null);
   const [suggesting, setSuggesting] = useState(false);
-  const [polishing, setPolishing] = useState(false);
   const bodyRef = useRef(null);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
-
-  const active = experiments.find(e => e.id === activeId);
-
-  // Loading an experiment loads its chat history
-  useEffect(() => {
-    if (active) setChat(active.chat || []);
-    else setChat([]);
-  }, [activeId]);
+  // Initial chosen once on mount so a sign-out mid-conversation
+  // doesn't flicker the bubble.
+  const youInitial = useMemo(() => (authEmail?.[0] || "Y").toUpperCase(), [authEmail]);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-  }, [chat, thinking]);
+  }, [chat, thinking, suggestions]);
 
-  const startNew = () => {
-    setActiveId(null);
-    setChat([]);
-    setText("");
-  };
+  // Esc closes the overlay.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
-  // Pull the most recent draft out of the chat — used as the
-  // `previousDraft` for lab-iterate so the next AI turn iterates
-  // instead of starting from scratch.
   const previousDraftFromChat = (turns) => {
     for (let i = turns.length - 1; i >= 0; i--) if (turns[i].draft) return turns[i].draft;
     return null;
   };
+
+  const latestDraft = useMemo(() => previousDraftFromChat(chat), [chat]);
+
+  // Persist whenever the chat changes and we have a draft to anchor on.
+  const lastSavedKey = useRef("");
+  useEffect(() => {
+    if (!latestDraft) return;
+    const key = JSON.stringify({ d: latestDraft, c: chat.length });
+    if (key === lastSavedKey.current) return;
+    lastSavedKey.current = key;
+    onPersist(latestDraft, chat);
+  }, [chat, latestDraft, onPersist]);
 
   const send = async (q) => {
     const txt = (q ?? text).trim();
@@ -333,10 +354,6 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
     setSendError(null);
     setSuggestions(null);
 
-    // Photo-driven prompts still fall through to the local fake
-    // for now — the real photo→AI path needs an R2 upload pass that
-    // we'll wire up in a follow-up. Text-only iteration calls the
-    // worker.
     const youTurn = { role: "you", text: txt || "(here's what's in my fridge)", photos: attachments };
     const nextChat = [...chat, youTurn];
     setChat(nextChat);
@@ -363,8 +380,6 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
     if (!authEmail) {
       setSendError("Sign in to iterate with the AI.");
       setThinking(false);
-      // Roll back the "you" turn so the cook can retry without
-      // re-typing.
       setChat(chat);
       setText(txt);
       return;
@@ -379,6 +394,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
           prompt: txt,
           previousDraft: previousDraftFromChat(chat),
           history: chat,
+          cookPrefs,
         }),
       });
       if (!res.ok) {
@@ -397,24 +413,16 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
     }
   };
 
-  // Add a tasting note to an AI turn at index `i`. Persists on
-  // the chat array so it shows up in subsequent lab-iterate calls
-  // (the cook's tasting notes are part of the iteration context).
-  const setTastingNote = (i, note) => {
+  const setCookedFeedback = (i, note) => {
     setChat(prev => prev.map((t, idx) => idx === i ? { ...t, tastingNote: note } : t));
   };
 
-  // Collect tasting notes alongside the draft they belong to, for
-  // the lab-suggest / lab-promote endpoints. Most recent last.
   const tastingNotesForAI = () => chat
     .filter(t => t.role === "ai" && t.draft && t.tastingNote)
     .map(t => ({ draftTitle: t.draft.title, note: t.tastingNote }));
 
   const suggestNext = async () => {
-    if (!authEmail) {
-      setSendError("Sign in to ask for suggestions.");
-      return;
-    }
+    if (!authEmail) { setSendError("Sign in to ask for suggestions."); return; }
     if (!latestDraft) return;
     setSuggesting(true);
     setSendError(null);
@@ -423,10 +431,7 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          latestDraft,
-          tastingNotes: tastingNotesForAI(),
-        }),
+        body: JSON.stringify({ latestDraft, tastingNotes: tastingNotesForAI(), cookPrefs }),
       });
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({}));
@@ -438,43 +443,6 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
       setSendError(err.message || "Could not reach the kitchen AI.");
     } finally {
       setSuggesting(false);
-    }
-  };
-
-  // Polish the latest draft for the cookbook. Drops the polished
-  // draft into the chat as a new AI turn the cook can review
-  // before clicking Promote.
-  const polishForCookbook = async () => {
-    if (!authEmail) {
-      setSendError("Sign in to polish the draft.");
-      return;
-    }
-    if (!latestDraft) return;
-    setPolishing(true);
-    setSendError(null);
-    try {
-      const iterationCount = chat.filter(t => t.role === "ai" && t.draft).length;
-      const res = await fetch("/api/admin/ai/lab-promote", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          latestDraft,
-          tastingNotes: tastingNotesForAI(),
-          iterationCount,
-        }),
-      });
-      if (!res.ok) {
-        const { error } = await res.json().catch(() => ({}));
-        throw new Error(error || `Polish failed (${res.status})`);
-      }
-      const { draft, diff, greeting } = await res.json();
-      const aiTurn = { role: "ai", text: greeting, draft, diff, greeting, polished: true };
-      setChat(prev => [...prev, aiTurn]);
-    } catch (err) {
-      setSendError(err.message || "Could not polish the draft.");
-    } finally {
-      setPolishing(false);
     }
   };
 
@@ -490,39 +458,6 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
     });
   };
 
-  const saveAsExperiment = (draft) => {
-    if (active) {
-      // Update existing
-      const updated = experiments.map(e => e.id === active.id ? { ...e, draft, chat, updatedAt: Date.now() } : e);
-      setExperiments(updated);
-      return;
-    }
-    const exp = {
-      id: `exp-${Date.now()}`,
-      title: draft.title,
-      blurb: draft.blurb,
-      status: "pending",
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      chat,
-      draft,
-    };
-    setExperiments([exp, ...experiments]);
-    setActiveId(exp.id);
-  };
-
-  const promote = (exp) => {
-    const r = draftToRecipe(exp.draft, "promoted");
-    onPromote(r);
-    const updated = experiments.map(e => e.id === exp.id ? { ...e, status: "promoted" } : e);
-    setExperiments(updated);
-  };
-
-  const remove = (id) => {
-    setExperiments(experiments.filter(e => e.id !== id));
-    if (activeId === id) setActiveId(null);
-  };
-
   const quickPrompts = [
     "Blueberry lemon poppy seed rolls",
     "A dessert with pears and dark chocolate",
@@ -531,10 +466,359 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
     "Vegetarian Sunday dinner the kids will eat",
   ];
 
-  const latestDraft = useMemo(() => {
-    for (let i = chat.length - 1; i >= 0; i--) if (chat[i].draft) return chat[i].draft;
-    return null;
-  }, [chat]);
+  const promote = () => {
+    if (!latestDraft) return;
+    onPromote(draftToRecipe(latestDraft, "promoted"));
+  };
+
+  return (
+    <div className="lab-overlay" role="dialog" aria-label="Experimentation Lab chat">
+      <div className="lab-overlay-head">
+        <button className="btn ghost" onClick={onClose} aria-label="Close chat">
+          <Icon name="chevL" /> Back to the Lab
+        </button>
+        <div className="title-block">
+          <div className="label">{isNew && !latestDraft ? "New experiment" : "Working on"}</div>
+          {(experiment?.title || latestDraft?.title) && (
+            <h3>{experiment?.title || latestDraft?.title}</h3>
+          )}
+        </div>
+        <div className="actions">
+          {latestDraft && (
+            <>
+              <button
+                className="btn ghost ai sm"
+                onClick={suggestNext}
+                disabled={suggesting || !authEmail}
+                aria-busy={suggesting}
+                title="Ask the AI what to try next"
+              >
+                <Icon name="sparkle" size={13} /> {suggesting ? "Thinking…" : "What to try next"}
+              </button>
+              {experiment?.status !== "promoted" && (
+                <button className="btn accent sm" onClick={promote}>
+                  <Icon name="check" size={14} /> Promote to cookbook
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {sendError && (
+        <div className="lab-error">{sendError}</div>
+      )}
+
+      {suggestions && suggestions.length > 0 && (
+        <div className="lab-suggestions">
+          <div className="head">
+            <span className="label">What to try next</span>
+            <button className="dismiss" onClick={() => setSuggestions(null)} aria-label="Dismiss suggestions">
+              <Icon name="x" size={13} />
+            </button>
+          </div>
+          <div className="cards">
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                className="card"
+                onClick={() => { setSuggestions(null); send(s.prompt); }}
+                title={s.why}
+              >
+                <div className="label"><Icon name="sparkle" size={12} /> {s.label}</div>
+                <div className="why">{s.why}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="lab-chat-body" ref={bodyRef}>
+        {chat.length === 0 && (
+          <div className="lab-empty">
+            <div className="big">"Make me…"</div>
+            <div>Describe the dish you're chasing, upload a photo of the ingredients you have, or try one of the prompts below.</div>
+          </div>
+        )}
+        {chat.map((t, i) => (
+          <div className={`lab-turn ${t.role}`} key={i}>
+            {t.role === "ai" && (
+              <div className="av ai-av" aria-hidden>
+                <Icon name="heirloom" size={20} />
+              </div>
+            )}
+            {t.draft ? (
+              <div className="bubble recipe">
+                {t.diff && (
+                  <div className="lab-diff">
+                    <Icon name="sparkle" size={11} />
+                    <span>{t.diff}</span>
+                  </div>
+                )}
+                <LabRecipeCard draft={t.draft} onCookThis={onCookThis} />
+                {t.greeting && <div className="lab-greeting">{t.greeting}</div>}
+                <CookedFeedback
+                  value={t.tastingNote || ""}
+                  onSave={(note) => setCookedFeedback(i, note)}
+                  disabled={!authEmail}
+                />
+              </div>
+            ) : (
+              <div className="lab-turn-content">
+                {t.photos && t.photos.length > 0 && (
+                  <div className="turn-photos">
+                    {t.photos.map((p, pi) => (
+                      <div key={pi} className="turn-photo" style={{ backgroundImage: `url(${p.url})` }} />
+                    ))}
+                  </div>
+                )}
+                <div className="bubble">{t.text}</div>
+              </div>
+            )}
+            {t.role === "you" && (
+              <div className="av you-av" aria-hidden>{youInitial}</div>
+            )}
+          </div>
+        ))}
+        {thinking && (
+          <div className="lab-turn ai thinking">
+            <div className="av ai-av" aria-hidden><Icon name="heirloom" size={20} /></div>
+            <div className="bubble">Drafting a recipe…</div>
+          </div>
+        )}
+      </div>
+
+      <div className="lab-input">
+        {chat.length === 0 && (
+          <div className="chips">
+            {quickPrompts.map((p, i) => (
+              <button key={i} className="chip" onClick={() => send(p)}>
+                <Icon name="sparkle" size={12} /> {p}
+              </button>
+            ))}
+          </div>
+        )}
+        {chat.length > 0 && !thinking && (
+          <div className="chips">
+            <button className="chip" onClick={() => setText("Make it lighter / lower-fat.")}>Lighter</button>
+            <button className="chip" onClick={() => setText("Make it gluten-free.")}>GF</button>
+            <button className="chip" onClick={() => setText("Make it for a crowd of 12.")}>For 12</button>
+            <button className="chip" onClick={() => setText("Cut the time in half.")}>Faster</button>
+            <button className="chip" onClick={() => setText("Make it more interesting / less safe.")}>Bolder</button>
+          </div>
+        )}
+
+        {attachments.length > 0 && (
+          <div className="lab-attachments">
+            {attachments.map((a, i) => (
+              <div key={i} className="lab-attachment" style={{ backgroundImage: `url(${a.url})` }}>
+                <button onClick={() => removeAttachment(i)} aria-label="Remove photo">
+                  <Icon name="x" size={13} />
+                </button>
+              </div>
+            ))}
+            <div className="lab-attachment-hint">
+              <Icon name="sparkle" size={13} /> AI will read what you have and suggest a recipe.
+            </div>
+          </div>
+        )}
+
+        <div className="field">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,application/pdf,.doc,.docx,.txt"
+            multiple
+            style={{ display: "none" }}
+            onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: "none" }}
+            onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
+          />
+          <textarea
+            placeholder={chat.length === 0
+              ? "e.g. \"Strawberry rhubarb muffins, fruit-forward\" — or snap your fridge"
+              : "Ask the AI to refine — e.g. \"use cardamom instead of cinnamon\""
+            }
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+            rows={1}
+          />
+          <div className="attach-wrap">
+            <button
+              className="btn ghost icon-only"
+              onClick={() => setAttachMenu(o => !o)}
+              title="Attach photo or file"
+              aria-label="Attach"
+              aria-expanded={attachMenu}
+              type="button"
+            >
+              <Icon name="paperclip" size={16} />
+            </button>
+            {attachMenu && (
+              <>
+                <div className="attach-menu-scrim" onClick={() => setAttachMenu(false)} />
+                <div className="attach-menu" role="menu">
+                  <button role="menuitem" onClick={() => { setAttachMenu(false); cameraInputRef.current?.click(); }}>
+                    <Icon name="camera" size={17} />
+                    <span><span className="t">Take a photo</span><span className="s">Use your device camera</span></span>
+                  </button>
+                  <button role="menuitem" onClick={() => { setAttachMenu(false); fileInputRef.current?.click(); }}>
+                    <Icon name="file" size={17} />
+                    <span><span className="t">Attach a file</span><span className="s">PDF, doc, recipe screenshot</span></span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          <button className="btn primary sm" onClick={() => send()} disabled={(!text.trim() && attachments.length === 0) || thinking}>
+            <Icon name="sparkle" size={13} /> Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// ExperimentationLab — the index page
+// ─────────────────────────────────────────────────────────────
+export function ExperimentationLab({ onClose, onPromote, openCook, allRecipes, authEmail }) {
+  const [experiments, setExperiments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [active, setActive] = useState(null); // null | "__new__" | { ...experiment }
+  const [cookPrefs, setCookPrefs] = useState("");
+  const [loadError, setLoadError] = useState(null);
+
+  useEffect(() => {
+    if (!authEmail) { setLoading(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [expsRes, prefsRes] = await Promise.all([
+          fetch("/api/admin/lab/experiments", { credentials: "include" }),
+          fetch("/api/admin/me/prefs",         { credentials: "include" }),
+        ]);
+        const exps  = expsRes.ok  ? await expsRes.json()  : { experiments: [] };
+        const prefs = prefsRes.ok ? await prefsRes.json() : { cookPrefs: "" };
+        if (cancelled) return;
+        setExperiments(exps.experiments || []);
+        setCookPrefs(prefs.cookPrefs || "");
+      } catch (err) {
+        if (!cancelled) setLoadError("Could not load your experiments.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [authEmail]);
+
+  const savePrefs = async (text) => {
+    setCookPrefs(text);
+    if (!authEmail) return;
+    try {
+      await fetch("/api/admin/me/prefs", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cookPrefs: text }),
+      });
+    } catch {}
+  };
+
+  // Persist a chat update for the open experiment. Creates a row
+  // on first save for new experiments, then updates that row on
+  // subsequent ticks.
+  const persistActive = async (draft, chat) => {
+    if (!authEmail) return;
+    if (!active) return;
+    if (active === "__new__") {
+      try {
+        const res = await fetch("/api/admin/lab/experiments", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ draft, chat }),
+        });
+        if (!res.ok) return;
+        const { id, createdAt, updatedAt } = await res.json();
+        const newExp = { id, title: draft.title, blurb: draft.blurb || "", status: "pending", draft, chat, createdAt, updatedAt };
+        setExperiments(prev => [newExp, ...prev]);
+        setActive(newExp);
+      } catch {}
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/lab/experiments/${active.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draft, chat }),
+      });
+      if (!res.ok) return;
+      const { updatedAt } = await res.json();
+      const updated = { ...active, title: draft.title, blurb: draft.blurb || "", draft, chat, updatedAt };
+      setActive(updated);
+      setExperiments(prev => prev.map(e => e.id === active.id ? updated : e));
+    } catch {}
+  };
+
+  const promoteActive = async (recipe) => {
+    onPromote(recipe);
+    if (active && active !== "__new__") {
+      try {
+        await fetch(`/api/admin/lab/experiments/${active.id}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "promoted" }),
+        });
+        const updated = { ...active, status: "promoted" };
+        setActive(updated);
+        setExperiments(prev => prev.map(e => e.id === active.id ? updated : e));
+      } catch {}
+    }
+  };
+
+  const remove = async (id) => {
+    setExperiments(prev => prev.filter(e => e.id !== id));
+    if (active && active.id === id) setActive(null);
+    if (!authEmail) return;
+    try {
+      await fetch(`/api/admin/lab/experiments/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+    } catch {}
+  };
+
+  const cookThis = (draft) => {
+    const recipe = draftToRecipe(draft);
+    const ings = recipe.ingredients;
+    if (openCook) openCook(recipe, recipe.steps, ings);
+  };
+
+  if (active) {
+    const isNew = active === "__new__";
+    return (
+      <LabChat
+        experiment={isNew ? null : active}
+        isNew={isNew}
+        authEmail={authEmail}
+        cookPrefs={cookPrefs}
+        onClose={() => setActive(null)}
+        onPersist={persistActive}
+        onPromote={promoteActive}
+        onCookThis={cookThis}
+      />
+    );
+  }
 
   return (
     <div className="lab-page" data-screen-label="07 Experimentation Lab">
@@ -551,22 +835,31 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
           </div>
         </div>
         <div>
-          <button className="btn primary" onClick={startNew}>
-            <Icon name="plusBare" /> New experiment
+          <button className="btn primary" onClick={() => setActive("__new__")}>
+            <Icon name="plus" /> New experiment
           </button>
         </div>
       </div>
 
-      {/* Existing experiments */}
-      {experiments.length > 0 && (
+      <PrefsBar value={cookPrefs} onSave={savePrefs} disabled={!authEmail} />
+
+      {loadError && <div className="lab-error" style={{ marginTop: 16 }}>{loadError}</div>}
+
+      {loading ? (
+        <div style={{ marginTop: 32, color: "var(--ink-3)" }}>Loading your experiments…</div>
+      ) : experiments.length === 0 ? (
+        <div className="lab-empty-index">
+          <p>No experiments yet. Hit <em>New experiment</em> to start iterating with the AI.</p>
+        </div>
+      ) : (
         <>
-          <div className="eyebrow" style={{ marginBottom: 12 }}>Your experiments</div>
+          <div className="eyebrow" style={{ marginBottom: 12, marginTop: 24 }}>Your experiments</div>
           <div className="lab-experiments-row">
             {experiments.map(e => (
               <div
                 key={e.id}
-                className={`experiment-card ${activeId === e.id ? "active" : ""}`}
-                onClick={() => setActiveId(e.id)}
+                className={`experiment-card`}
+                onClick={() => setActive(e)}
               >
                 <span className={`status ${e.status}`}>
                   {e.status === "pending" ? "Pending trial" : "In the cookbook"}
@@ -574,325 +867,30 @@ export function ExperimentationLab({ onClose, onPromote, allRecipes, authEmail }
                 <div className="name">{e.title}</div>
                 <div className="blurb">{e.blurb}</div>
                 <div className="meta">
-                  <span>{(e.draft.steps?.length || 0)} steps · {fmtDuration(e.draft.time || 30)}</span>
+                  <span>{(e.draft?.steps?.length || 0)} steps · {fmtDuration(e.draft?.time || 30)}</span>
                   <span>{new Date(e.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                 </div>
-                {e.status === "pending" && (
-                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                    <button
-                      className="btn accent sm"
-                      onClick={(ev) => { ev.stopPropagation(); promote(e); }}
-                      title="Add to cookbook"
-                    >
-                      <Icon name="bookmark" size={13} /> Promote
-                    </button>
-                    <button
-                      className="btn ghost sm"
-                      onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}
-                      title="Discard"
-                    >
-                      <Icon name="x" size={13} />
-                    </button>
-                  </div>
-                )}
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  <button
+                    className="btn ghost sm"
+                    onClick={(ev) => { ev.stopPropagation(); setActive(e); }}
+                  >
+                    <Icon name="sparkle" size={13} /> Open chat
+                  </button>
+                  <button
+                    className="btn ghost sm"
+                    onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}
+                    title="Discard"
+                    aria-label="Discard experiment"
+                  >
+                    <Icon name="x" size={13} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </>
       )}
-
-      {/* Chat */}
-      <div className="lab-chat">
-        <div className="lab-chat-header">
-          <div className="title-block">
-            <div className="label">{active ? "Working on" : "New experiment"}</div>
-            {active && <h3>{active.title}</h3>}
-          </div>
-          {latestDraft && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                className="btn ghost ai sm"
-                onClick={suggestNext}
-                disabled={suggesting || !authEmail}
-                aria-busy={suggesting}
-                title="Ask the AI what to try next"
-              >
-                <Icon name="sparkle" size={13} /> {suggesting ? "Thinking…" : "What to try next"}
-              </button>
-              <button
-                className="btn ghost ai sm"
-                onClick={polishForCookbook}
-                disabled={polishing || !authEmail}
-                aria-busy={polishing}
-                title="Polish this draft for the cookbook — distils tasting notes into final tips"
-              >
-                <Icon name="sparkle" size={13} /> {polishing ? "Polishing…" : "Polish with AI"}
-              </button>
-              <button className="btn sm" onClick={() => saveAsExperiment(latestDraft)}>
-                <Icon name="bookmark" size={14} /> {active ? "Save edits" : "Save as experiment"}
-              </button>
-              {active?.status === "pending" && (
-                <button className="btn accent sm" onClick={() => promote(active)}>
-                  <Icon name="check" size={14} /> Promote to cookbook
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-        {/* Inline error band — surfaces failed AI calls without
-            pushing the chat around. */}
-        {sendError && (
-          <div className="lab-error" style={{ padding: "8px 16px", fontSize: 12, color: "#933" }}>
-            {sendError}
-          </div>
-        )}
-        {/* Suggestions row — appears under the header after What-to-
-            try-next fires. Each chip is a one-tap iterate prompt. */}
-        {suggestions && suggestions.length > 0 && (
-          <div className="lab-suggestions">
-            <div className="head">
-              <span className="label">What to try next</span>
-              <button className="dismiss" onClick={() => setSuggestions(null)} aria-label="Dismiss suggestions">
-                <Icon name="x" size={13} />
-              </button>
-            </div>
-            <div className="cards">
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  className="card"
-                  onClick={() => { setSuggestions(null); send(s.prompt); }}
-                  title={s.why}
-                >
-                  <div className="label"><Icon name="sparkle" size={12} /> {s.label}</div>
-                  <div className="why">{s.why}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="lab-chat-body" ref={bodyRef}>
-          {chat.length === 0 && (
-            <div className="lab-empty">
-              <div className="big">"Make me…"</div>
-              <div>Describe the dish you're chasing, upload a photo of the ingredients you have, or try one of the prompts below.</div>
-            </div>
-          )}
-          {chat.map((t, i) => (
-            <div className={`lab-turn ${t.role}`} key={i}>
-              {t.role === "ai" && <div className="av">A</div>}
-              {t.draft ? (
-                <div className="bubble recipe">
-                  {/* Diff pill — one-line "what changed vs the previous
-                      draft". Lets the cook scan iteration history at a
-                      glance without re-reading the whole recipe. */}
-                  {t.diff && (
-                    <div className={`lab-diff ${t.polished ? "polished" : ""}`}>
-                      <Icon name={t.polished ? "check" : "sparkle"} size={11} />
-                      <span>{t.polished ? "Polished for the cookbook" : t.diff}</span>
-                    </div>
-                  )}
-                  <LabRecipeCard draft={t.draft} />
-                  {t.greeting && <div className="lab-greeting">{t.greeting}</div>}
-                  <TastingNoteEditor
-                    value={t.tastingNote || ""}
-                    onSave={(note) => setTastingNote(i, note)}
-                    disabled={!authEmail}
-                  />
-                </div>
-              ) : (
-                <div>
-                  {t.photos && t.photos.length > 0 && (
-                    <div className="turn-photos">
-                      {t.photos.map((p, pi) => (
-                        <div key={pi} className="turn-photo" style={{ backgroundImage: `url(${p.url})` }} />
-                      ))}
-                    </div>
-                  )}
-                  <div className="bubble">{t.text}</div>
-                </div>
-              )}
-              {t.role === "you" && <div className="av">Y</div>}
-            </div>
-          ))}
-          {thinking && (
-            <div className="lab-turn ai thinking">
-              <div className="av">A</div>
-              <div className="bubble">Drafting a recipe…</div>
-            </div>
-          )}
-        </div>
-
-        <div className="lab-input">
-          {chat.length === 0 && (
-            <div className="chips">
-              {quickPrompts.map((p, i) => (
-                <button key={i} className="chip" onClick={() => send(p)}>
-                  <Icon name="sparkle" size={12} /> {p}
-                </button>
-              ))}
-            </div>
-          )}
-          {chat.length > 0 && !thinking && (
-            <div className="chips">
-              <button className="chip" onClick={() => setText("Make it lighter / lower-fat.")}>Lighter</button>
-              <button className="chip" onClick={() => setText("Make it gluten-free.")}>GF</button>
-              <button className="chip" onClick={() => setText("Make it for a crowd of 12.")}>For 12</button>
-              <button className="chip" onClick={() => setText("Cut the time in half.")}>Faster</button>
-              <button className="chip" onClick={() => setText("Make it more interesting / less safe.")}>Bolder</button>
-            </div>
-          )}
-
-          {attachments.length > 0 && (
-            <div className="lab-attachments">
-              {attachments.map((a, i) => (
-                <div key={i} className="lab-attachment" style={{ backgroundImage: `url(${a.url})` }}>
-                  <button onClick={() => removeAttachment(i)} aria-label="Remove photo">
-                    <Icon name="x" size={13} />
-                  </button>
-                </div>
-              ))}
-              <div className="lab-attachment-hint">
-                <Icon name="sparkle" size={13} /> AI will read what you have and suggest a recipe.
-              </div>
-            </div>
-          )}
-
-          <div className="field">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,application/pdf,.doc,.docx,.txt"
-              multiple
-              style={{ display: "none" }}
-              onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
-            />
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              style={{ display: "none" }}
-              onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
-            />
-            <textarea
-              placeholder={chat.length === 0
-                ? "e.g. \"Blueberry lemon poppy seed rolls\" — or snap your fridge"
-                : "Ask the AI to refine — e.g. \"use cardamom instead of cinnamon\""
-              }
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-              rows={1}
-            />
-            <div className="attach-wrap">
-              <button
-                className="btn ghost icon-only"
-                onClick={() => setAttachMenu(o => !o)}
-                title="Attach photo or file"
-                aria-label="Attach"
-                aria-expanded={attachMenu}
-                type="button"
-              >
-                <Icon name="paperclip" size={16} />
-              </button>
-              {attachMenu && (
-                <>
-                  <div className="attach-menu-scrim" onClick={() => setAttachMenu(false)} />
-                  <div className="attach-menu" role="menu">
-                    <button
-                      role="menuitem"
-                      onClick={() => { setAttachMenu(false); cameraInputRef.current?.click(); }}
-                    >
-                      <Icon name="camera" size={17} />
-                      <span>
-                        <span className="t">Take a photo</span>
-                        <span className="s">Use your device camera</span>
-                      </span>
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        setAttachMenu(false);
-                        if (fileInputRef.current) {
-                          fileInputRef.current.accept = "image/*";
-                          fileInputRef.current.click();
-                          // reset accept after a tick
-                          setTimeout(() => { if (fileInputRef.current) fileInputRef.current.accept = "image/*,application/pdf,.doc,.docx,.txt"; }, 200);
-                        }
-                      }}
-                    >
-                      <Icon name="image" size={17} />
-                      <span>
-                        <span className="t">Photo from device</span>
-                        <span className="s">Pick from your library</span>
-                      </span>
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => { setAttachMenu(false); fileInputRef.current?.click(); }}
-                    >
-                      <Icon name="file" size={17} />
-                      <span>
-                        <span className="t">Attach a file</span>
-                        <span className="s">PDF, doc, recipe screenshot</span>
-                      </span>
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-            <button className="btn primary sm" onClick={() => send()} disabled={(!text.trim() && attachments.length === 0) || thinking}>
-              <Icon name="sparkle" size={13} /> Send
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
-
-// Renders a draft recipe inside a chat bubble
-function LabRecipeCard({ draft }) {
-  return (
-    <div className="lab-recipe-card">
-      <div className="head">
-        <div className="ai-tag"><Icon name="sparkle" size={11} /> Draft recipe</div>
-        <h4>{draft.title}</h4>
-        <div className="sub">{draft.blurb}</div>
-        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <span className="recipe-tag time"><Icon name="clock" size={13} /> {fmtDuration(draft.time || 30)}</span>
-          <span className="recipe-tag"><span className="dot" style={{ background: "var(--accent-2)" }} /> Serves {draft.servings || 4}</span>
-        </div>
-      </div>
-      <div className="body">
-        <div>
-          <h5>Ingredients</h5>
-          <ul>
-            {draft.ingredients.map((i, idx) => (
-              <li key={idx}>
-                <span style={{ fontFamily: "var(--mono)", color: "var(--accent)" }}>{formatIngredientQty(i)}</span>{" "}
-                {i.item}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h5>Method</h5>
-          <ol>
-            {draft.steps.map((s, idx) => <li key={idx}>{s}</li>)}
-          </ol>
-        </div>
-      </div>
-      {draft.tips?.length > 0 && (
-        <div className="actions">
-          <span style={{ fontFamily: "var(--serif)", fontStyle: "italic" }}>
-            💡 {draft.tips[0]}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
