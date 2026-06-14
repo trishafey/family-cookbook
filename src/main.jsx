@@ -876,6 +876,11 @@ function App() {
         onOpenMeal={() => setView("meal")}
         onOpenLab={() => setView("lab")}
         onOpenAdminAIUsage={() => setView("admin-ai-usage")}
+        onOpenMyCookbooks={FLAGS.cookbooks ? () => setView("cookbooks") : undefined}
+        onOpenSettings={() => setView("settings")}
+        onOpenAdminUsers={profile?.isAdmin ? () => setView("admin-users") : undefined}
+        isSystemAdmin={!!profile?.isAdmin}
+        pendingCount={pendingCount}
         currentView={view}
         selectionCount={selection.length}
       />
@@ -969,6 +974,8 @@ function MobileMenuDrawer({
   open, onClose,
   authEmail, simpleMode, onToggleSimpleMode,
   onOpenAdd, onOpenMeal, onOpenLab, onOpenAdminAIUsage,
+  onOpenMyCookbooks, onOpenSettings, onOpenAdminUsers,
+  isSystemAdmin, pendingCount = 0,
   currentView,
   selectionCount,
 }) {
@@ -1024,10 +1031,29 @@ function MobileMenuDrawer({
         {authEmail && (
           <section className="mobile-menu-section">
             <div className="mobile-menu-section-title">{t("settings") || "Settings"}</div>
+            {onOpenMyCookbooks && (
+              <button className={`mobile-menu-item ${currentView === "cookbooks" ? "active" : ""}`} onClick={() => go(onOpenMyCookbooks)}>
+                <Icon name="book" size={18} />
+                <span>My cookbooks</span>
+              </button>
+            )}
+            {onOpenSettings && (
+              <button className={`mobile-menu-item ${currentView === "settings" ? "active" : ""}`} onClick={() => go(onOpenSettings)}>
+                <Icon name="edit" size={18} />
+                <span>Account settings</span>
+              </button>
+            )}
             <button className="mobile-menu-item" onClick={() => go(onToggleSimpleMode)}>
               <Icon name={simpleMode ? "favourite" : "book"} size={18} />
               <span>{simpleMode ? t("simpleModeOn") : t("simpleModeOff")}</span>
             </button>
+            {isSystemAdmin && onOpenAdminUsers && (
+              <button className={`mobile-menu-item ${currentView === "admin-users" ? "active" : ""}`} onClick={() => go(onOpenAdminUsers)}>
+                <Icon name="chef" size={18} />
+                <span>Admin · users</span>
+                {pendingCount > 0 && <span className="badge">{pendingCount}</span>}
+              </button>
+            )}
             {isAdmin && (
               <button className="mobile-menu-item" onClick={() => go(onOpenAdminAIUsage)}>
                 <Icon name="sparkle" size={18} />
