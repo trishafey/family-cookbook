@@ -2744,6 +2744,24 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-family: var(--mono);
 }
 
+/* Destination cookbook hint at the top of the Add Recipe form. */
+.add-destination {
+  margin-top: 8px;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: 999px;
+  font-size: 13px; color: var(--ink-2);
+}
+.add-destination strong { color: var(--accent); font-style: italic; font-family: var(--serif); }
+.add-destination select {
+  background: var(--paper);
+  border: 1px solid var(--rule); border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit; font-size: 13px;
+}
+
 /* Empty cookbook state — shown when the active cookbook has
    no recipes yet (different from "search returned nothing"). */
 .empty-cookbook {

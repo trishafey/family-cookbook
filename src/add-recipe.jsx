@@ -839,7 +839,7 @@ function AuthorPicker({ members, selected, onChange, authEmail }) {
   );
 }
 
-export function AddRecipe({ onClose, onSave, onDelete, authEmail, profile, activeCookbookId, initialRecipe = null, usedCuisines = [], usedAuthors = [] }) {
+export function AddRecipe({ onClose, onSave, onDelete, authEmail, profile, activeCookbookId, setActiveCookbookId, userCookbooks = [], initialRecipe = null, usedCuisines = [], usedAuthors = [] }) {
   const { t, tCourse, tOccasion, tDiet, tDifficulty, tOrigin, lang, setLang } = useLang();
   const editing = Boolean(initialRecipe);
   const [saving, setSaving] = useState(false);
@@ -1314,6 +1314,34 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, profile, activ
         <div className="lhs">
           <div className="eyebrow">{editing ? t("editing") : t("newEntry")}</div>
           <h2>{editing ? draft?.title || t("editRecipeTitle") : t("addRecipeToCookbook")}</h2>
+          {/* Destination cookbook indicator. New drafts can be
+              re-targeted via the picker; updates are pinned to
+              the recipe's existing cookbook so they don't move
+              accidentally. */}
+          {!editing && (() => {
+            const writableCookbooks = userCookbooks.filter(c => ["owner", "editor", "admin"].includes(c.yourRole));
+            const active = writableCookbooks.find(c => c.id === activeCookbookId) || writableCookbooks[0];
+            if (writableCookbooks.length <= 1) {
+              return active ? (
+                <div className="add-destination single">
+                  Saving to <strong>{active.name}</strong>
+                </div>
+              ) : null;
+            }
+            return (
+              <div className="add-destination">
+                <span>Saving to</span>
+                <select
+                  value={activeCookbookId}
+                  onChange={(e) => setActiveCookbookId?.(e.target.value)}
+                >
+                  {writableCookbooks.map(cb => (
+                    <option key={cb.id} value={cb.id}>{cb.name}</option>
+                  ))}
+                </select>
+              </div>
+            );
+          })()}
         </div>
         <div className="rhs">
           {/* Reset-to-original is hidden behind an owner-email gate

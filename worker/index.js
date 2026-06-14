@@ -3589,10 +3589,34 @@ app.put("/api/admin/me/profile", async (c) => {
   // display_name follows the cook's chosen name so all other
   // surfaces (avatar menu, member rows, AI greetings later) read
   // it without separate lookups.
+  // Capture the OLD display name before we overwrite it so we
+  // can rename auto-bootstrapped cookbooks that still carry the
+  // email-derived placeholder ("kayrwojcik's Cookbook" → "Kayla's
+  // Cookbook").
+  const oldRow = await c.env.DB.prepare(
+    "SELECT display_name FROM users WHERE email = ?"
+  ).bind(email).first();
+  const oldDisplayName = oldRow?.display_name || "";
+
   const displayName = `${firstName} ${lastName}`.trim();
   await c.env.DB.prepare(
     "UPDATE users SET first_name = ?, last_name = ?, phone = ?, display_name = ? WHERE email = ?"
   ).bind(firstName, lastName, phone || null, displayName, email).run();
+
+  // Rename any cookbook this cook owns whose name matches the
+  // bootstrap pattern keyed off the old display name. Safe — if
+  // the cook explicitly renamed their cookbook, it won't match
+  // the pattern. Only the auto-minted "<X>'s [Family] Cookbook"
+  // labels get rewritten.
+  if (oldDisplayName) {
+    await c.env.DB.prepare(
+      "UPDATE cookbooks SET name = ? WHERE owner_email = ? AND name = ?"
+    ).bind(`${firstName}'s Cookbook`, email, `${oldDisplayName}'s Cookbook`).run().catch(() => {});
+    await c.env.DB.prepare(
+      "UPDATE cookbooks SET name = ? WHERE owner_email = ? AND name = ?"
+    ).bind(`${firstName}'s Family Cookbook`, email, `${oldDisplayName}'s Family Cookbook`).run().catch(() => {});
+  }
+
   return c.json({
     email, displayName, firstName, lastName, phone, profileComplete: true,
   });

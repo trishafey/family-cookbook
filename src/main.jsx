@@ -698,6 +698,19 @@ function App() {
           simpleMode={simpleMode}
         />
       )}
+      {view === "recipe" && !recipe && (
+        // Recipe lookup failed — most likely because the cook
+        // saved a recipe to a different cookbook than the one
+        // currently active in the switcher. Tell them, with a
+        // link back to browse and to swap cookbooks.
+        <div style={{ padding: "80px 24px", textAlign: "center", color: "var(--ink-3)", fontFamily: "var(--serif)" }}>
+          <div style={{ fontSize: 32, fontStyle: "italic", marginBottom: 12 }}>Recipe not in this cookbook.</div>
+          <div style={{ marginBottom: 20, maxWidth: "36ch", marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>
+            It may have been saved to a different cookbook. Try switching cookbooks in the top nav, or head back to the list.
+          </div>
+          <button className="btn primary" onClick={backToBrowse}>Back to cookbook</button>
+        </div>
+      )}
       {view === "recipe" && recipe && (
         <ErrorBoundary>
         <RecipeDetail
@@ -728,6 +741,8 @@ function App() {
           authEmail={authEmail}
           profile={profile}
           activeCookbookId={activeCookbookId}
+          setActiveCookbookId={setActiveCookbookId}
+          userCookbooks={userCookbooks}
           usedCuisines={usedCuisines}
           usedAuthors={usedAuthors}
         />
@@ -756,6 +771,8 @@ function App() {
               authEmail={authEmail}
               profile={profile}
               activeCookbookId={activeCookbookId}
+              setActiveCookbookId={setActiveCookbookId}
+              userCookbooks={userCookbooks}
               initialRecipe={editingRecipe}
               usedCuisines={usedCuisines}
               usedAuthors={usedAuthors}
