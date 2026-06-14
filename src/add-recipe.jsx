@@ -1250,7 +1250,11 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, profile, activ
 
 
   const save = async () => {
-    if (!draft.title.trim()) { alert("Give it a title first."); return; }
+    if (!draft.title.trim()) {
+      setSaveError("Give it a title first.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     // The form was populated in editLang (the cook's UI language
     // at mount). Whatever they typed IS the new canonical in that
     // language. Stamp canonical_lang so the worker's
