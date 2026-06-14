@@ -113,6 +113,59 @@ function AdminCookbookTable({ cookbooks, activeCookbookId, authEmail, onOpenCook
   );
 }
 
+// Tiny dropdown inside the onboarding banner — primary button
+// "Invite people ▾" reveals a list of cookbooks the cook can
+// invite into. Clicking a row hands the cookbook up to the
+// parent so it can open the settings modal at the Members tab.
+function InvitePicker({ cookbooks, onPick }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open]);
+  if (cookbooks.length === 1) {
+    // No need to pick — one option, just go.
+    return (
+      <button className="btn primary" onClick={() => onPick(cookbooks[0])}>
+        <Icon name="plus" size={14} /> Invite people to {cookbooks[0].name}
+      </button>
+    );
+  }
+  return (
+    <div className="invite-picker" ref={ref}>
+      <button
+        type="button"
+        className="btn primary"
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <Icon name="plus" size={14} /> Invite people <span className="caret" aria-hidden>▾</span>
+      </button>
+      {open && (
+        <div className="invite-picker-menu" role="menu">
+          <div className="hint">Pick a cookbook</div>
+          {cookbooks.map(cb => (
+            <button
+              key={cb.id}
+              type="button"
+              role="menuitem"
+              className="item"
+              onClick={() => { setOpen(false); onPick(cb); }}
+            >
+              <Icon name="book" size={14} />
+              <span>{cb.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CreateCookbookModal({ onClose, onCreated }) {
   const [name, setName] = useState("");
   const [blurb, setBlurb] = useState("");
@@ -180,21 +233,10 @@ function CreateCookbookModal({ onClose, onCreated }) {
             />
           </label>
 
-          <fieldset className="modal-field">
-            <legend>Visibility</legend>
-            <label className="radio">
-              <input type="radio" checked={visibility === "private"} onChange={() => setVisibility("private")} />
-              <span><strong>Private</strong> — only you and people you invite.</span>
-            </label>
-            <label className="radio">
-              <input type="radio" checked={visibility === "unlisted"} onChange={() => setVisibility("unlisted")} />
-              <span><strong>Unlisted</strong> — anyone with the link can view.</span>
-            </label>
-            <label className="radio">
-              <input type="radio" checked={visibility === "public"} onChange={() => setVisibility("public")} />
-              <span><strong>Public</strong> — listed in the directory (coming soon).</span>
-            </label>
-          </fieldset>
+          {/* Visibility (private / unlisted / public) is set silently
+              to 'private' for now. Sharing happens via explicit
+              invites. A future Phase 4c will expose a public
+              directory and surface this control. */}
 
           {error && <div className="modal-error">{error}</div>}
 
@@ -517,21 +559,9 @@ function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, 
                 <input type="text" value={blurb} onChange={(e) => setBlurb(e.target.value)} maxLength={280} />
               </label>
 
-              <fieldset className="modal-field">
-                <legend>Visibility</legend>
-                <label className="radio">
-                  <input type="radio" checked={visibility === "private"} onChange={() => setVisibility("private")} />
-                  <span><strong>Private</strong></span>
-                </label>
-                <label className="radio">
-                  <input type="radio" checked={visibility === "unlisted"} onChange={() => setVisibility("unlisted")} />
-                  <span><strong>Unlisted</strong></span>
-                </label>
-                <label className="radio">
-                  <input type="radio" checked={visibility === "public"} onChange={() => setVisibility("public")} />
-                  <span><strong>Public</strong></span>
-                </label>
-              </fieldset>
+              {/* Visibility hidden for now — kept in the form state so
+                  the PATCH still includes it, but no UI until the
+                  public-cookbook directory ships (Phase 4c). */}
 
               {error && <div className="modal-error">{error}</div>}
 
@@ -618,7 +648,7 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
       <div className="cookbooks-header">
         <div className="lhs">
           <div className="eyebrow">Your library</div>
-          <h1>My <em>cookbooks</em></h1>
+          <h1><em>Cookbooks</em></h1>
           <div className="intro">
             The cookbooks you own and the ones you've been invited to.
           </div>
@@ -645,29 +675,36 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
           until they've actually invited someone (4b-5). */}
       {!familyPromptDismissed && cookbooks.length > 0 && (() => {
         // Three states:
-        //  - Owns a family cookbook → prompt to invite people into it.
-        //  - Member of any family cookbook → no prompt (they're set).
-        //  - Not in a family cookbook at all → prompt to create or
-        //    accept an invite to one.
+        //  - Owns at least one cookbook beyond the personal default
+        //    → prompt to invite people. Picker chooses which.
+        //  - Member of a family cookbook (owner/editor/viewer)
+        //    → no prompt; they're set.
+        //  - Not in any family cookbook → prompt to create one.
         const looksLikeFamily = (c) =>
           /family/i.test(c.id) || /Family Cookbook/i.test(c.name);
-        const ownedFamily = cookbooks.find(c => looksLikeFamily(c) && c.yourRole === "owner");
         const memberOfFamily = cookbooks.some(c =>
           looksLikeFamily(c) && ["owner", "editor", "viewer"].includes(c.yourRole)
         );
+        // Cookbooks the cook can invite people into = owns (or
+        // admin-access), but only if more than just their lone
+        // personal one. Excludes the personal pattern so the
+        // picker default isn't "invite to my personal."
+        const invitable = cookbooks.filter(c =>
+          (c.yourRole === "owner" || c.yourRole === "admin")
+          && !/^personal-/i.test(c.id)
+          && !/'s Cookbook$/i.test(c.name)
+        );
 
-        if (ownedFamily) {
+        if (invitable.length > 0) {
           return (
             <div className="onboarding-prompt">
               <div className="t">
                 <div className="eyebrow">Get started</div>
-                <h3>Invite your family to {ownedFamily.name}</h3>
-                <p>Family cookbooks shine when they're shared. Send an invite link — they'll join with viewer or editor access.</p>
+                <h3>Invite people to a cookbook</h3>
+                <p>Cookbooks shine when they're shared. Pick which one and send an invite link — they'll join as viewer or editor.</p>
               </div>
               <div className="actions">
-                <button className="btn primary" onClick={() => setEditing({ cookbook: ownedFamily, tab: "members" })}>
-                  <Icon name="plus" size={14} /> Invite people
-                </button>
+                <InvitePicker cookbooks={invitable} onPick={(cb) => setEditing({ cookbook: cb, tab: "members" })} />
                 <button className="btn ghost sm" onClick={dismissFamilyPrompt}>Dismiss</button>
               </div>
             </div>
@@ -731,7 +768,6 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
                 <div className={`role-badge role-${cb.yourRole}`}>
                   {cb.adminAccess ? "admin access" : cb.yourRole}
                 </div>
-                <div className={`vis-badge vis-${cb.visibility}`}>{cb.visibility}</div>
                 {cb.id === activeCookbookId && (
                   <div className="role-badge active-badge">Active</div>
                 )}

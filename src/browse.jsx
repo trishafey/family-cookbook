@@ -163,7 +163,28 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
 
 }
 
-export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab, simpleMode }) {
+// Render a cookbook name as the masthead title — italicises the
+// most evocative word ("Family" in "Heirloom Family Cookbook",
+// "Cookbook" in "Patricia's Cookbook") so the editorial typography
+// keeps the same rhythm as the default "The Family Cookbook" did.
+function renderCookbookTitle(name) {
+  if (!name) return null;
+  const words = name.split(/\s+/);
+  // Find the index of the word to italicise: prefer "Family",
+  // else "Cookbook", else the last word.
+  const familyIdx = words.findIndex(w => /^family/i.test(w));
+  const cookbookIdx = words.findIndex(w => /^cookbook$/i.test(w));
+  const i = familyIdx >= 0 ? familyIdx : (cookbookIdx >= 0 ? cookbookIdx : words.length - 1);
+  return (
+    <>
+      {words.slice(0, i).join(" ")}{i > 0 ? " " : ""}
+      <em style={{ color: "var(--accent)" }}>{words[i]}</em>
+      {i < words.length - 1 ? " " : ""}{words.slice(i + 1).join(" ")}
+    </>
+  );
+}
+
+export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab, simpleMode, activeCookbookName }) {
   const { t, tCourse, tOccasion, tDiet, tOrigin, lang } = useLang();
 
   // Active filter chips — origins lead the row because it's the
@@ -201,9 +222,11 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
       {/* Editorial masthead */}
       <header className="home-masthead">
         <h1 className="home-title">
-          {lang === "pl"
-            ? <><em style={{ color: "var(--accent)" }}>Rodzinna</em> Książka Kucharska</>
-            : <>The <em style={{ color: "var(--accent)" }}>Family</em> Cookbook</>}
+          {activeCookbookName
+            ? renderCookbookTitle(activeCookbookName)
+            : lang === "pl"
+              ? <><em style={{ color: "var(--accent)" }}>Rodzinna</em> Książka Kucharska</>
+              : <>The <em style={{ color: "var(--accent)" }}>Family</em> Cookbook</>}
         </h1>
         <div className="home-search-row">
           <HomeSearch

@@ -91,7 +91,7 @@ function CookbookSwitcher({ active, cookbooks, onSwitch, onManage }) {
               className="item manage"
               onClick={() => { setOpen(false); onManage(); }}
             >
-              My cookbooks →
+              Cookbooks →
             </button>
           )}
           {cookbooks.length > 1 && cookbooks.map(c => (
@@ -779,6 +779,7 @@ function App() {
           openMealBuilder={() => setView("meal")}
           openLab={() => setView("lab")}
           simpleMode={simpleMode}
+          activeCookbookName={userCookbooks.find(c => c.id === activeCookbookId)?.name}
         />
       )}
       {view === "recipe" && !recipe && (
@@ -1100,7 +1101,7 @@ function CookbookSubmenu({ cookbooks, activeCookbookId, onSwitchCookbook, onOpen
               className="mobile-menu-item submenu-item manage"
               onClick={() => go(onOpenMyCookbooks)}
             >
-              <span>My cookbooks →</span>
+              <span>Cookbooks →</span>
             </button>
           )}
           {cookbooks.map(cb => (
@@ -1203,7 +1204,7 @@ function MobileMenuDrawer({
             {onOpenMyCookbooks && (
               <button className={`mobile-menu-item ${currentView === "cookbooks" ? "active" : ""}`} onClick={() => go(onOpenMyCookbooks)}>
                 <Icon name="book" size={18} />
-                <span>My cookbooks</span>
+                <span>Cookbooks</span>
               </button>
             )}
             {onOpenSettings && (
@@ -1294,7 +1295,7 @@ function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 
               onClick={() => { setOpen(false); onMyCookbooks(); }}
               style={itemBtnStyle}
             >
-              My cookbooks
+              Cookbooks
             </button>
           )}
           {onSettings && (
