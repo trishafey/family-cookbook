@@ -2798,34 +2798,61 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   letter-spacing: 0.08em;
 }
 
-/* ─── Admin "View as" preview ─── */
-.view-as-section {
-  padding: 8px 12px;
-  border-top: 1px solid var(--rule);
-  margin-top: 4px;
+/* ─── Admin page (tabbed: Users / View as / AI usage) ─── */
+.admin-tabs { margin-bottom: 20px; }
+.admin-tab-intro {
+  font-family: var(--serif); font-size: 15px; color: var(--ink-2);
+  margin: 0 0 24px; line-height: 1.5;
+  max-width: 64ch;
 }
-.view-as-label {
-  font-family: var(--mono); font-size: 10px;
-  letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--accent-2); font-weight: 600;
-  margin-bottom: 6px;
+.view-as-stack {
+  display: flex; flex-direction: column; gap: 10px;
+  max-width: 640px;
 }
-.view-as-options { display: flex; gap: 4px; flex-wrap: wrap; }
-.view-as-chip {
-  flex: 1 0 auto;
-  padding: 5px 10px;
-  background: var(--paper-2);
+.view-as-row {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 14px 16px;
+  background: var(--paper);
   border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  text-align: left;
+  cursor: pointer;
+  font: inherit; color: inherit;
+  transition: border-color .14s ease, background .14s ease;
+}
+.view-as-row:hover { border-color: var(--accent); }
+.view-as-row.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.view-as-row-head {
+  display: flex; align-items: center; gap: 10px;
+}
+.view-as-row-head .dot {
+  width: 10px; height: 10px; border-radius: 999px;
+  border: 1px solid var(--ink-3);
+  flex-shrink: 0;
+}
+.view-as-row.active .view-as-row-head .dot {
+  background: var(--accent); border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.view-as-row-head .label {
+  font-family: var(--serif); font-size: 17px; font-weight: 500;
+}
+.view-as-row-head .badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  background: var(--accent); color: var(--paper);
   border-radius: 999px;
   font-family: var(--mono); font-size: 10px;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--ink-3); font-weight: 600;
-  cursor: pointer;
-  transition: background .14s ease, border-color .14s ease, color .14s ease;
+  letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;
 }
-.view-as-chip:hover { color: var(--ink); border-color: var(--accent); }
-.view-as-chip.active {
-  background: var(--accent); color: var(--paper); border-color: var(--accent);
+.view-as-row-desc {
+  font-family: var(--serif); font-size: 14px; color: var(--ink-3);
+  line-height: 1.45;
+  margin-left: 20px;
 }
 .view-as-banner {
   background: color-mix(in srgb, var(--accent) 12%, var(--paper));
@@ -2836,7 +2863,12 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   gap: 12px; flex-wrap: wrap;
   font-family: var(--serif); font-size: 14px;
 }
-.view-as-banner strong { font-style: italic; color: var(--accent); text-transform: uppercase; }
+.view-as-banner strong {
+  font-style: italic; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.admin-ai-usage.embedded { padding: 0; }
+.admin-ai-usage.embedded > header { margin-bottom: 20px; }
 
 /* Pending-approval badge on the admin avatar + menu entry. */
 .avatar { position: relative; }

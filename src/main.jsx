@@ -14,13 +14,12 @@ import { ExperimentationLab } from "./experiment.jsx";
 import { CookbooksIndex } from "./cookbooks.jsx";
 import { InviteAccept } from "./invite.jsx";
 import { ProfileSetupGate, PendingApprovalGate } from "./profile.jsx";
-import { AccountSettings, AdminUsers } from "./settings.jsx";
+import { AccountSettings, AdminPage } from "./settings.jsx";
 import { SignedOutLanding } from "./landing.jsx";
 import { BuildAMeal } from "./meal.jsx";
 import { PlanMealModal, MealPlanPage } from "./meal-plan.jsx";
 import { ShoppingList } from "./shopping.jsx";
 import { CookMode } from "./cook-mode.jsx";
-import { AdminAIUsage } from "./admin-ai-usage.jsx";
 import { TimerTicker } from "./timers.jsx";
 import { TimerBanner } from "./timer-banner.jsx";
 
@@ -360,12 +359,6 @@ function App() {
   // switcher (hidden when there's only one), the cookbooks index,
   // and the active-cookbook validation below.
   const { cookbooks: userCookbooks } = useUserCookbooks(authEmail);
-  // What the cook can do with the currently active cookbook —
-  // drives whether "Add recipe" is offered. Viewers see no add
-  // button; backend would 403 anyway, this just keeps the UI
-  // honest.
-  const activeCookbookRole = userCookbooks.find(c => c.id === activeCookbookId)?.yourRole;
-  const canWriteActive = ["owner", "editor", "admin"].includes(activeCookbookRole);
   // Phase 4b-2 follow-up: profile gate. If first_name / last_name
   // aren't on file yet, the app renders the setup form before
   // anything else.
@@ -375,32 +368,23 @@ function App() {
   const pendingCount = usePendingApprovalCount(!!profile?.isAdmin);
 
   // ─── Admin "View as" preview ───
-  // Admin-only knob — lets Patricia preview the app as if she
+  // Admin-only knob — lets an admin preview the app as if they
   // were a regular owner / editor / viewer (no admin powers,
   // no admin-access cookbooks). Purely client-side cosmetic:
-  // the server still allows admin operations, so she can flip
-  // back instantly. null = default (full admin view).
+  // the server still allows admin operations. Lives as a tab
+  // inside /admin. null = default (full admin view).
   const [viewAsRole, setViewAsRole] = useStorage("admin:viewAs", null);
   const isReallyAdmin = !!profile?.isAdmin;
-  // The "effective" isAdmin downstream code reads. When the
-  // admin is previewing as another role, downstream components
-  // treat them as non-admin.
   const effectiveIsAdmin = isReallyAdmin && !viewAsRole;
-  // Clamp the userCookbooks list: drop admin-access entries and
-  // floor each surviving role at the preview role (so an "owner"
-  // becomes "editor" / "viewer" depending on the preview).
   const ROLE_RANK = { owner: 3, editor: 2, viewer: 1, admin: 0 };
   const effectiveUserCookbooks = useMemo(() => {
     if (!viewAsRole || !isReallyAdmin) return userCookbooks;
     const cap = ROLE_RANK[viewAsRole] || 0;
     return userCookbooks
-      .filter(c => !c.adminAccess) // a non-admin wouldn't see these at all
+      .filter(c => !c.adminAccess) // non-admins wouldn't see these
       .map(c => {
         const actualRank = ROLE_RANK[c.yourRole] || 0;
-        if (actualRank > cap) {
-          return { ...c, yourRole: viewAsRole };
-        }
-        return c;
+        return actualRank > cap ? { ...c, yourRole: viewAsRole } : c;
       });
   }, [userCookbooks, viewAsRole, isReallyAdmin]);
 
@@ -743,25 +727,19 @@ function App() {
                 onOpenMeal={() => setView("meal")}
               />
             )}
-            {canWriteActive && (
-              <button className={`btn primary sm ${view === "add" || view === "edit" ? "active" : ""}`} onClick={() => setView("add")} title={t("addRecipe")}>
-                <Icon name="plus" size={15} /> <span className="btn-label">{t("addRecipe")}</span>
-              </button>
-            )}
+            <button className={`btn primary sm ${view === "add" || view === "edit" ? "active" : ""}`} onClick={() => setView("add")} title={t("addRecipe")}>
+              <Icon name="plus" size={15} /> <span className="btn-label">{t("addRecipe")}</span>
+            </button>
             {authEmail ? (
               <AvatarMenu
                 email={authEmail}
                 simpleMode={simpleMode}
                 isAdmin={effectiveIsAdmin}
-                isReallyAdmin={isReallyAdmin}
-                viewAsRole={viewAsRole}
-                onSetViewAs={setViewAsRole}
                 pendingCount={effectiveIsAdmin ? pendingCount : 0}
                 onToggleSimpleMode={() => setSimpleMode(m => !m)}
-                onAdminAIUsage={() => setView("admin-ai-usage")}
                 onMyCookbooks={() => setView("cookbooks")}
                 onSettings={() => setView("settings")}
-                onAdminUsers={() => setView("admin-users")}
+                onAdmin={() => setView("admin")}
               />
             ) : (
               <a className="btn sm sign-in" href={signInUrl()} title={t("signIn")}>
@@ -778,8 +756,9 @@ function App() {
       <TimerTicker />
       <TimerBanner />
 
-      {/* "View as" preview banner — visible when an admin is
-          previewing the app as a non-admin role. One-tap revert. */}
+      {/* "View as" preview banner — visible while a non-admin
+          role is being previewed. One-tap revert keeps the
+          admin from getting stuck in the preview. */}
       {viewAsRole && isReallyAdmin && (
         <div className="view-as-banner">
           <span>
@@ -834,7 +813,6 @@ function App() {
           favorites={favorites}
           toggleFavorite={toggleFavorite}
           openAddRecipe={() => setView("add")}
-          canWriteActive={canWriteActive}
           openMealBuilder={() => setView("meal")}
           openLab={() => setView("lab")}
           simpleMode={simpleMode}
@@ -935,8 +913,7 @@ function App() {
       {FLAGS.cookbooks && view === "cookbooks" && (
         <CookbooksIndex
           authEmail={authEmail}
-          isAdmin={effectiveIsAdmin}
-          viewAsRole={viewAsRole}
+          isAdmin={!!profile?.isAdmin}
           activeCookbookId={activeCookbookId}
           onClose={backToBrowse}
           onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); backToBrowse(); }}
@@ -958,9 +935,11 @@ function App() {
           onClose={backToBrowse}
         />
       )}
-      {view === "admin-users" && (
-        <AdminUsers
+      {view === "admin" && (
+        <AdminPage
           authEmail={authEmail}
+          viewAsRole={viewAsRole}
+          onSetViewAs={setViewAsRole}
           onClose={backToBrowse}
         />
       )}
@@ -1006,9 +985,6 @@ function App() {
         />
       )}
 
-      {view === "admin-ai-usage" && (
-        <AdminAIUsage onClose={backToBrowse} />
-      )}
 
       {/* ───── Modals & overlays ───── */}
       <ShoppingList open={shopOpen} onClose={() => setShopOpen(false)} payload={shopPayload} />
@@ -1033,13 +1009,12 @@ function App() {
         authEmail={authEmail}
         simpleMode={simpleMode}
         onToggleSimpleMode={() => setSimpleMode(m => !m)}
-        onOpenAdd={canWriteActive ? () => setView("add") : undefined}
+        onOpenAdd={() => setView("add")}
         onOpenMeal={() => setView("meal")}
         onOpenLab={() => setView("lab")}
-        onOpenAdminAIUsage={() => setView("admin-ai-usage")}
         onOpenMyCookbooks={FLAGS.cookbooks ? () => setView("cookbooks") : undefined}
         onOpenSettings={() => setView("settings")}
-        onOpenAdminUsers={effectiveIsAdmin ? () => setView("admin-users") : undefined}
+        onOpenAdmin={effectiveIsAdmin ? () => setView("admin") : undefined}
         isSystemAdmin={effectiveIsAdmin}
         pendingCount={effectiveIsAdmin ? pendingCount : 0}
         cookbooks={effectiveUserCookbooks}
@@ -1184,8 +1159,8 @@ function CookbookSubmenu({ cookbooks, activeCookbookId, onSwitchCookbook, onOpen
 function MobileMenuDrawer({
   open, onClose,
   authEmail, simpleMode, onToggleSimpleMode,
-  onOpenAdd, onOpenMeal, onOpenLab, onOpenAdminAIUsage,
-  onOpenMyCookbooks, onOpenSettings, onOpenAdminUsers,
+  onOpenAdd, onOpenMeal, onOpenLab,
+  onOpenMyCookbooks, onOpenSettings, onOpenAdmin,
   isSystemAdmin, pendingCount = 0,
   cookbooks = [], activeCookbookId, onSwitchCookbook,
   currentView,
@@ -1240,12 +1215,10 @@ function MobileMenuDrawer({
         {!simpleMode && (
           <section className="mobile-menu-section">
             <div className="mobile-menu-section-title">{t("make") || "Make"}</div>
-            {onOpenAdd && (
-              <button className={`mobile-menu-item primary ${currentView === "add" || currentView === "edit" ? "active" : ""}`} onClick={() => go(onOpenAdd)}>
-                <Icon name="plus" size={18} />
-                <span>{t("addRecipe")}</span>
-              </button>
-            )}
+            <button className={`mobile-menu-item primary ${currentView === "add" || currentView === "edit" ? "active" : ""}`} onClick={() => go(onOpenAdd)}>
+              <Icon name="plus" size={18} />
+              <span>{t("addRecipe")}</span>
+            </button>
             <button className={`mobile-menu-item ${currentView === "meal" || currentView === "meal-plan" ? "active" : ""}`} onClick={() => go(onOpenMeal)}>
               <Icon name="build" size={18} />
               <span>{t("buildMeal")}</span>
@@ -1279,17 +1252,11 @@ function MobileMenuDrawer({
               <Icon name="simpleView" size={18} />
               <span>{simpleMode ? t("simpleModeOn") : t("simpleModeOff")}</span>
             </button>
-            {isSystemAdmin && onOpenAdminUsers && (
-              <button className={`mobile-menu-item ${currentView === "admin-users" ? "active" : ""}`} onClick={() => go(onOpenAdminUsers)}>
+            {isSystemAdmin && onOpenAdmin && (
+              <button className={`mobile-menu-item ${currentView === "admin" ? "active" : ""}`} onClick={() => go(onOpenAdmin)}>
                 <Icon name="chef" size={18} />
-                <span>Admin · users</span>
+                <span>Admin</span>
                 {pendingCount > 0 && <span className="badge">{pendingCount}</span>}
-              </button>
-            )}
-            {isAdmin && (
-              <button className="mobile-menu-item" onClick={() => go(onOpenAdminAIUsage)}>
-                <Icon name="sparkle" size={18} />
-                <span>AI usage</span>
               </button>
             )}
           </section>
@@ -1313,7 +1280,7 @@ function MobileMenuDrawer({
   );
 }
 
-function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, isReallyAdmin, viewAsRole, onSetViewAs, pendingCount = 0, onToggleSimpleMode, onAdminAIUsage, onMyCookbooks, onSettings, onAdminUsers }) {
+function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 0, onToggleSimpleMode, onMyCookbooks, onSettings, onAdmin }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const initial = (email[0] || "?").toUpperCase();
@@ -1370,43 +1337,18 @@ function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, isReallyAdmin, 
               Account settings
             </button>
           )}
-          {isSystemAdmin && onAdminUsers && (
+          {isSystemAdmin && onAdmin && (
             <button
               type="button"
               className="item"
-              onClick={() => { setOpen(false); onAdminUsers(); }}
+              onClick={() => { setOpen(false); onAdmin(); }}
               style={itemBtnStyle}
             >
-              Admin · users
+              Admin
               {pendingCount > 0 && (
                 <span className="menu-item-badge">{pendingCount}</span>
               )}
             </button>
-          )}
-          {isReallyAdmin && onSetViewAs && (
-            <div className="view-as-section">
-              <div className="view-as-label">View as</div>
-              <div className="view-as-options">
-                {[
-                  ["admin", "Admin"],
-                  ["owner", "Owner"],
-                  ["editor", "Editor"],
-                  ["viewer", "Viewer"],
-                ].map(([role, label]) => {
-                  const active = role === "admin" ? !viewAsRole : viewAsRole === role;
-                  return (
-                    <button
-                      key={role}
-                      type="button"
-                      className={`view-as-chip ${active ? "active" : ""}`}
-                      onClick={() => { onSetViewAs(role === "admin" ? null : role); setOpen(false); }}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
           )}
           <button
             type="button"
@@ -1416,16 +1358,6 @@ function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, isReallyAdmin, 
           >
             {simpleMode ? t("simpleModeOn") : t("simpleModeOff")}
           </button>
-          {isAdmin && (
-            <button
-              type="button"
-              className="item"
-              onClick={() => { setOpen(false); onAdminAIUsage?.(); }}
-              style={itemBtnStyle}
-            >
-              AI usage
-            </button>
-          )}
           <a className="item" href={SIGN_OUT_URL}>{t("signOut")}</a>
         </div>
       )}
