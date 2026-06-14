@@ -166,6 +166,106 @@ function InvitePicker({ cookbooks, onPick }) {
   );
 }
 
+// Focus-driven typeahead for inviting people while creating a
+// cookbook. Behaviour:
+//  - Click the field → dropdown reveals every person the cook
+//    has shared a cookbook with (their "network").
+//  - Type → list filters by name / email substring.
+//  - Click a pill → adds them to the invite list.
+//  - Press Enter on a freshly-typed email → adds it even if it's
+//    not in the network.
+// Tighter than the previous "Pick from N people" button + chip
+// grid + separate email row, which buried the manual case
+// behind a toggle.
+function InviteTypeahead({ networkAvailable, manualEmail, setManualEmail, addInvite, niceName }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open]);
+  const q = manualEmail.trim().toLowerCase();
+  const matches = q
+    ? networkAvailable.filter(p =>
+        p.email?.toLowerCase().includes(q) ||
+        p.displayName?.toLowerCase().includes(q) ||
+        p.firstName?.toLowerCase().includes(q) ||
+        p.lastName?.toLowerCase().includes(q)
+      )
+    : networkAvailable;
+  // Show an "Invite <typed email>" option when the user typed
+  // something that looks like an email AND isn't already in the
+  // network suggestions (so the picker also handles fresh
+  // invites without a separate Add button).
+  const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(manualEmail.trim());
+  const showFreshEmailOption = looksLikeEmail && !networkAvailable.some(p => p.email === manualEmail.trim().toLowerCase());
+
+  const commitFreshEmail = () => {
+    if (!looksLikeEmail) return;
+    addInvite(manualEmail);
+    setManualEmail("");
+    setOpen(false);
+  };
+
+  return (
+    <div className="invite-typeahead" ref={wrapRef}>
+      <input
+        type="email"
+        value={manualEmail}
+        onChange={(e) => { setManualEmail(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (showFreshEmailOption) commitFreshEmail();
+            else if (matches[0]) {
+              addInvite(matches[0].email, true);
+              setManualEmail("");
+            }
+          }
+        }}
+        placeholder="Add by name or email…"
+      />
+      {open && (matches.length > 0 || showFreshEmailOption) && (
+        <div className="invite-typeahead-menu" role="listbox">
+          {matches.length === 0 && !showFreshEmailOption && (
+            <div className="empty">Nobody matches "{manualEmail}".</div>
+          )}
+          {matches.map(p => (
+            <button
+              key={p.email}
+              type="button"
+              role="option"
+              className="row"
+              onClick={() => {
+                addInvite(p.email, true);
+                setManualEmail("");
+                setOpen(false);
+              }}
+            >
+              <span className="name">{niceName(p)}</span>
+              {p.displayName && <span className="email">{p.email}</span>}
+            </button>
+          ))}
+          {showFreshEmailOption && (
+            <button
+              type="button"
+              role="option"
+              className="row fresh"
+              onClick={commitFreshEmail}
+            >
+              <span className="name">Invite <strong>{manualEmail.trim()}</strong></span>
+              <span className="email">New invite — not in your network</span>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CreateCookbookModal({ onClose, onCreated }) {
   const [name, setName] = useState("");
   const [blurb, setBlurb] = useState("");
@@ -181,7 +281,6 @@ function CreateCookbookModal({ onClose, onCreated }) {
   // Each invite is { email, role, fromNetwork }. role defaults
   // to editor (matches the most common case — co-cooks).
   const [invites, setInvites] = useState([]);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [manualEmail, setManualEmail] = useState("");
   useEffect(() => {
     fetch("/api/admin/me/network", { credentials: "include" })
@@ -314,58 +413,13 @@ function CreateCookbookModal({ onClose, onCreated }) {
                 ))}
               </ul>
             )}
-            {networkAvailable.length > 0 && (
-              <div className="create-network">
-                <button
-                  type="button"
-                  className="btn ghost sm"
-                  onClick={() => setPickerOpen(o => !o)}
-                  aria-expanded={pickerOpen}
-                >
-                  {pickerOpen ? "Hide" : `Pick from ${networkAvailable.length} ${networkAvailable.length === 1 ? "person" : "people"} you've cooked with`}
-                  <span className="caret" aria-hidden>{pickerOpen ? " ▴" : " ▾"}</span>
-                </button>
-                {pickerOpen && (
-                  <div className="create-network-grid">
-                    {networkAvailable.map(p => (
-                      <button
-                        key={p.email}
-                        type="button"
-                        className="network-chip"
-                        onClick={() => addInvite(p.email, true)}
-                        title={p.email}
-                      >
-                        <Icon name="plus" size={11} />
-                        <span>{niceName(p)}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="create-manual-row">
-              <input
-                type="email"
-                value={manualEmail}
-                onChange={(e) => setManualEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && manualEmail.trim()) {
-                    e.preventDefault();
-                    addInvite(manualEmail);
-                    setManualEmail("");
-                  }
-                }}
-                placeholder="Or type an email address"
-              />
-              <button
-                type="button"
-                className="btn sm"
-                onClick={() => { addInvite(manualEmail); setManualEmail(""); }}
-                disabled={!manualEmail.trim()}
-              >
-                Add
-              </button>
-            </div>
+            <InviteTypeahead
+              networkAvailable={networkAvailable}
+              manualEmail={manualEmail}
+              setManualEmail={setManualEmail}
+              addInvite={addInvite}
+              niceName={niceName}
+            />
           </div>
 
           {/* Visibility (private / unlisted / public) is set silently
