@@ -368,6 +368,36 @@ function App() {
   // non-admins / signed-out cooks.
   const pendingCount = usePendingApprovalCount(!!profile?.isAdmin);
 
+  // ─── Admin "View as" preview ───
+  // Admin-only knob — lets Patricia preview the app as if she
+  // were a regular owner / editor / viewer (no admin powers,
+  // no admin-access cookbooks). Purely client-side cosmetic:
+  // the server still allows admin operations, so she can flip
+  // back instantly. null = default (full admin view).
+  const [viewAsRole, setViewAsRole] = useStorage("admin:viewAs", null);
+  const isReallyAdmin = !!profile?.isAdmin;
+  // The "effective" isAdmin downstream code reads. When the
+  // admin is previewing as another role, downstream components
+  // treat them as non-admin.
+  const effectiveIsAdmin = isReallyAdmin && !viewAsRole;
+  // Clamp the userCookbooks list: drop admin-access entries and
+  // floor each surviving role at the preview role (so an "owner"
+  // becomes "editor" / "viewer" depending on the preview).
+  const ROLE_RANK = { owner: 3, editor: 2, viewer: 1, admin: 0 };
+  const effectiveUserCookbooks = useMemo(() => {
+    if (!viewAsRole || !isReallyAdmin) return userCookbooks;
+    const cap = ROLE_RANK[viewAsRole] || 0;
+    return userCookbooks
+      .filter(c => !c.adminAccess) // a non-admin wouldn't see these at all
+      .map(c => {
+        const actualRank = ROLE_RANK[c.yourRole] || 0;
+        if (actualRank > cap) {
+          return { ...c, yourRole: viewAsRole };
+        }
+        return c;
+      });
+  }, [userCookbooks, viewAsRole, isReallyAdmin]);
+
   // ─── Simplified view ───
   // Accessibility-first mode for less technical cooks (especially
   // older family members). Strips out AI surfaces, filters,
@@ -692,7 +722,7 @@ function App() {
             {FLAGS.cookbooks && (
               <CookbookSwitcher
                 active={activeCookbookId}
-                cookbooks={userCookbooks}
+                cookbooks={effectiveUserCookbooks}
                 onSwitch={(id) => { setActiveCookbookId(id); backToBrowse(); }}
                 onManage={() => setView("cookbooks")}
               />
@@ -714,8 +744,11 @@ function App() {
               <AvatarMenu
                 email={authEmail}
                 simpleMode={simpleMode}
-                isAdmin={!!profile?.isAdmin}
-                pendingCount={pendingCount}
+                isAdmin={effectiveIsAdmin}
+                isReallyAdmin={isReallyAdmin}
+                viewAsRole={viewAsRole}
+                onSetViewAs={setViewAsRole}
+                pendingCount={effectiveIsAdmin ? pendingCount : 0}
                 onToggleSimpleMode={() => setSimpleMode(m => !m)}
                 onAdminAIUsage={() => setView("admin-ai-usage")}
                 onMyCookbooks={() => setView("cookbooks")}
@@ -736,6 +769,23 @@ function App() {
            while the cook browses pairings) ───── */}
       <TimerTicker />
       <TimerBanner />
+
+      {/* "View as" preview banner — visible when an admin is
+          previewing the app as a non-admin role. One-tap revert. */}
+      {viewAsRole && isReallyAdmin && (
+        <div className="view-as-banner">
+          <span>
+            Previewing as <strong>{viewAsRole}</strong>. Admin tools are hidden.
+          </span>
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => setViewAsRole(null)}
+          >
+            Back to admin view
+          </button>
+        </div>
+      )}
 
       {/* ───── Meal-selection banner (sticky under nav while items
            are queued but the cook isn't in the meal builder) ───── */}
@@ -779,7 +829,7 @@ function App() {
           openMealBuilder={() => setView("meal")}
           openLab={() => setView("lab")}
           simpleMode={simpleMode}
-          activeCookbookName={userCookbooks.find(c => c.id === activeCookbookId)?.name}
+          activeCookbookName={effectiveUserCookbooks.find(c => c.id === activeCookbookId)?.name}
         />
       )}
       {view === "recipe" && !recipe && (
@@ -826,7 +876,7 @@ function App() {
           profile={profile}
           activeCookbookId={activeCookbookId}
           setActiveCookbookId={setActiveCookbookId}
-          userCookbooks={userCookbooks}
+          userCookbooks={effectiveUserCookbooks}
           usedCuisines={usedCuisines}
           usedAuthors={usedAuthors}
         />
@@ -856,7 +906,7 @@ function App() {
               profile={profile}
               activeCookbookId={activeCookbookId}
               setActiveCookbookId={setActiveCookbookId}
-              userCookbooks={userCookbooks}
+              userCookbooks={effectiveUserCookbooks}
               initialRecipe={editingRecipe}
               usedCuisines={usedCuisines}
               usedAuthors={usedAuthors}
@@ -876,7 +926,8 @@ function App() {
       {FLAGS.cookbooks && view === "cookbooks" && (
         <CookbooksIndex
           authEmail={authEmail}
-          isAdmin={!!profile?.isAdmin}
+          isAdmin={effectiveIsAdmin}
+          viewAsRole={viewAsRole}
           activeCookbookId={activeCookbookId}
           onClose={backToBrowse}
           onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); backToBrowse(); }}
@@ -979,10 +1030,10 @@ function App() {
         onOpenAdminAIUsage={() => setView("admin-ai-usage")}
         onOpenMyCookbooks={FLAGS.cookbooks ? () => setView("cookbooks") : undefined}
         onOpenSettings={() => setView("settings")}
-        onOpenAdminUsers={profile?.isAdmin ? () => setView("admin-users") : undefined}
-        isSystemAdmin={!!profile?.isAdmin}
-        pendingCount={pendingCount}
-        cookbooks={userCookbooks}
+        onOpenAdminUsers={effectiveIsAdmin ? () => setView("admin-users") : undefined}
+        isSystemAdmin={effectiveIsAdmin}
+        pendingCount={effectiveIsAdmin ? pendingCount : 0}
+        cookbooks={effectiveUserCookbooks}
         activeCookbookId={activeCookbookId}
         onSwitchCookbook={(id) => { setActiveCookbookId(id); backToBrowse(); }}
         currentView={view}
@@ -1251,7 +1302,7 @@ function MobileMenuDrawer({
   );
 }
 
-function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 0, onToggleSimpleMode, onAdminAIUsage, onMyCookbooks, onSettings, onAdminUsers }) {
+function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, isReallyAdmin, viewAsRole, onSetViewAs, pendingCount = 0, onToggleSimpleMode, onAdminAIUsage, onMyCookbooks, onSettings, onAdminUsers }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const initial = (email[0] || "?").toUpperCase();
@@ -1320,6 +1371,31 @@ function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 
                 <span className="menu-item-badge">{pendingCount}</span>
               )}
             </button>
+          )}
+          {isReallyAdmin && onSetViewAs && (
+            <div className="view-as-section">
+              <div className="view-as-label">View as</div>
+              <div className="view-as-options">
+                {[
+                  ["admin", "Admin"],
+                  ["owner", "Owner"],
+                  ["editor", "Editor"],
+                  ["viewer", "Viewer"],
+                ].map(([role, label]) => {
+                  const active = role === "admin" ? !viewAsRole : viewAsRole === role;
+                  return (
+                    <button
+                      key={role}
+                      type="button"
+                      className={`view-as-chip ${active ? "active" : ""}`}
+                      onClick={() => { onSetViewAs(role === "admin" ? null : role); setOpen(false); }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
           <button
             type="button"
