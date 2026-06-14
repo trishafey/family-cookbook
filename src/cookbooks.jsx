@@ -170,7 +170,7 @@ function CreateCookbookModal({ onClose, onCreated }) {
           </label>
 
           <label className="modal-field">
-            <span>One-line blurb</span>
+            <span>Description</span>
             <input
               type="text"
               value={blurb}
@@ -513,7 +513,7 @@ function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, 
               </label>
 
               <label className="modal-field">
-                <span>One-line blurb</span>
+                <span>Description</span>
                 <input type="text" value={blurb} onChange={(e) => setBlurb(e.target.value)} maxLength={280} />
               </label>
 
