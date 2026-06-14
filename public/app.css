@@ -2374,56 +2374,76 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   border-radius: var(--radius);
   padding: 4px 8px;
 }
-.cookbook-modal .invite-typeahead { position: relative; }
-.cookbook-modal .invite-typeahead > input {
+/* Inline people-picker shared by Create cookbook and Members tab.
+   Email input on top, alphabetised network pills below. No
+   floating dropdown so the picker never gets clipped by the
+   modal or covered by the on-screen keyboard. */
+.network-picker { display: flex; flex-direction: column; gap: 10px; }
+.network-picker-input {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--rule); border-radius: var(--radius);
   font: inherit; font-size: 14px;
   background: var(--paper);
 }
-.cookbook-modal .invite-typeahead > input:focus {
-  outline: none; border-color: var(--accent);
+.network-picker-input:focus { outline: none; border-color: var(--accent); }
+.network-picker-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
 }
-.cookbook-modal .invite-typeahead-menu {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-  z-index: 60;
+.network-picker-head .label {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
+  color: var(--ink-3); text-transform: uppercase;
+}
+.network-picker-head .link-action {
+  background: none; border: 0; padding: 0;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .04em;
+  color: var(--accent);
+  cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+}
+.network-picker-head .link-action:hover { color: var(--ink); }
+.network-picker-pills {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.network-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px 6px 10px;
   background: var(--paper);
   border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.10);
-  padding: 4px;
-  max-height: 220px; overflow-y: auto;
-}
-.cookbook-modal .invite-typeahead-menu .row {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 10px;
-  border: 0; background: transparent;
-  border-radius: var(--radius);
+  border-radius: 999px;
   cursor: pointer;
-  text-align: left;
   font: inherit;
+  font-family: var(--serif); font-size: 13px;
+  color: var(--ink-2);
+  transition: background .14s, border-color .14s, color .14s;
 }
-.cookbook-modal .invite-typeahead-menu .row:hover,
-.cookbook-modal .invite-typeahead-menu .row:focus {
+.network-pill:hover,
+.network-pill:focus {
   background: color-mix(in srgb, var(--accent) 10%, var(--paper));
+  border-color: var(--accent);
+  color: var(--accent);
 }
-.cookbook-modal .invite-typeahead-menu .row .name {
-  font-family: var(--serif); font-size: 14px; color: var(--ink);
+.network-pill.fresh {
+  background: color-mix(in srgb, var(--accent) 8%, var(--paper));
+  border-style: dashed;
+  border-color: var(--accent);
+  color: var(--accent);
 }
-.cookbook-modal .invite-typeahead-menu .row .email {
-  font-family: var(--mono); font-size: 11px; color: var(--ink-3);
-}
-.cookbook-modal .invite-typeahead-menu .row.fresh {
-  font-family: var(--mono); font-size: 12px; color: var(--accent);
-  border-top: 1px solid var(--rule); margin-top: 2px; padding-top: 10px;
-}
-.cookbook-modal .invite-typeahead-menu .empty {
-  padding: 10px;
+.network-pill .name { line-height: 1.1; }
+
+/* Tighten the role selector that sits above the picker in the
+   Members tab. */
+.invite-role-row label {
+  display: inline-flex; align-items: center; gap: 8px;
   font-family: var(--mono); font-size: 12px; color: var(--ink-3);
-  text-align: center;
+  margin-bottom: 8px;
+}
+.invite-role-row select {
+  font-family: var(--mono); font-size: 12px;
+  background: var(--paper); border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 4px 8px;
 }
 
 .cookbook-modal .modal-error {
@@ -4799,12 +4819,25 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .lab-input { padding: 12px 14px; }
   .lab-turn .bubble { max-width: 88%; }
 
-  /* Modals — full-bleed */
-  .modal-overlay { padding: 0; }
-  .modal { max-height: 100vh; max-width: 100%; border-radius: 0; }
+  /* Modals — full-screen on mobile. Use dvh so the modal fills
+     the visible viewport even when the iOS / Android URL bar or
+     on-screen keyboard claims pixels. align-items:stretch +
+     justify-items:stretch make the modal expand to fill the
+     overlay. */
+  .modal-overlay { padding: 0; align-items: stretch; justify-items: stretch; }
+  .modal {
+    width: 100%; height: 100vh; height: 100dvh;
+    max-width: 100%; max-height: 100vh; max-height: 100dvh;
+    border-radius: 0;
+    border: 0;
+  }
   .modal-head { padding: 16px 18px; }
   .modal-body { padding: 18px; }
   .modal-foot { padding: 14px 18px; }
+  /* Cookbook modal uses a custom internal layout; give it the
+     same full-bleed treatment and add safe-area padding so the
+     iOS home indicator doesn't sit on top of the action row. */
+  .cookbook-modal { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
   .meal-plan-modal-body .preset-times .chip { font-size: 11px; padding: 5px 10px; }
 
   /* Drawer full-width */

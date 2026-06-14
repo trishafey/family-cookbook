@@ -177,28 +177,24 @@ function InvitePicker({ cookbooks, onPick }) {
 // Tighter than the previous "Pick from N people" button + chip
 // grid + separate email row, which buried the manual case
 // behind a toggle.
-function InviteTypeahead({ networkAvailable, manualEmail, setManualEmail, addInvite, niceName }) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", away);
-    return () => document.removeEventListener("mousedown", away);
-  }, [open]);
+// People-picker for invites. Always-visible pills (sorted A→Z)
+// instead of a floating dropdown, so the suggestions never get
+// clipped by the modal/keyboard on mobile. Free-form email entry
+// at the top falls through to addInvite(email) when it parses;
+// tapping a pill calls addInvite(email, true).
+function NetworkPicker({ networkAvailable, manualEmail, setManualEmail, addInvite, niceName }) {
   const q = manualEmail.trim().toLowerCase();
-  const matches = q
-    ? networkAvailable.filter(p =>
+  const sorted = [...networkAvailable].sort((a, b) =>
+    niceName(a).toLowerCase().localeCompare(niceName(b).toLowerCase())
+  );
+  const filtered = q
+    ? sorted.filter(p =>
         p.email?.toLowerCase().includes(q) ||
         p.displayName?.toLowerCase().includes(q) ||
         p.firstName?.toLowerCase().includes(q) ||
         p.lastName?.toLowerCase().includes(q)
       )
-    : networkAvailable;
-  // Show an "Invite <typed email>" option when the user typed
-  // something that looks like an email AND isn't already in the
-  // network suggestions (so the picker also handles fresh
-  // invites without a separate Add button).
+    : sorted;
   const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(manualEmail.trim());
   const showFreshEmailOption = looksLikeEmail && !networkAvailable.some(p => p.email === manualEmail.trim().toLowerCase());
 
@@ -206,61 +202,66 @@ function InviteTypeahead({ networkAvailable, manualEmail, setManualEmail, addInv
     if (!looksLikeEmail) return;
     addInvite(manualEmail);
     setManualEmail("");
-    setOpen(false);
+  };
+  const addAll = () => {
+    for (const p of filtered) addInvite(p.email, true);
   };
 
   return (
-    <div className="invite-typeahead" ref={wrapRef}>
+    <div className="network-picker">
       <input
         type="email"
+        className="network-picker-input"
         value={manualEmail}
-        onChange={(e) => { setManualEmail(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
+        onChange={(e) => setManualEmail(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
             if (showFreshEmailOption) commitFreshEmail();
-            else if (matches[0]) {
-              addInvite(matches[0].email, true);
-              setManualEmail("");
-            }
+            else if (filtered[0]) { addInvite(filtered[0].email, true); setManualEmail(""); }
           }
         }}
         placeholder="Add by name or email…"
       />
-      {open && (matches.length > 0 || showFreshEmailOption) && (
-        <div className="invite-typeahead-menu" role="listbox">
-          {matches.length === 0 && !showFreshEmailOption && (
-            <div className="empty">Nobody matches "{manualEmail}".</div>
+      {(filtered.length > 0 || showFreshEmailOption) && (
+        <>
+          {networkAvailable.length > 0 && (
+            <div className="network-picker-head">
+              <span className="label">
+                {q ? `${filtered.length} match${filtered.length === 1 ? "" : "es"}` : "People you cook with"}
+              </span>
+              {filtered.length > 1 && (
+                <button type="button" className="link-action" onClick={addAll}>
+                  Add all
+                </button>
+              )}
+            </div>
           )}
-          {matches.map(p => (
-            <button
-              key={p.email}
-              type="button"
-              role="option"
-              className="row"
-              onClick={() => {
-                addInvite(p.email, true);
-                setManualEmail("");
-                setOpen(false);
-              }}
-            >
-              <span className="name">{niceName(p)}</span>
-              {p.displayName && <span className="email">{p.email}</span>}
-            </button>
-          ))}
-          {showFreshEmailOption && (
-            <button
-              type="button"
-              role="option"
-              className="row fresh"
-              onClick={commitFreshEmail}
-            >
-              <span className="name">Invite <strong>{manualEmail.trim()}</strong></span>
-              <span className="email">New invite — not in your network</span>
-            </button>
-          )}
-        </div>
+          <div className="network-picker-pills">
+            {filtered.map(p => (
+              <button
+                key={p.email}
+                type="button"
+                className="network-pill"
+                onClick={() => { addInvite(p.email, true); }}
+                title={p.email}
+              >
+                <Icon name="plus" size={11} />
+                <span className="name">{niceName(p)}</span>
+              </button>
+            ))}
+            {showFreshEmailOption && (
+              <button
+                type="button"
+                className="network-pill fresh"
+                onClick={commitFreshEmail}
+              >
+                <Icon name="plus" size={11} />
+                <span className="name">Invite {manualEmail.trim()}</span>
+              </button>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
@@ -413,7 +414,7 @@ function CreateCookbookModal({ onClose, onCreated }) {
                 ))}
               </ul>
             )}
-            <InviteTypeahead
+            <NetworkPicker
               networkAvailable={networkAvailable}
               manualEmail={manualEmail}
               setManualEmail={setManualEmail}
@@ -461,6 +462,18 @@ function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers, onMemb
   const [inviteRole, setInviteRole] = useState("editor");
   const [inviting, setInviting] = useState(false);
   const [copiedToken, setCopiedToken] = useState(null);
+  // Network = everyone the cook already shares a cookbook with,
+  // used as inline pill suggestions. Filtered against the current
+  // members + pending invitations so we don't suggest someone
+  // who's already in or already invited.
+  const [network, setNetwork] = useState([]);
+  useEffect(() => {
+    fetch("/api/admin/me/network", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.network) setNetwork(data.network); })
+      .catch(() => {});
+  }, []);
+  const niceName = (p) => p.displayName || [p.firstName, p.lastName].filter(Boolean).join(" ") || p.email;
 
   const load = async () => {
     setError(null);
@@ -486,16 +499,20 @@ function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers, onMemb
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [cookbook.id]);
 
-  const invite = async (e) => {
-    e?.preventDefault?.();
+  // Fire a single invitation. Called either by the typed-email
+  // form (button submit, copies the link to clipboard for sharing)
+  // or by the network-pill picker (auto-copies still, but the
+  // expected flow is the recipient gets emailed by the server).
+  const sendInvite = async (email, role) => {
     setInviting(true);
     setError(null);
+    const cleanEmail = (email || "").trim().toLowerCase() || null;
     try {
       const res = await fetch(`/api/admin/cookbooks/${cookbook.id}/invitations`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail.trim() || null, role: inviteRole }),
+        body: JSON.stringify({ email: cleanEmail, role: role || "editor" }),
       });
       if (!res.ok) {
         const { error: msg } = await res.json().catch(() => ({}));
@@ -503,12 +520,6 @@ function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers, onMemb
       }
       const { invitation, link } = await res.json();
       setInvitations(prev => [{ ...invitation, link }, ...prev]);
-      setInviteEmail("");
-      // Always clipboard for now — inviter shares the message
-      // however they want (text, email, etc.). Bundle a friendly
-      // note around the link so the recipient knows which
-      // cookbook they're being invited to and which email to
-      // sign in with.
       try {
         await navigator.clipboard.writeText(buildInviteMessage(cookbook.name, invitation.email, link));
         setCopiedToken(invitation.token);
@@ -519,6 +530,12 @@ function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers, onMemb
     } finally {
       setInviting(false);
     }
+  };
+
+  const invite = async (e) => {
+    e?.preventDefault?.();
+    await sendInvite(inviteEmail, inviteRole);
+    setInviteEmail("");
   };
 
   const revoke = async (token) => {
@@ -622,23 +639,36 @@ function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers, onMemb
       </ul>
 
       <div className="section-head">Invite someone</div>
-      <form className="invite-form" onSubmit={invite}>
-        <input
-          type="email"
-          placeholder="friend@example.com (optional)"
-          value={inviteEmail}
-          onChange={(e) => setInviteEmail(e.target.value)}
-        />
-        <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
-          <option value="editor">editor</option>
-          <option value="viewer">viewer</option>
-        </select>
-        <button type="submit" className="btn primary sm" disabled={inviting}>
-          {inviting ? "Creating…" : "Create invite link"}
-        </button>
-      </form>
+      <div className="invite-role-row">
+        <label>
+          New invites join as
+          <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} disabled={inviting}>
+            <option value="editor">editor</option>
+            <option value="viewer">viewer</option>
+          </select>
+        </label>
+      </div>
+      {(() => {
+        // Filter out anyone who's already a member or already has a
+        // pending invite for this cookbook, so the suggestion pills
+        // can't double-invite.
+        const alreadyHere = new Set([
+          ...members.map(m => m.email?.toLowerCase()),
+          ...invitations.map(i => (i.email || "").toLowerCase()).filter(Boolean),
+        ]);
+        const available = network.filter(p => !alreadyHere.has(p.email?.toLowerCase()));
+        return (
+          <NetworkPicker
+            networkAvailable={available}
+            manualEmail={inviteEmail}
+            setManualEmail={setInviteEmail}
+            addInvite={(email) => sendInvite(email, inviteRole)}
+            niceName={niceName}
+          />
+        );
+      })()}
       <div className="invite-hint">
-        Copy the link and share it however you like — text, email, AirDrop. Expires in 14 days.
+        Tap a name to send them an invite. Fresh emails land in their inbox; the link's also copied so you can share via text. Expires in 14 days.
       </div>
 
       {invitations.length > 0 && (
