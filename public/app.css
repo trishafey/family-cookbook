@@ -1086,6 +1086,59 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   color: var(--ink-3); letter-spacing: .03em;
 }
 
+/* Recipe page → "Add to cookbook" picker. Sits in the action
+   row before Edit and opens a small dropdown of writable
+   cookbooks. */
+.add-to-cookbook { position: relative; display: inline-block; }
+.add-to-cookbook-menu {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  z-index: 80;
+  min-width: 260px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.add-to-cookbook-menu .head {
+  padding: 8px 10px 6px;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.add-to-cookbook-menu .row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0; background: transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.add-to-cookbook-menu .row:hover,
+.add-to-cookbook-menu .row:focus {
+  background: color-mix(in srgb, var(--accent) 10%, var(--paper));
+}
+.add-to-cookbook-menu .row .name {
+  font-family: var(--serif); font-size: 14px; color: var(--ink);
+}
+.add-to-cookbook-menu .row .role {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.add-to-cookbook-menu .err {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid rgba(147, 51, 51, 0.3);
+  background: rgba(147, 51, 51, 0.06);
+  border-radius: var(--radius);
+  color: #933; font-size: 12px;
+}
+
 /* Overnight toggle row (inside AddRecipe) */
 .input-row .overnight-toggle .check-line {
   display: flex; align-items: center; gap: 10px;

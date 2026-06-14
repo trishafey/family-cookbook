@@ -910,6 +910,35 @@ function App() {
           onDeleteRecipe={onDeleteRecipe}
           onBuildMealWith={(paired) => buildMealWith(recipe, paired)}
           simpleMode={simpleMode}
+          userCookbooks={effectiveUserCookbooks}
+          activeCookbookId={activeCookbookId}
+          onCopyToCookbook={async (destCookbookId) => {
+            // POST the copy, then either jump straight into the
+            // new cookbook + open the fresh copy, or just refresh
+            // if the caller is already in the destination.
+            try {
+              const res = await fetch(`/api/admin/recipes/${encodeURIComponent(recipe.id)}/copy-to/${encodeURIComponent(destCookbookId)}`, {
+                method: "POST",
+                credentials: "include",
+              });
+              if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data?.error || `Copy failed (${res.status})`);
+              }
+              const { id: newId } = await res.json();
+              if (destCookbookId !== activeCookbookId) {
+                setActiveCookbookId(destCookbookId);
+              }
+              setTimeout(() => {
+                setRecipeId(newId);
+                setView("recipe");
+                window.scrollTo(0, 0);
+              }, 50);
+              return { ok: true };
+            } catch (err) {
+              return { ok: false, error: err.message || "Could not copy." };
+            }
+          }}
         />
         </ErrorBoundary>
       )}

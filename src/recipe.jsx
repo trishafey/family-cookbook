@@ -1,7 +1,7 @@
 // Recipe detail — 3 variants share the same state & sub-components.
 // Variants: editorial (default), magazine, binder.
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Icon, fmtDuration, fmtTime, formatQty, formatIngredientQty, logEvent, scaleByWeight, scaleIngredients, scheduleForFinish, useStorage, applySectionOrder } from "./helpers.jsx";
 import { useTimers, warmAudio } from "./timers.jsx";
 import { convertIngredient } from "./units.js";
@@ -11,6 +11,77 @@ import { DIET_ICON } from "./data.js";
 import { NeedHelp } from "./need-help.jsx";
 import { PairingsSection } from "./pairings.jsx";
 import { FLAGS } from "./config/flags.js";
+
+// ─────────────────────────────────────────────────────────────
+// Shared: "Add to cookbook" button — copies the recipe into one
+// of the cook's writable cookbooks (owner / editor / admin). Sits
+// in the action row of every recipe variant, just before Edit.
+// ─────────────────────────────────────────────────────────────
+function AddToCookbookButton({ userCookbooks, activeCookbookId, onCopyToCookbook }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e) => { if (!ref.current?.contains(e.target)) { setOpen(false); setError(null); } };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open]);
+
+  // Writable destinations = cookbooks the cook owns / edits / has
+  // admin access to. The recipe's current cookbook is excluded so
+  // you can't accidentally duplicate it in place.
+  const writable = (userCookbooks || []).filter(c =>
+    (c.yourRole === "owner" || c.yourRole === "editor" || c.yourRole === "admin" || c.adminAccess)
+    && c.id !== activeCookbookId
+  );
+
+  if (!onCopyToCookbook || writable.length === 0) return null;
+
+  const pick = async (cb) => {
+    setBusy(true);
+    setError(null);
+    const result = await onCopyToCookbook(cb.id);
+    setBusy(false);
+    if (result?.ok) {
+      setOpen(false);
+    } else {
+      setError(result?.error || "Could not add.");
+    }
+  };
+
+  return (
+    <div className="add-to-cookbook" ref={ref}>
+      <button
+        type="button"
+        className="btn ghost"
+        onClick={() => setOpen(o => !o)}
+        disabled={busy}
+      >
+        <Icon name="plus" /> Add to cookbook
+      </button>
+      {open && (
+        <div className="add-to-cookbook-menu" role="menu">
+          <div className="head">Add to which cookbook?</div>
+          {writable.map(cb => (
+            <button
+              key={cb.id}
+              type="button"
+              className="row"
+              onClick={() => pick(cb)}
+              disabled={busy}
+            >
+              <span className="name">{cb.name}</span>
+              <span className="role">{cb.adminAccess ? "admin access" : cb.yourRole}</span>
+            </button>
+          ))}
+          {error && <div className="err">{error}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────
 // Shared: AI Adjust box
@@ -1075,7 +1146,8 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
                           doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                           onCookMode, onShop, comments, addComment, deleteComment,
                           allRecipes, onSaveRecipe, openRecipe, onSaveToLab,
-                          authEmail, profile, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
+                          authEmail, profile, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode,
+                          userCookbooks, activeCookbookId, onCopyToCookbook }) {
   const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <>
@@ -1115,6 +1187,13 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
             <button className="btn ghost" onClick={() => alert("PDF export — coming soon.")}>
               <Icon name="download" /> {t("pdf")}
             </button>
+            {authEmail && (
+              <AddToCookbookButton
+                userCookbooks={userCookbooks}
+                activeCookbookId={activeCookbookId}
+                onCopyToCookbook={onCopyToCookbook}
+              />
+            )}
             {authEmail && (
               <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
                 <Icon name="edit" /> {t("edit")}
@@ -1167,7 +1246,8 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
                          doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                          onCookMode, onShop, comments, addComment, deleteComment,
                          allRecipes, onSaveRecipe, openRecipe, onSaveToLab,
-                         authEmail, profile, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
+                         authEmail, profile, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode,
+                         userCookbooks, activeCookbookId, onCopyToCookbook }) {
   const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <>
@@ -1260,7 +1340,8 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
                        doneBy, setDoneBy, finishTime, setFinishTime, schedule, bumpStepStart,
                        onCookMode, onShop, comments, addComment, deleteComment,
                        allRecipes, onSaveRecipe, openRecipe,
-                       authEmail, profile, onEditRecipe, onDeleteRecipe, simpleMode }) {
+                       authEmail, profile, onEditRecipe, onDeleteRecipe, simpleMode,
+                       userCookbooks, activeCookbookId, onCopyToCookbook }) {
   const { t, tCourse, tOccasion, tDifficulty } = useLang();
   return (
     <div className="recipe-binder">
@@ -1347,7 +1428,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
 // ─────────────────────────────────────────────────────────────
 // Top-level Recipe detail — holds all state, picks the variant
 // ─────────────────────────────────────────────────────────────
-export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, deleteComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, profile, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode }) {
+export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, onShop, comments, addComment, deleteComment, onSaveRecipe, onOpenRecipe, onSaveToLab, authEmail, profile, onEditRecipe, onDeleteRecipe, onBuildMealWith, simpleMode, userCookbooks = [], activeCookbookId, onCopyToCookbook }) {
   const { t } = useLang();
 
   // Log one view per recipe id change. Doesn't dedupe within a session
@@ -1456,6 +1537,7 @@ export function RecipeDetail({ recipe, variant, allRecipes, onBack, onCookMode, 
     openRecipe: onOpenRecipe || ((r) => {}),
     authEmail, profile, onEditRecipe, onDeleteRecipe, onBuildMealWith,
     simpleMode,
+    userCookbooks, activeCookbookId, onCopyToCookbook,
   };
 
   return (
