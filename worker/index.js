@@ -54,6 +54,27 @@ CREATE TABLE IF NOT EXISTS favorites (
 
 const app = new Hono();
 
+// Supported language codes for the per-cookbook switcher. Add a
+// code here when the UI chrome translations land for it; recipe
+// content translation works for any LANG_NAME entry already.
+const SUPPORTED_LANGS = ["en", "pl", "es", "el"];
+const MAX_COOKBOOK_LANGS = 3;
+// Normalise + cap a languages array submitted by the client.
+// "en" is always included so a misclick can't strip the cookbook
+// of its base language.
+function normaliseLanguages(arr) {
+  if (!Array.isArray(arr)) return null;
+  const out = [];
+  for (const code of arr) {
+    if (typeof code !== "string") continue;
+    const c = code.toLowerCase();
+    if (!SUPPORTED_LANGS.includes(c)) continue;
+    if (!out.includes(c)) out.push(c);
+  }
+  if (!out.includes("en")) out.unshift("en");
+  return out.slice(0, MAX_COOKBOOK_LANGS);
+}
+
 // ─── Multi-tenant: list cookbooks the caller is a member of ───
 // Powers the "My cookbooks" view + the cookbook switcher in the
 // nav. Returns one row per membership, joined with cookbook
@@ -76,6 +97,9 @@ app.get("/api/admin/cookbooks", async (c) => {
   await c.env.DB.prepare(
     "ALTER TABLE cookbook_members ADD COLUMN display_order INTEGER"
   ).run().catch(() => {});
+  await c.env.DB.prepare(
+    "ALTER TABLE cookbooks ADD COLUMN languages TEXT"
+  ).run().catch(() => {});
   const admin = await isAdmin(c);
 
   // Admins see every cookbook (member or not). For non-admins,
@@ -86,7 +110,7 @@ app.get("/api/admin/cookbooks", async (c) => {
   const rows = admin
     ? await c.env.DB.prepare(`
         SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
-               c.cover_photo, c.created_at, c.updated_at,
+               c.cover_photo, c.languages, c.created_at, c.updated_at,
                m.role AS your_role, m.joined_at, m.display_order AS your_order,
                (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
                (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count
@@ -99,7 +123,7 @@ app.get("/api/admin/cookbooks", async (c) => {
       `).bind(email, email).all()
     : await c.env.DB.prepare(`
         SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
-               c.cover_photo, c.created_at, c.updated_at,
+               c.cover_photo, c.languages, c.created_at, c.updated_at,
                m.role AS your_role, m.joined_at, m.display_order AS your_order,
                (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
                (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count
@@ -118,6 +142,7 @@ app.get("/api/admin/cookbooks", async (c) => {
       visibility: r.visibility,
       blurb: r.blurb || "",
       coverPhoto: r.cover_photo || null,
+      languages: r.languages ? JSON.parse(r.languages) : ["en"],
       // yourRole is the explicit membership role if any, else
       // "admin" (the admin-access fallback) — keeps the client
       // simple ("if role, you can do X").
@@ -140,8 +165,12 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
   const id = c.req.param("id");
   const role = await cookbookRole(c, id);
   if (!role) return c.json({ error: "not a member" }, 403);
+  // Self-heal in case migration 0018 lags the deploy.
+  await c.env.DB.prepare(
+    "ALTER TABLE cookbooks ADD COLUMN languages TEXT"
+  ).run().catch(() => {});
   const cb = await c.env.DB.prepare(
-    "SELECT id, owner_email, name, slug, visibility, blurb, cover_photo, created_at, updated_at FROM cookbooks WHERE id = ?"
+    "SELECT id, owner_email, name, slug, visibility, blurb, cover_photo, languages, created_at, updated_at FROM cookbooks WHERE id = ?"
   ).bind(id).first();
   if (!cb) return c.json({ error: "not found" }, 404);
   const members = await c.env.DB.prepare(`
@@ -165,6 +194,7 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
       visibility: cb.visibility,
       blurb: cb.blurb || "",
       coverPhoto: cb.cover_photo || null,
+      languages: cb.languages ? JSON.parse(cb.languages) : ["en"],
       createdAt: cb.created_at,
       updatedAt: cb.updated_at,
     },
@@ -241,6 +271,7 @@ app.post("/api/admin/cookbooks", async (c) => {
   const blurb = (body?.blurb || "").toString().slice(0, 280);
   const visibility = ["private", "unlisted", "public"].includes(body?.visibility)
     ? body.visibility : "private";
+  const languages = normaliseLanguages(body?.languages) || ["en"];
 
   const now = new Date().toISOString();
   const suffix = Math.random().toString(36).slice(2, 8);
@@ -248,8 +279,11 @@ app.post("/api/admin/cookbooks", async (c) => {
   const slug = `${slugifyServer(name) || "cookbook"}-${suffix}`;
   try {
     await c.env.DB.prepare(
-      "INSERT INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-    ).bind(id, email, name, slug, visibility, blurb, now, now).run();
+      "ALTER TABLE cookbooks ADD COLUMN languages TEXT"
+    ).run().catch(() => {});
+    await c.env.DB.prepare(
+      "INSERT INTO cookbooks (id, owner_email, name, slug, visibility, blurb, languages, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    ).bind(id, email, name, slug, visibility, blurb, JSON.stringify(languages), now, now).run();
     await c.env.DB.prepare(
       "INSERT INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
     ).bind(id, email, now).run();
@@ -260,7 +294,7 @@ app.post("/api/admin/cookbooks", async (c) => {
   return c.json({
     cookbook: {
       id, ownerEmail: email, name, slug, visibility,
-      blurb, coverPhoto: null,
+      blurb, coverPhoto: null, languages,
       createdAt: now, updatedAt: now,
       yourRole: "owner",
     },
@@ -287,6 +321,14 @@ app.patch("/api/admin/cookbooks/:id", async (c) => {
   }
   if (["private", "unlisted", "public"].includes(body?.visibility)) {
     sets.push("visibility = ?"); args.push(body.visibility);
+  }
+  if (Array.isArray(body?.languages)) {
+    const langs = normaliseLanguages(body.languages);
+    if (!langs) return c.json({ error: "invalid languages" }, 400);
+    await c.env.DB.prepare(
+      "ALTER TABLE cookbooks ADD COLUMN languages TEXT"
+    ).run().catch(() => {});
+    sets.push("languages = ?"); args.push(JSON.stringify(langs));
   }
   if (!sets.length) return c.json({ ok: true });
   const now = new Date().toISOString();
@@ -1362,7 +1404,26 @@ const AI_TRANSLATE_SCHEMA = {
   },
 };
 
-const LANG_NAME = { en: "English", pl: "Polish" };
+const LANG_NAME = { en: "English", pl: "Polish", es: "Spanish", el: "Greek" };
+
+// Fan-out helper: given a recipe + its cookbook, queue
+// translateAndStore for every cookbook language that isn't the
+// canonical/source one. Replaces the old hard-coded en↔pl swap so
+// recipes auto-translate into Spanish for the Wojick cookbook,
+// Greek for the Chatz cookbook, etc.
+async function translateForCookbook(env, ctx, recipeId, recipe, fromLang, cookbookId, savedBy) {
+  let langs = ["en"];
+  try {
+    if (cookbookId) {
+      const cb = await env.DB.prepare("SELECT languages FROM cookbooks WHERE id = ?").bind(cookbookId).first();
+      if (cb?.languages) langs = JSON.parse(cb.languages);
+    }
+  } catch {}
+  for (const to of langs) {
+    if (!to || to === fromLang) continue;
+    ctx.waitUntil(translateAndStore(env, recipeId, recipe, fromLang, to, savedBy));
+  }
+}
 
 async function translateAndStore(env, recipeId, recipe, fromLang, toLang, savedBy = null) {
   if (!env.OPENAI_API_KEY || fromLang === toLang) return;
@@ -1552,22 +1613,33 @@ app.get("/api/admin/translate-missing", async (c) => {
   }
 
   const rows = await c.env.DB.prepare(
-    "SELECT id, blob, translations FROM recipes"
+    "SELECT id, cookbook_id, blob, translations FROM recipes"
   ).all();
 
   const queued = [];
   const skipped = [];
+  // Cache cookbook languages so we don't re-query for every recipe.
+  const langsByCookbook = new Map();
+  const getLangs = async (cookbookId) => {
+    if (langsByCookbook.has(cookbookId)) return langsByCookbook.get(cookbookId);
+    let langs = ["en"];
+    try {
+      const cb = await c.env.DB.prepare("SELECT languages FROM cookbooks WHERE id = ?").bind(cookbookId).first();
+      if (cb?.languages) langs = JSON.parse(cb.languages);
+    } catch {}
+    langsByCookbook.set(cookbookId, langs);
+    return langs;
+  };
   for (const row of rows.results) {
     const existing = row.translations ? JSON.parse(row.translations) : {};
     const recipe = JSON.parse(row.blob);
-    // Direction is recipe's canonical_lang → the OTHER lang.
-    // Older recipes default to English-canonical for backward
-    // compatibility — they were all saved before the multi-
-    // canonical feature shipped.
     const from = recipe.canonical_lang || "en";
-    const to = from === "en" ? "pl" : "en";
-    if (existing[to]) { skipped.push(row.id); continue; }
-    c.executionCtx.waitUntil(translateAndStore(c.env, row.id, recipe, from, to, email));
+    const langs = await getLangs(row.cookbook_id);
+    const targets = langs.filter(l => l && l !== from && !existing[l]);
+    if (targets.length === 0) { skipped.push(row.id); continue; }
+    for (const to of targets) {
+      c.executionCtx.waitUntil(translateAndStore(c.env, row.id, recipe, from, to, email));
+    }
     queued.push(row.id);
   }
 
@@ -1636,8 +1708,7 @@ app.post("/api/admin/recipes", async (c) => {
       // the cook's source language during extract) — default
       // English-canonical when missing.
       const from = finalDraft.canonical_lang || "en";
-      const to = from === "en" ? "pl" : "en";
-      c.executionCtx.waitUntil(translateAndStore(c.env, finalId, finalDraft, from, to, email));
+      await translateForCookbook(c.env, c.executionCtx, finalId, finalDraft, from, cookbookId, email);
       return c.json({ ok: true, id: finalId });
     } catch (err) {
       const msg = String(err?.message || err);
@@ -1716,8 +1787,7 @@ app.patch("/api/admin/recipes/:id", async (c) => {
     ).run();
     {
       const from = merged.canonical_lang || "en";
-      const to = from === "en" ? "pl" : "en";
-      c.executionCtx.waitUntil(translateAndStore(c.env, id, merged, from, to, email));
+      await translateForCookbook(c.env, c.executionCtx, id, merged, from, existing.cookbook_id, email);
     }
   } else {
     await c.env.DB.prepare(
@@ -1754,7 +1824,7 @@ app.post("/api/admin/recipes/:id/reset-from-seed", async (c) => {
   const seed = SEED_RECIPES.find(r => r.id === id);
   if (!seed) return c.json({ error: "no seed for this recipe" }, 404);
 
-  const existing = await c.env.DB.prepare("SELECT blob FROM recipes WHERE id = ?").bind(id).first();
+  const existing = await c.env.DB.prepare("SELECT blob, cookbook_id FROM recipes WHERE id = ?").bind(id).first();
   if (!existing) return c.json({ error: "not found" }, 404);
 
   // Preserve community-added fields (comments, pairings, favorites
@@ -1779,9 +1849,9 @@ app.post("/api/admin/recipes/:id/reset-from-seed", async (c) => {
     id,
   ).run();
 
-  // Seeds are bundled English-canonical, hence the hard-coded
-  // direction. Future seeds could carry their own canonical_lang.
-  c.executionCtx.waitUntil(translateAndStore(c.env, id, seed, "en", "pl", email));
+  // Seeds are bundled English-canonical. Fan out to whatever
+  // languages the seed's cookbook currently uses.
+  await translateForCookbook(c.env, c.executionCtx, id, seed, "en", existing.cookbook_id, email);
 
   return c.json({ ok: true, id });
 });
@@ -2062,7 +2132,7 @@ const AI_RECIPE_SCHEMA = {
     // to match what the cook wrote, and the worker uses it as
     // the saved recipe's canonical_lang so translateAndStore
     // knows which direction to translate.
-    sourceLang: { type: "string", enum: ["en", "pl"] },
+    sourceLang: { type: "string", enum: ["en", "pl", "es", "el"] },
     title:    { type: "string" },
     subtitle: { type: ["string", "null"] },
     author:   { type: ["string", "null"] },
@@ -3753,7 +3823,7 @@ app.patch("/api/admin/users/:email", async (c) => {
   if (typeof body?.simpleMode === "boolean") {
     sets.push("simple_mode = ?"); args.push(body.simpleMode ? 1 : 0);
   }
-  if (["en", "pl"].includes(body?.lang)) {
+  if (["en", "pl", "es", "el"].includes(body?.lang)) {
     sets.push("lang = ?"); args.push(body.lang);
   }
   if (!sets.length) return c.json({ ok: true });

@@ -8,6 +8,52 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon, signInUrl } from "./helpers.jsx";
+import { LANG_META, SUPPORTED_LANGS } from "./i18n.js";
+
+const MAX_COOKBOOK_LANGS = 3;
+
+// Multi-select language picker shared by Create + Edit cookbook
+// modals. English is always present and locked; up to two
+// additional languages can be toggled on as pills.
+function LanguagePicker({ value, onChange }) {
+  const selected = Array.isArray(value) && value.length ? value : ["en"];
+  const toggle = (code) => {
+    if (code === "en") return; // English is the base; can't remove
+    if (selected.includes(code)) {
+      onChange(selected.filter(c => c !== code));
+    } else {
+      if (selected.length >= MAX_COOKBOOK_LANGS) return;
+      onChange([...selected, code]);
+    }
+  };
+  return (
+    <div className="lang-picker">
+      <div className="lang-picker-pills">
+        {SUPPORTED_LANGS.map(code => {
+          const on = selected.includes(code);
+          const meta = LANG_META[code];
+          const locked = code === "en";
+          const disabled = !on && !locked && selected.length >= MAX_COOKBOOK_LANGS;
+          return (
+            <button
+              key={code}
+              type="button"
+              className={`lang-picker-pill ${on ? "on" : ""} ${locked ? "locked" : ""}`}
+              onClick={() => toggle(code)}
+              disabled={disabled}
+              title={locked ? "English is always included" : disabled ? `Up to ${MAX_COOKBOOK_LANGS} languages` : meta?.label}
+            >
+              {meta?.label || code}
+            </button>
+          );
+        })}
+      </div>
+      <div className="lang-picker-hint">
+        Up to {MAX_COOKBOOK_LANGS} languages. English is always included; pick the others your cookbook needs.
+      </div>
+    </div>
+  );
+}
 
 // Wrap a friendly note around the magic link so the inviter
 // can paste a single block into a text message / DM / email
@@ -271,6 +317,7 @@ function CreateCookbookModal({ onClose, onCreated }) {
   const [name, setName] = useState("");
   const [blurb, setBlurb] = useState("");
   const [visibility, setVisibility] = useState("private");
+  const [languages, setLanguages] = useState(["en"]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -310,7 +357,7 @@ function CreateCookbookModal({ onClose, onCreated }) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: n, blurb, visibility }),
+        body: JSON.stringify({ name: n, blurb, visibility, languages }),
       });
       if (!res.ok) {
         const { error: msg } = await res.json().catch(() => ({}));
@@ -383,6 +430,11 @@ function CreateCookbookModal({ onClose, onCreated }) {
               maxLength={280}
             />
           </label>
+
+          <div className="modal-field">
+            <span>Languages</span>
+            <LanguagePicker value={languages} onChange={setLanguages} />
+          </div>
 
           {/* Invite people inline. The cookbook is created first
               on submit, then each invite fires against the new
@@ -718,6 +770,9 @@ function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, 
   const [name, setName] = useState(cookbook.name);
   const [blurb, setBlurb] = useState(cookbook.blurb || "");
   const [visibility, setVisibility] = useState(cookbook.visibility);
+  const [languages, setLanguages] = useState(
+    Array.isArray(cookbook.languages) && cookbook.languages.length ? cookbook.languages : ["en"]
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -731,13 +786,13 @@ function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, 
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), blurb, visibility }),
+        body: JSON.stringify({ name: name.trim(), blurb, visibility, languages }),
       });
       if (!res.ok) {
         const { error: msg } = await res.json().catch(() => ({}));
         throw new Error(msg || `Save failed (${res.status})`);
       }
-      onSaved({ ...cookbook, name: name.trim(), blurb, visibility });
+      onSaved({ ...cookbook, name: name.trim(), blurb, visibility, languages });
     } catch (err) {
       setError(err.message || "Could not save changes.");
     } finally {
@@ -794,6 +849,11 @@ function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, 
                 <span>Description</span>
                 <input type="text" value={blurb} onChange={(e) => setBlurb(e.target.value)} maxLength={280} />
               </label>
+
+              <div className="modal-field">
+                <span>Languages</span>
+                <LanguagePicker value={languages} onChange={setLanguages} />
+              </div>
 
               {/* Visibility hidden for now — kept in the form state so
                   the PATCH still includes it, but no UI until the

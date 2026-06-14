@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, useUserCookbooks, useProfile, usePendingApprovalCount, useNotificationCount, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions, BOOTSTRAP_COOKBOOK_ID } from "./helpers.jsx";
-import { useLang } from "./i18n.js";
+import { useLang, LANG_META } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
 import { FiltersDrawer } from "./filters.jsx";
@@ -391,6 +391,19 @@ function App() {
         return actualRank > cap ? { ...c, yourRole: viewAsRole } : c;
       });
   }, [userCookbooks, viewAsRole, isReallyAdmin]);
+
+  // When the active cookbook changes (or its language list does),
+  // make sure the cook's selected language is one of the
+  // cookbook's available ones. If not, fall back to the first
+  // available — typically English.
+  const { lang: currentLang2, setLang: setLangGlobal } = useLang();
+  useEffect(() => {
+    const active = effectiveUserCookbooks.find(c => c.id === activeCookbookId);
+    const langs = active?.languages || ["en"];
+    if (!langs.includes(currentLang2)) {
+      setLangGlobal(langs[0] || "en");
+    }
+  }, [activeCookbookId, effectiveUserCookbooks, currentLang2, setLangGlobal]);
 
   // ─── Simplified view ───
   // Accessibility-first mode for less technical cooks (especially
@@ -1100,7 +1113,11 @@ function App() {
       </TweaksPanel>
 
       <BackToTopFab />
-      <LanguageFab />
+      <LanguageFab
+        availableLangs={
+          effectiveUserCookbooks.find(c => c.id === activeCookbookId)?.languages || ["en"]
+        }
+      />
     </>
   );
 }
@@ -1441,46 +1458,111 @@ function BackToTopFab() {
   );
 }
 
-function LanguageFab() {
-  const { lang, setLang, t } = useLang();
-  const isPolish = lang === "pl";
-  const next = isPolish ? "en" : "pl";
-  // useLang() is backed by useStorage, which means each component that
-  // calls it gets an independent React state copy. Persisting to
-  // localStorage works but live updates don't propagate across the
-  // tree on toggle, so a full reload is the simplest way to flip every
-  // surface in one beat. View routing now persists too, so the user
-  // lands back on the same page.
-  const flipLanguage = () => {
-    setLang(next);
-    // Defer reload one tick so localStorage is committed first.
+// Simplified SVG flags. One per supported lang. Drawn in a 60x36
+// viewBox so they line up identically inside the FAB.
+const FLAG_SVGS = {
+  en: (
+    <svg viewBox="0 0 60 36" width="22" height="14" aria-hidden="true">
+      <rect width="20" height="36" fill="#d52b1e" />
+      <rect x="20" width="20" height="36" fill="#fff" />
+      <rect x="40" width="20" height="36" fill="#d52b1e" />
+      <path d="M30 10 L31.4 13.4 L34.4 12.9 L32.9 15.9 L35.9 16.9 L33.4 18.9 L33.9 20.9 L30.9 20.4 L30.4 22.9 L30 22.9 L29.6 22.9 L29.1 20.4 L26.1 20.9 L26.6 18.9 L24.1 16.9 L27.1 15.9 L25.6 12.9 L28.6 13.4 Z" fill="#d52b1e" />
+    </svg>
+  ),
+  pl: (
+    <svg viewBox="0 0 60 36" width="22" height="14" aria-hidden="true">
+      <rect width="60" height="18" fill="#fff" />
+      <rect y="18" width="60" height="18" fill="#dc143c" />
+    </svg>
+  ),
+  es: (
+    <svg viewBox="0 0 60 36" width="22" height="14" aria-hidden="true">
+      <rect width="60" height="9" fill="#aa151b" />
+      <rect y="9" width="60" height="18" fill="#f1bf00" />
+      <rect y="27" width="60" height="9" fill="#aa151b" />
+    </svg>
+  ),
+  el: (
+    <svg viewBox="0 0 60 36" width="22" height="14" aria-hidden="true">
+      <rect width="60" height="36" fill="#0d5eaf" />
+      <rect y="4" width="60" height="4" fill="#fff" />
+      <rect y="12" width="60" height="4" fill="#fff" />
+      <rect y="20" width="60" height="4" fill="#fff" />
+      <rect y="28" width="60" height="4" fill="#fff" />
+      <rect width="22" height="20" fill="#0d5eaf" />
+      <rect x="9" width="4" height="20" fill="#fff" />
+      <rect y="8" width="22" height="4" fill="#fff" />
+    </svg>
+  ),
+};
+
+function LanguageFab({ availableLangs = ["en"] }) {
+  const { lang, setLang } = useLang();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open]);
+
+  // If the active cookbook only has one language, the FAB has
+  // nothing to switch to. Hide it.
+  if (!availableLangs || availableLangs.length < 2) return null;
+
+  // useLang is backed by useStorage; React state copies don't
+  // propagate live across siblings. A reload is the simplest way
+  // to re-render every surface with the new language.
+  const switchTo = (code) => {
+    if (code === lang) { setOpen(false); return; }
+    setLang(code);
     setTimeout(() => window.location.reload(), 50);
   };
-  // Polish flag (white over red) shows when site is English (tap to switch
-  // to Polish); Canadian (white red maple) shows when site is Polish.
-  const PolishFlag = (
-    <svg viewBox="0 0 60 38" width="22" height="14" aria-hidden="true">
-      <rect width="60" height="19" fill="#fff" />
-      <rect y="19" width="60" height="19" fill="#dc143c" />
-    </svg>
-  );
-  const CanadianFlag = (
-    <svg viewBox="0 0 60 30" width="22" height="14" aria-hidden="true">
-      <rect width="20" height="30" fill="#d52b1e" />
-      <rect x="20" width="20" height="30" fill="#fff" />
-      <rect x="40" width="20" height="30" fill="#d52b1e" />
-      <path d="M30 8 L31.5 11.5 L34.5 11 L33 14 L36 15 L33.5 17 L34 19 L31 18.5 L30.5 21 L30 21 L29.5 21 L29 18.5 L26 19 L26.5 17 L24 15 L27 14 L25.5 11 L28.5 11.5 Z" fill="#d52b1e" />
-    </svg>
-  );
+
+  // Two-language cookbooks → single-tap toggle (no menu).
+  if (availableLangs.length === 2) {
+    const other = availableLangs.find(l => l !== lang) || availableLangs[0];
+    return (
+      <button
+        className="lang-fab"
+        onClick={() => switchTo(other)}
+        aria-label={`Switch to ${LANG_META[other]?.label || other}`}
+        title={`Switch to ${LANG_META[other]?.label || other}`}
+      >
+        {FLAG_SVGS[other] || FLAG_SVGS.en}
+      </button>
+    );
+  }
+
+  // 3-language cookbooks → popup menu with the languages.
   return (
-    <button
-      className="lang-fab"
-      onClick={flipLanguage}
-      aria-label={isPolish ? t("switchToEN") : t("switchToPL")}
-      title={isPolish ? t("switchToEN") : t("switchToPL")}
-    >
-      {isPolish ? CanadianFlag : PolishFlag}
-    </button>
+    <div className="lang-fab-wrap" ref={ref}>
+      {open && (
+        <div className="lang-fab-menu" role="menu">
+          {availableLangs.map(code => (
+            <button
+              key={code}
+              type="button"
+              className={`lang-fab-menu-item ${code === lang ? "active" : ""}`}
+              onClick={() => switchTo(code)}
+            >
+              <span className="flag">{FLAG_SVGS[code] || FLAG_SVGS.en}</span>
+              <span className="label">{LANG_META[code]?.label || code}</span>
+              {code === lang && <span className="dot" aria-hidden>•</span>}
+            </button>
+          ))}
+        </div>
+      )}
+      <button
+        className="lang-fab"
+        onClick={() => setOpen(o => !o)}
+        aria-label="Switch language"
+        title="Switch language"
+      >
+        {FLAG_SVGS[lang] || FLAG_SVGS.en}
+      </button>
+    </div>
   );
 }
 

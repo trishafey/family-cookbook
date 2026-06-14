@@ -436,6 +436,19 @@ function lookup(table, value, lang) {
   return table[value] || value;
 }
 
+// Lang code → human label + locale string. Used by the language
+// FAB to render names and by toLocaleDateString for proper
+// weekday/date formatting. UI chrome translations only exist for
+// en + pl right now; recipe content translates for every entry
+// here via the worker's OpenAI pipeline.
+export const LANG_META = {
+  en: { label: "English",  locale: "en-US" },
+  pl: { label: "Polski",   locale: "pl-PL" },
+  es: { label: "Español",  locale: "es-ES" },
+  el: { label: "Ελληνικά", locale: "el-GR" },
+};
+export const SUPPORTED_LANGS = Object.keys(LANG_META);
+
 export function useLang() {
   const [lang, setLang] = useStorage("lang", "en");
   const t = (key) => S[key]?.[lang] || S[key]?.en || key;
@@ -451,8 +464,6 @@ export function useLang() {
     const en = ORIGIN_LABEL[v] || v;
     return lang === "pl" ? (ORIGIN_PL[en] || en) : en;
   };
-  // Pass through to toLocaleDateString so weekday names ("Friday") and
-  // date formats ("May 28, 2026") follow the chosen language.
-  const locale = lang === "pl" ? "pl-PL" : "en-US";
+  const locale = LANG_META[lang]?.locale || "en-US";
   return { lang, setLang, t, tDiet, tOccasion, tCourse, tDifficulty, tPrecision, tOrigin, locale };
 }
