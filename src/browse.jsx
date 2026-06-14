@@ -184,7 +184,7 @@ function renderCookbookTitle(name) {
   );
 }
 
-export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab, simpleMode, activeCookbookName }) {
+export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab, simpleMode, activeCookbookName, canWriteActive = true }) {
   const { t, tCourse, tOccasion, tDiet, tOrigin, lang } = useLang();
 
   // Active filter chips — origins lead the row because it's the
@@ -239,7 +239,9 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
             mobilePlaceholder={t("searchPlaceholderShort")}
             filtersLabel={t("filters")}
           />
-          <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> {t("addRecipe")}</button>
+          {canWriteActive && (
+            <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> {t("addRecipe")}</button>
+          )}
           {!simpleMode && (
             <button className="btn" onClick={openMealBuilder}><Icon name="build" /> {t("buildMeal")}</button>
           )}
@@ -316,10 +318,16 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
               <div className="empty-cookbook">
                 <Icon name="book" size={48} />
                 <div className="t">No recipes here yet.</div>
-                <div className="s">This cookbook is empty. Add the first recipe to get started.</div>
-                <button className="btn primary" onClick={openAddRecipe}>
-                  <Icon name="plus" size={14} /> Add a recipe
-                </button>
+                <div className="s">
+                  {canWriteActive
+                    ? "This cookbook is empty. Add the first recipe to get started."
+                    : "This cookbook is empty. Only owners and editors can add recipes — ask whoever invited you."}
+                </div>
+                {canWriteActive && (
+                  <button className="btn primary" onClick={openAddRecipe}>
+                    <Icon name="plus" size={14} /> Add a recipe
+                  </button>
+                )}
               </div>
             ) : (
               <div style={{ padding: 80, textAlign: "center", color: "var(--ink-3)" }}>
