@@ -685,12 +685,16 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
         const memberOfFamily = cookbooks.some(c =>
           looksLikeFamily(c) && ["owner", "editor", "viewer"].includes(c.yourRole)
         );
-        // Cookbooks the cook can invite people into = owns (or
-        // admin-access), but only if more than just their lone
-        // personal one. Excludes the personal pattern so the
-        // picker default isn't "invite to my personal."
+        // Cookbooks the cook can meaningfully invite people into
+        // = ones they EXPLICITLY own (yourRole === "owner"),
+        // minus their personal cookbook. Excluded:
+        //  - "personal-…" / "<Name>'s Cookbook" (solo by design)
+        //  - cookbooks they only see via system-admin access —
+        //    Patricia shouldn't be silently inviting friends to
+        //    the Argiroff family's cookbook from her own
+        //    onboarding banner.
         const invitable = cookbooks.filter(c =>
-          (c.yourRole === "owner" || c.yourRole === "admin")
+          c.yourRole === "owner"
           && !/^personal-/i.test(c.id)
           && !/'s Cookbook$/i.test(c.name)
         );
