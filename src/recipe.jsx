@@ -1294,6 +1294,13 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
           <Icon name="share" /> {t("shareRecipe")}
         </button>
         {authEmail && (
+          <AddToCookbookButton
+            userCookbooks={userCookbooks}
+            activeCookbookId={activeCookbookId}
+            onCopyToCookbook={onCopyToCookbook}
+          />
+        )}
+        {authEmail && (
           <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
             <Icon name="edit" /> {t("edit")}
           </button>
@@ -1391,6 +1398,13 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
         <button className="btn ghost" onClick={() => shareRecipe(recipe)}>
           <Icon name="share" /> {t("shareRecipe")}
         </button>
+        {authEmail && (
+          <AddToCookbookButton
+            userCookbooks={userCookbooks}
+            activeCookbookId={activeCookbookId}
+            onCopyToCookbook={onCopyToCookbook}
+          />
+        )}
         {authEmail && (
           <button className="btn ghost" onClick={() => onEditRecipe(recipe)}>
             <Icon name="edit" /> {t("edit")}
