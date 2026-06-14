@@ -6,7 +6,7 @@
 // and delete (only when the cookbook has zero recipes).
 // Invitations + member management land in 4b-2.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon, signInUrl } from "./helpers.jsx";
 
 // Wrap a friendly note around the magic link so the inviter
