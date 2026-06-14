@@ -360,6 +360,12 @@ function App() {
   // switcher (hidden when there's only one), the cookbooks index,
   // and the active-cookbook validation below.
   const { cookbooks: userCookbooks } = useUserCookbooks(authEmail);
+  // What the cook can do with the currently active cookbook —
+  // drives whether "Add recipe" is offered. Viewers see no add
+  // button; backend would 403 anyway, this just keeps the UI
+  // honest.
+  const activeCookbookRole = userCookbooks.find(c => c.id === activeCookbookId)?.yourRole;
+  const canWriteActive = ["owner", "editor", "admin"].includes(activeCookbookRole);
   // Phase 4b-2 follow-up: profile gate. If first_name / last_name
   // aren't on file yet, the app renders the setup form before
   // anything else.
@@ -737,9 +743,11 @@ function App() {
                 onOpenMeal={() => setView("meal")}
               />
             )}
-            <button className={`btn primary sm ${view === "add" || view === "edit" ? "active" : ""}`} onClick={() => setView("add")} title={t("addRecipe")}>
-              <Icon name="plus" size={15} /> <span className="btn-label">{t("addRecipe")}</span>
-            </button>
+            {canWriteActive && (
+              <button className={`btn primary sm ${view === "add" || view === "edit" ? "active" : ""}`} onClick={() => setView("add")} title={t("addRecipe")}>
+                <Icon name="plus" size={15} /> <span className="btn-label">{t("addRecipe")}</span>
+              </button>
+            )}
             {authEmail ? (
               <AvatarMenu
                 email={authEmail}
@@ -826,6 +834,7 @@ function App() {
           favorites={favorites}
           toggleFavorite={toggleFavorite}
           openAddRecipe={() => setView("add")}
+          canWriteActive={canWriteActive}
           openMealBuilder={() => setView("meal")}
           openLab={() => setView("lab")}
           simpleMode={simpleMode}
@@ -1024,7 +1033,7 @@ function App() {
         authEmail={authEmail}
         simpleMode={simpleMode}
         onToggleSimpleMode={() => setSimpleMode(m => !m)}
-        onOpenAdd={() => setView("add")}
+        onOpenAdd={canWriteActive ? () => setView("add") : undefined}
         onOpenMeal={() => setView("meal")}
         onOpenLab={() => setView("lab")}
         onOpenAdminAIUsage={() => setView("admin-ai-usage")}
@@ -1231,10 +1240,12 @@ function MobileMenuDrawer({
         {!simpleMode && (
           <section className="mobile-menu-section">
             <div className="mobile-menu-section-title">{t("make") || "Make"}</div>
-            <button className={`mobile-menu-item primary ${currentView === "add" || currentView === "edit" ? "active" : ""}`} onClick={() => go(onOpenAdd)}>
-              <Icon name="plus" size={18} />
-              <span>{t("addRecipe")}</span>
-            </button>
+            {onOpenAdd && (
+              <button className={`mobile-menu-item primary ${currentView === "add" || currentView === "edit" ? "active" : ""}`} onClick={() => go(onOpenAdd)}>
+                <Icon name="plus" size={18} />
+                <span>{t("addRecipe")}</span>
+              </button>
+            )}
             <button className={`mobile-menu-item ${currentView === "meal" || currentView === "meal-plan" ? "active" : ""}`} onClick={() => go(onOpenMeal)}>
               <Icon name="build" size={18} />
               <span>{t("buildMeal")}</span>

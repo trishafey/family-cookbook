@@ -375,7 +375,9 @@ app.post("/api/admin/cookbooks/:id/invitations", async (c) => {
   if (!email) return c.json({ error: "not signed in" }, 401);
   const cookbookId = c.req.param("id");
   const role = await cookbookRole(c, cookbookId);
-  if (role !== "owner" && role !== "admin") return c.json({ error: "owner only" }, 403);
+  // Editors can invite people (alongside owners + admins) — only
+  // role changes + removals stay owner/admin-gated.
+  if (!["owner", "editor", "admin"].includes(role)) return c.json({ error: "editor or owner only" }, 403);
 
   const body = await c.req.json().catch(() => ({}));
   const inviteEmail = (body?.email || "").toString().trim().toLowerCase() || null;
@@ -439,7 +441,9 @@ app.get("/api/admin/cookbooks/:id/invitations", async (c) => {
   if (!email) return c.json({ error: "not signed in" }, 401);
   const cookbookId = c.req.param("id");
   const role = await cookbookRole(c, cookbookId);
-  if (role !== "owner" && role !== "admin") return c.json({ error: "owner only" }, 403);
+  // Editors see + manage invitations they (or other editors)
+  // issued; owners + admins likewise. Viewers blocked.
+  if (!["owner", "editor", "admin"].includes(role)) return c.json({ error: "editor or owner only" }, 403);
   const now = new Date().toISOString();
   const rows = await c.env.DB.prepare(
     `SELECT token, email, role, invited_by, created_at, expires_at
@@ -461,13 +465,14 @@ app.get("/api/admin/cookbooks/:id/invitations", async (c) => {
   });
 });
 
-// Revoke an invitation. Owner-only.
+// Revoke an invitation. Editor+ (an editor can clean up their
+// own outstanding invites; admins + owners can revoke anyone's).
 app.delete("/api/admin/cookbooks/:id/invitations/:token", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const cookbookId = c.req.param("id");
   const role = await cookbookRole(c, cookbookId);
-  if (role !== "owner" && role !== "admin") return c.json({ error: "owner only" }, 403);
+  if (!["owner", "editor", "admin"].includes(role)) return c.json({ error: "editor or owner only" }, 403);
   await c.env.DB.prepare(
     "DELETE FROM invitations WHERE cookbook_id = ? AND token = ?"
   ).bind(cookbookId, c.req.param("token")).run();

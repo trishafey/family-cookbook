@@ -263,7 +263,7 @@ function maskEmail(email) {
   return `${head}***@${domain}`;
 }
 
-function MembersSection({ cookbook, authEmail, isAdmin, onMembersChanged }) {
+function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers, onMembersChanged }) {
   const [members, setMembers] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -398,27 +398,36 @@ function MembersSection({ cookbook, authEmail, isAdmin, onMembersChanged }) {
               <div className="name">{m.displayName || (isAdmin ? m.email : maskEmail(m.email))}</div>
               {m.displayName && <div className="email">{isAdmin ? m.email : maskEmail(m.email)}</div>}
             </div>
-            <select
-              className="role-select"
-              value={m.role}
-              onChange={(e) => changeRole(m.email, e.target.value)}
-              disabled={m.email === authEmail && m.role === "owner"}
-              title={m.email === authEmail && m.role === "owner" ? "Promote someone else first to demote yourself" : "Change role"}
-            >
-              <option value="owner">owner</option>
-              <option value="editor">editor</option>
-              <option value="viewer">viewer</option>
-            </select>
-            <button
-              type="button"
-              className="btn ghost sm member-remove"
-              onClick={() => removeMember(m.email)}
-              disabled={m.email === authEmail && m.role === "owner"}
-              aria-label="Remove member"
-              title={m.email === authEmail && m.role === "owner" ? "Promote someone else first" : "Remove member"}
-            >
-              <Icon name="x" size={13} />
-            </button>
+            {canRemoveMembers ? (
+              <select
+                className="role-select"
+                value={m.role}
+                onChange={(e) => changeRole(m.email, e.target.value)}
+                disabled={m.email === authEmail && m.role === "owner"}
+                title={m.email === authEmail && m.role === "owner" ? "Promote someone else first to demote yourself" : "Change role"}
+              >
+                <option value="owner">owner</option>
+                <option value="editor">editor</option>
+                <option value="viewer">viewer</option>
+              </select>
+            ) : (
+              // Editor / viewer view — read-only role badge so the
+              // person can see who's an owner / editor / viewer
+              // without being able to change it.
+              <span className={`role-badge role-${m.role}`}>{m.role}</span>
+            )}
+            {canRemoveMembers && (
+              <button
+                type="button"
+                className="btn ghost sm member-remove"
+                onClick={() => removeMember(m.email)}
+                disabled={m.email === authEmail && m.role === "owner"}
+                aria-label="Remove member"
+                title={m.email === authEmail && m.role === "owner" ? "Promote someone else first" : "Remove member"}
+              >
+                <Icon name="x" size={13} />
+              </button>
+            )}
           </li>
         ))}
       </ul>
@@ -480,7 +489,13 @@ function MembersSection({ cookbook, authEmail, isAdmin, onMembersChanged }) {
 }
 
 function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, onSaved, onDeleted, onMembersChanged }) {
-  const [tab, setTab] = useState(initialTab || "settings");
+  // Settings tab + danger zone are owner / admin only — editors
+  // see Members tab only (they can invite, can't rename, can't
+  // delete). canSettings drives both the tab visibility and the
+  // form's read-only state.
+  const canSettings = cookbook.yourRole === "owner" || cookbook.yourRole === "admin" || isAdmin;
+  const canRemoveMembers = canSettings;
+  const [tab, setTab] = useState(initialTab || (canSettings ? "settings" : "members"));
   const [name, setName] = useState(cookbook.name);
   const [blurb, setBlurb] = useState(cookbook.blurb || "");
   const [visibility, setVisibility] = useState(cookbook.visibility);
@@ -542,11 +557,13 @@ function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, 
         <h2>{cookbook.name}</h2>
 
         <div className="tabbed-nav" role="tablist">
-          <button type="button" role="tab" aria-selected={tab === "settings"} className={`tab ${tab === "settings" ? "active" : ""}`} onClick={() => setTab("settings")}>Settings</button>
+          {canSettings && (
+            <button type="button" role="tab" aria-selected={tab === "settings"} className={`tab ${tab === "settings" ? "active" : ""}`} onClick={() => setTab("settings")}>Settings</button>
+          )}
           <button type="button" role="tab" aria-selected={tab === "members"} className={`tab ${tab === "members" ? "active" : ""}`} onClick={() => setTab("members")}>Members</button>
         </div>
 
-        {tab === "settings" && (
+        {tab === "settings" && canSettings && (
           <>
             <form onSubmit={submit}>
               <label className="modal-field">
@@ -597,7 +614,13 @@ function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, 
         )}
 
         {tab === "members" && (
-          <MembersSection cookbook={cookbook} authEmail={authEmail} isAdmin={isAdmin} onMembersChanged={onMembersChanged} />
+          <MembersSection
+            cookbook={cookbook}
+            authEmail={authEmail}
+            isAdmin={isAdmin}
+            canRemoveMembers={canRemoveMembers}
+            onMembersChanged={onMembersChanged}
+          />
         )}
       </div>
     </div>
@@ -686,15 +709,16 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
           looksLikeFamily(c) && ["owner", "editor", "viewer"].includes(c.yourRole)
         );
         // Cookbooks the cook can meaningfully invite people into
-        // = ones they EXPLICITLY own (yourRole === "owner"),
-        // minus their personal cookbook. Excluded:
+        // = ones where they're explicitly owner OR editor (both
+        // can issue invites; only owners can remove or change
+        // roles). Excludes:
         //  - "personal-…" / "<Name>'s Cookbook" (solo by design)
         //  - cookbooks they only see via system-admin access —
-        //    Patricia shouldn't be silently inviting friends to
-        //    the Argiroff family's cookbook from her own
-        //    onboarding banner.
+        //    inviting from someone else's cookbook should happen
+        //    through the explicit admin tools, not the onboarding
+        //    banner.
         const invitable = cookbooks.filter(c =>
-          c.yourRole === "owner"
+          (c.yourRole === "owner" || c.yourRole === "editor")
           && !/^personal-/i.test(c.id)
           && !/'s Cookbook$/i.test(c.name)
         );
@@ -762,7 +786,13 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
         });
         const renderCard = (cb) => {
           const isOwner = cb.yourRole === "owner";
-          const canManage = isOwner || cb.yourRole === "admin";
+          // Editors get the gear too — it opens the Members tab
+          // so they can invite people. Settings tab + danger zone
+          // are hidden for them inside the modal.
+          const canManage =
+            isOwner ||
+            cb.yourRole === "editor" ||
+            cb.yourRole === "admin";
           return (
             <div
               key={cb.id}
