@@ -2320,6 +2320,66 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   margin-top: 14px;
 }
 .cookbook-modal .admin-toggle input { margin: 0; }
+/* Invite people section inside the Create cookbook modal. */
+.cookbook-modal .create-invite-list {
+  list-style: none; padding: 0; margin: 0 0 10px;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  overflow: hidden;
+}
+.cookbook-modal .create-invite-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
+}
+.cookbook-modal .create-invite-row:last-child { border-bottom: 0; }
+.cookbook-modal .create-invite-row .who {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+}
+.cookbook-modal .create-invite-row .role-select {
+  font-family: var(--mono); font-size: 11px;
+  background: var(--paper); border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+}
+.cookbook-modal .create-network { margin-bottom: 10px; }
+.cookbook-modal .create-network .caret { color: var(--ink-3); font-size: 10px; }
+.cookbook-modal .create-network-grid {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 10px;
+  padding: 10px;
+  background: var(--paper-2);
+  border-radius: var(--radius);
+}
+.cookbook-modal .network-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 10px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: var(--serif); font-size: 13px;
+  color: var(--ink-2);
+}
+.cookbook-modal .network-chip:hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--paper));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.cookbook-modal .create-manual-row {
+  display: flex; gap: 6px;
+  margin-top: 4px;
+}
+.cookbook-modal .create-manual-row input {
+  flex: 1; padding: 8px 10px;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  font: inherit; font-size: 14px;
+  background: var(--paper);
+}
+
 .cookbook-modal .modal-error {
   margin-top: 12px;
   padding: 10px 12px;
@@ -2360,12 +2420,15 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cookbook-modal .btn.danger:hover { background: #7a2929; border-color: #7a2929; }
 
 /* Tabs inside cookbook settings — Settings / Members. */
-.cookbook-modal .tabbed-nav {
+/* Shared tabbed-nav — used in the cookbook settings modal AND
+   in the admin page. Top-level so any consumer gets the
+   underline-on-active style for free. */
+.tabbed-nav {
   display: flex; gap: 4px;
   border-bottom: 1px solid var(--rule);
   margin: 16px 0 20px;
 }
-.cookbook-modal .tabbed-nav .tab {
+.tabbed-nav .tab {
   background: transparent; border: 0; cursor: pointer;
   padding: 10px 14px 12px;
   font-family: var(--mono); font-size: 11px;
@@ -2374,9 +2437,22 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
 }
-.cookbook-modal .tabbed-nav .tab:hover { color: var(--ink); }
-.cookbook-modal .tabbed-nav .tab.active {
+.tabbed-nav .tab:hover { color: var(--ink); }
+.tabbed-nav .tab.active {
   color: var(--accent); border-bottom-color: var(--accent);
+}
+
+/* Admin page tabs sit in a roomier surface than the modal —
+   bump the spacing + type size so they breathe more. */
+.tabbed-nav.admin-tabs {
+  gap: 24px;
+  margin: 0 0 28px;
+}
+.tabbed-nav.admin-tabs .tab {
+  padding: 14px 4px 16px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  border-bottom-width: 3px;
 }
 
 /* Members section */
@@ -2799,7 +2875,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 
 /* ─── Admin page (tabbed: Users / View as / AI usage) ─── */
-.admin-tabs { margin-bottom: 20px; }
+/* .tabbed-nav.admin-tabs handles spacing — see above. */
 .admin-tab-intro {
   font-family: var(--serif); font-size: 15px; color: var(--ink-2);
   margin: 0 0 24px; line-height: 1.5;

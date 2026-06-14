@@ -3534,6 +3534,34 @@ app.delete("/api/admin/lab/experiments/:id", async (c) => {
 // First/last name + phone. Frontend gates the app on
 // profileComplete so first-time cooks can't slip through
 // without filling it in.
+
+// "Network" — everyone the cook shares at least one cookbook
+// with, used as the suggested-invitees list when creating a new
+// cookbook. Cheap one-query lookup that joins members against
+// the cook's own memberships. Self is excluded.
+app.get("/api/admin/me/network", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ network: [] });
+  const rows = await c.env.DB.prepare(`
+    SELECT DISTINCT m2.user_email AS email,
+           u.display_name, u.first_name, u.last_name
+    FROM cookbook_members m1
+    JOIN cookbook_members m2
+      ON m2.cookbook_id = m1.cookbook_id AND m2.user_email != m1.user_email
+    LEFT JOIN users u ON u.email = m2.user_email
+    WHERE m1.user_email = ?
+    ORDER BY u.display_name COLLATE NOCASE
+  `).bind(email).all();
+  return c.json({
+    network: (rows.results || []).map(r => ({
+      email: r.email,
+      displayName: r.display_name || null,
+      firstName: r.first_name || null,
+      lastName: r.last_name || null,
+    })),
+  });
+});
+
 app.get("/api/admin/me/profile", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
