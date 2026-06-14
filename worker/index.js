@@ -827,19 +827,37 @@ async function ensureUserBootstrap(c) {
     "SELECT email, display_name FROM users WHERE email = ?"
   ).bind(email).first();
 
+  // Normalize a raw email local-part into a friendly display
+  // name — "kay.fejdasz" → "Kay Fejdasz". Used both when minting
+  // a brand-new user row AND when a pre-seeded row exists with a
+  // NULL display_name (the family migration left these empty,
+  // and that NULL leaked into auto-bootstrap cookbook names like
+  // "kay.fejdasz's Cookbook" before this normalisation ran).
+  const localPart = email.split("@")[0];
+  const normaliseLocal = () => localPart.replace(/[._-]+/g, " ").replace(/\b\w/g, x => x.toUpperCase());
+
   let displayName = userRow?.display_name || null;
   if (!userRow) {
     // First-ever sign-in: insert with a sensible default display
-    // name pulled from the email's local-part. tier=full keeps
-    // behaviour open; status='pending' means the cook lands on
-    // the "waiting for approval" screen until Patricia (or any
-    // admin) approves them via /admin/users. Invitations
-    // auto-approve in the accept handler so a vouched cook
-    // doesn't sit in the queue.
-    displayName = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, x => x.toUpperCase());
+    // name. tier=full keeps behaviour open; status='pending'
+    // means the cook lands on the "waiting for approval" screen
+    // until an admin approves them. Invitations auto-approve in
+    // the accept handler so a vouched cook doesn't sit in the
+    // queue.
+    displayName = normaliseLocal();
     await c.env.DB.prepare(
       "INSERT INTO users (email, display_name, tier, status, created_at, last_seen_at) VALUES (?, ?, 'full', 'pending', ?, ?)"
     ).bind(email, displayName, now, now).run().catch(() => {});
+  } else if (!displayName) {
+    // Pre-seeded user signing in for the first time post-deploy
+    // (or a row whose display_name never got populated). Backfill
+    // a friendly name so the cookbook bootstrap below names the
+    // personal cookbook properly. They'll overwrite this with
+    // their first/last name in the profile gate next.
+    displayName = normaliseLocal();
+    await c.env.DB.prepare(
+      "UPDATE users SET display_name = ?, last_seen_at = ? WHERE email = ?"
+    ).bind(displayName, now, email).run().catch(() => {});
   } else {
     // Touch last_seen_at best-effort — never block the request.
     c.executionCtx.waitUntil(
@@ -848,44 +866,29 @@ async function ensureUserBootstrap(c) {
     );
   }
 
-  // Phase 4b-4: every cook gets two cookbooks on first sign-in:
-  //   - PERSONAL  ("<Name>'s Cookbook") for solo recipes
-  //   - FAMILY    ("<Name>'s Family Cookbook") for the people
-  //                they invite into their household
-  // Patricia already owns the BOOTSTRAP family cookbook ("Heirloom
-  // Family Cookbook") so the structural family creation is skipped
-  // for her — we inspect owned cookbooks before minting either.
+  // Phase 4b-5 reshaped per Patricia's feedback: bootstrap ONLY
+  // a personal cookbook. Family cookbooks are explicit — the
+  // cook either creates one in My Cookbooks or accepts an invite
+  // to someone else's. The onboarding banner on the cookbooks
+  // index nudges new cooks who don't yet have a family cookbook
+  // to create or join one.
   const owned = (await c.env.DB.prepare(
-    "SELECT id, name FROM cookbooks WHERE owner_email = ?"
+    "SELECT id FROM cookbooks WHERE owner_email = ?"
   ).bind(email).all()).results || [];
-  const looksLikePersonal = (c) => /^personal-/i.test(c.id) || /'s Cookbook$/i.test(c.name);
-  const looksLikeFamily   = (c) => /family/i.test(c.id) || /Family Cookbook/i.test(c.name);
-  const hasPersonal = owned.some(looksLikePersonal);
-  const hasFamily   = owned.some(looksLikeFamily);
+  const hasPersonal = owned.some(c => /^personal-/i.test(c.id));
+  if (hasPersonal) return;
 
-  const localPart = email.split("@")[0];
   const baseSlug = slugifyServer(displayName || localPart) || "cook";
   const personName = displayName || localPart;
-
-  // Phase 4b-5 fix: deterministic IDs so concurrent calls to
-  // ensureUserBootstrap can't race and create duplicate personal
-  // /family pairs. The email is hashed (SHA-256, first 12 hex
-  // chars) so the IDs are stable per-user but don't reveal the
-  // email in URLs.
   const emailHash = await sha256Hex(email);
-  const insertCookbook = async (kind /* 'personal' | 'family' */, name) => {
-    const id = `${kind}-${emailHash.slice(0, 12)}`;
-    const slug = `${baseSlug}-${kind}-${emailHash.slice(0, 6)}`;
-    await c.env.DB.prepare(
-      "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?)"
-    ).bind(id, email, name, slug, now, now).run().catch(() => {});
-    await c.env.DB.prepare(
-      "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
-    ).bind(id, email, now).run().catch(() => {});
-  };
-
-  if (!hasPersonal) await insertCookbook("personal", `${personName}'s Cookbook`);
-  if (!hasFamily)   await insertCookbook("family",   `${personName}'s Family Cookbook`);
+  const id = `personal-${emailHash.slice(0, 12)}`;
+  const slug = `${baseSlug}-personal-${emailHash.slice(0, 6)}`;
+  await c.env.DB.prepare(
+    "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?)"
+  ).bind(id, email, `${personName}'s Cookbook`, slug, now, now).run().catch(() => {});
+  await c.env.DB.prepare(
+    "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
+  ).bind(id, email, now).run().catch(() => {});
 }
 
 async function sha256Hex(s) {
@@ -3658,17 +3661,22 @@ app.put("/api/admin/me/profile", async (c) => {
   ).bind(firstName, lastName, phone || null, displayName, email).run();
 
   // Rename any cookbook this cook owns whose name matches the
-  // bootstrap pattern keyed off the old display name. Safe — if
-  // the cook explicitly renamed their cookbook, it won't match
-  // the pattern. Only the auto-minted "<X>'s [Family] Cookbook"
-  // labels get rewritten.
-  if (oldDisplayName) {
+  // bootstrap pattern keyed off the old display name OR the raw
+  // email local-part. The local-part case catches pre-seeded
+  // family-member rows whose display_name was NULL when the
+  // cookbook bootstrap ran (e.g. "kay.fejdasz's Cookbook" minted
+  // before her display_name was backfilled). Only the auto-minted
+  // "<X>'s [Family] Cookbook" labels get rewritten — explicit
+  // renames won't match.
+  const localPart = email.split("@")[0];
+  const candidates = [oldDisplayName, localPart].filter(Boolean);
+  for (const c0 of candidates) {
     await c.env.DB.prepare(
       "UPDATE cookbooks SET name = ? WHERE owner_email = ? AND name = ?"
-    ).bind(`${firstName}'s Cookbook`, email, `${oldDisplayName}'s Cookbook`).run().catch(() => {});
+    ).bind(`${firstName}'s Cookbook`, email, `${c0}'s Cookbook`).run().catch(() => {});
     await c.env.DB.prepare(
       "UPDATE cookbooks SET name = ? WHERE owner_email = ? AND name = ?"
-    ).bind(`${firstName}'s Family Cookbook`, email, `${oldDisplayName}'s Family Cookbook`).run().catch(() => {});
+    ).bind(`${firstName}'s Family Cookbook`, email, `${c0}'s Family Cookbook`).run().catch(() => {});
   }
 
   return c.json({

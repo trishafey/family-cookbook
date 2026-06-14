@@ -643,27 +643,56 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
           structurally so it works for any cook, not just
           Patricia. Dismissable, but reappears across devices
           until they've actually invited someone (4b-5). */}
-      {!familyPromptDismissed && (() => {
-        const family = cookbooks.find(c =>
-          (/family/i.test(c.id) || /Family Cookbook/i.test(c.name)) &&
-          c.yourRole === "owner"
+      {!familyPromptDismissed && cookbooks.length > 0 && (() => {
+        // Three states:
+        //  - Owns a family cookbook → prompt to invite people into it.
+        //  - Member of any family cookbook → no prompt (they're set).
+        //  - Not in a family cookbook at all → prompt to create or
+        //    accept an invite to one.
+        const looksLikeFamily = (c) =>
+          /family/i.test(c.id) || /Family Cookbook/i.test(c.name);
+        const ownedFamily = cookbooks.find(c => looksLikeFamily(c) && c.yourRole === "owner");
+        const memberOfFamily = cookbooks.some(c =>
+          looksLikeFamily(c) && ["owner", "editor", "viewer"].includes(c.yourRole)
         );
-        if (!family) return null;
-        return (
-          <div className="onboarding-prompt">
-            <div className="t">
-              <div className="eyebrow">Get started</div>
-              <h3>Invite your family to {family.name}</h3>
-              <p>Family cookbooks shine when they're shared. Send an invite link by email — they'll join with viewer or editor access.</p>
+
+        if (ownedFamily) {
+          return (
+            <div className="onboarding-prompt">
+              <div className="t">
+                <div className="eyebrow">Get started</div>
+                <h3>Invite your family to {ownedFamily.name}</h3>
+                <p>Family cookbooks shine when they're shared. Send an invite link — they'll join with viewer or editor access.</p>
+              </div>
+              <div className="actions">
+                <button className="btn primary" onClick={() => setEditing({ cookbook: ownedFamily, tab: "members" })}>
+                  <Icon name="plus" size={14} /> Invite people
+                </button>
+                <button className="btn ghost sm" onClick={dismissFamilyPrompt}>Dismiss</button>
+              </div>
             </div>
-            <div className="actions">
-              <button className="btn primary" onClick={() => setEditing({ cookbook: family, tab: "members" })}>
-                <Icon name="plus" size={14} /> Invite people
-              </button>
-              <button className="btn ghost sm" onClick={dismissFamilyPrompt}>Dismiss</button>
+          );
+        }
+
+        if (!memberOfFamily) {
+          return (
+            <div className="onboarding-prompt">
+              <div className="t">
+                <div className="eyebrow">Get started</div>
+                <h3>Start a family cookbook</h3>
+                <p>You're only in your personal cookbook so far. Make a family cookbook to share recipes with the people you cook with — or wait for an invite from someone who already has one.</p>
+              </div>
+              <div className="actions">
+                <button className="btn primary" onClick={() => setCreateOpen(true)}>
+                  <Icon name="plus" size={14} /> Create a family cookbook
+                </button>
+                <button className="btn ghost sm" onClick={dismissFamilyPrompt}>Dismiss</button>
+              </div>
             </div>
-          </div>
-        );
+          );
+        }
+
+        return null;
       })()}
 
       {loading ? (

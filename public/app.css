@@ -399,20 +399,17 @@ h4 { font-size: 17px; line-height: 1.3; }
 }
 .search.collapsed:hover .sg-glass,
 .search-wrap:not(.collapsed):not(.home-search-wrap) .search .sg-glass,
-.home-search:hover .sg-glass,
-.home-search:focus-within .sg-glass {
+.home-search:hover .sg-glass {
   animation: ic-glassout .45s ease forwards;
 }
 .search.collapsed:hover .sg-bloom,
 .search-wrap:not(.collapsed):not(.home-search-wrap) .search .sg-bloom,
-.home-search:hover .sg-bloom,
-.home-search:focus-within .sg-bloom {
+.home-search:hover .sg-bloom {
   animation: ic-glassbloom .5s ease forwards;
 }
 .search.collapsed:hover .s-handleleaf,
 .search-wrap:not(.collapsed):not(.home-search-wrap) .search .s-handleleaf,
-.home-search:hover .s-handleleaf,
-.home-search:focus-within .s-handleleaf {
+.home-search:hover .s-handleleaf {
   animation: ic-handleleaf .55s ease forwards;
 }
 @keyframes ic-glassout { to { opacity: 0; transform: scale(.4); } }
