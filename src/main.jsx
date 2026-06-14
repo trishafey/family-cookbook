@@ -912,6 +912,9 @@ function App() {
         onOpenAdminUsers={profile?.isAdmin ? () => setView("admin-users") : undefined}
         isSystemAdmin={!!profile?.isAdmin}
         pendingCount={pendingCount}
+        cookbooks={userCookbooks}
+        activeCookbookId={activeCookbookId}
+        onSwitchCookbook={(id) => { setActiveCookbookId(id); backToBrowse(); }}
         currentView={view}
         selectionCount={selection.length}
       />
@@ -1007,6 +1010,7 @@ function MobileMenuDrawer({
   onOpenAdd, onOpenMeal, onOpenLab, onOpenAdminAIUsage,
   onOpenMyCookbooks, onOpenSettings, onOpenAdminUsers,
   isSystemAdmin, pendingCount = 0,
+  cookbooks = [], activeCookbookId, onSwitchCookbook,
   currentView,
   selectionCount,
 }) {
@@ -1037,6 +1041,27 @@ function MobileMenuDrawer({
             <Icon name="x" size={18} />
           </button>
         </header>
+
+        {/* Cookbook switcher — replaces the top-nav inline dropdown
+            on mobile (hidden via CSS at this breakpoint). Renders
+            only when the cook is a member of 2+ cookbooks so a
+            single-cookbook user never sees an empty pick list. */}
+        {authEmail && cookbooks && cookbooks.length >= 2 && onSwitchCookbook && (
+          <section className="mobile-menu-section">
+            <div className="mobile-menu-section-title">Cookbook</div>
+            {cookbooks.map(cb => (
+              <button
+                key={cb.id}
+                className={`mobile-menu-item ${cb.id === activeCookbookId ? "active" : ""}`}
+                onClick={() => go(() => onSwitchCookbook(cb.id))}
+              >
+                <Icon name="book" size={18} />
+                <span>{cb.name}</span>
+                {cb.id === activeCookbookId && <span className="badge">on</span>}
+              </button>
+            ))}
+          </section>
+        )}
 
         {!simpleMode && (
           <section className="mobile-menu-section">

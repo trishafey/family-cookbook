@@ -155,6 +155,9 @@ h4 { font-size: 17px; line-height: 1.3; }
   .nav-inner .search { max-width: 100%; }
   .nav-inner .search.collapsed { max-width: 56px; }
   .nav-inner .nav-actions { display: none; }
+  /* Switcher moves into the hamburger menu on mobile so the
+     top row stays as brand + search + hamburger. */
+  .nav-inner .cookbook-switcher { display: none; }
   .nav-inner .nav-hamburger {
     display: flex; align-items: center; justify-content: center;
     position: relative;
