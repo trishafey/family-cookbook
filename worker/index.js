@@ -68,6 +68,14 @@ app.get("/api/admin/cookbooks", async (c) => {
   // Guarantee the cook has a users row + personal + family
   // cookbook before we read membership. Idempotent.
   await ensureUserBootstrap(c);
+  // Self-heal: the display_order column is added by migration
+  // 0017. If a deploy beats the migration runner (or the runner
+  // never fires), this ALTER ensures the rest of the handler can
+  // still SELECT m.display_order. Silently ignored once the
+  // column exists.
+  await c.env.DB.prepare(
+    "ALTER TABLE cookbook_members ADD COLUMN display_order INTEGER"
+  ).run().catch(() => {});
   const admin = await isAdmin(c);
 
   // Admins see every cookbook (member or not). For non-admins,
@@ -186,6 +194,9 @@ app.put("/api/admin/cookbooks/order", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   await ensureUserBootstrap(c);
+  await c.env.DB.prepare(
+    "ALTER TABLE cookbook_members ADD COLUMN display_order INTEGER"
+  ).run().catch(() => {});
   const body = await c.req.json().catch(() => ({}));
   let ids = Array.isArray(body?.orderedIds) ? body.orderedIds.filter(x => typeof x === "string") : null;
   const defaultId = typeof body?.defaultId === "string" ? body.defaultId : null;
