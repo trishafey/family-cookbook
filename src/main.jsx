@@ -396,10 +396,18 @@ function App() {
   // make sure the cook's selected language is one of the
   // cookbook's available ones. If not, fall back to the first
   // available — typically English.
+  //
+  // Guard: skip when the active cookbook hasn't loaded yet
+  // (e.g. on first paint, before /api/admin/cookbooks resolves).
+  // Otherwise we'd see "no cookbook found → default to [en] →
+  // reset" and immediately stomp on whatever the cook just
+  // picked from the FAB.
   const { lang: currentLang2, setLang: setLangGlobal } = useLang();
   useEffect(() => {
+    if (!effectiveUserCookbooks || effectiveUserCookbooks.length === 0) return;
     const active = effectiveUserCookbooks.find(c => c.id === activeCookbookId);
-    const langs = active?.languages || ["en"];
+    if (!active) return;
+    const langs = active.languages || ["en"];
     if (!langs.includes(currentLang2)) {
       setLangGlobal(langs[0] || "en");
     }
