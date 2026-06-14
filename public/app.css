@@ -995,7 +995,8 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 .lang-fab:hover { transform: scale(1.06); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18); background: var(--paper); }
-.lang-fab svg {
+.lang-fab svg,
+.lang-fab img {
   border-radius: 2px; overflow: hidden;
   border: 1px solid var(--rule);
 }
@@ -1028,7 +1029,8 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .lang-fab-menu-item:hover { background: var(--paper-2); }
 .lang-fab-menu-item.active { color: var(--accent); }
-.lang-fab-menu-item .flag svg {
+.lang-fab-menu-item .flag svg,
+.lang-fab-menu-item .flag img {
   border-radius: 2px; overflow: hidden; border: 1px solid var(--rule);
   display: block;
 }

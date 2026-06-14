@@ -1497,50 +1497,27 @@ function BackToTopFab() {
   );
 }
 
-// Simplified SVG flags. One per supported lang. Drawn in a 60x36
-// viewBox so they line up identically inside the FAB.
-const FLAG_SVGS = {
-  en: (
-    <svg viewBox="0 0 60 36" width="22" height="14" aria-hidden="true">
-      <rect width="20" height="36" fill="#d52b1e" />
-      <rect x="20" width="20" height="36" fill="#fff" />
-      <rect x="40" width="20" height="36" fill="#d52b1e" />
-      <path d="M30 10 L31.4 13.4 L34.4 12.9 L32.9 15.9 L35.9 16.9 L33.4 18.9 L33.9 20.9 L30.9 20.4 L30.4 22.9 L30 22.9 L29.6 22.9 L29.1 20.4 L26.1 20.9 L26.6 18.9 L24.1 16.9 L27.1 15.9 L25.6 12.9 L28.6 13.4 Z" fill="#d52b1e" />
-    </svg>
-  ),
-  pl: (
-    <svg viewBox="0 0 60 36" width="22" height="14" aria-hidden="true">
-      <rect width="60" height="18" fill="#fff" />
-      <rect y="18" width="60" height="18" fill="#dc143c" />
-    </svg>
-  ),
-  es: (
-    <svg viewBox="0 0 60 36" width="22" height="14" aria-hidden="true">
-      <rect width="60" height="9" fill="#aa151b" />
-      <rect y="9" width="60" height="18" fill="#f1bf00" />
-      <rect y="27" width="60" height="9" fill="#aa151b" />
-    </svg>
-  ),
-  el: (
-    <svg viewBox="0 0 60 36" width="22" height="14" aria-hidden="true">
-      <rect width="60" height="36" fill="#0d5eaf" />
-      <rect y="4" width="60" height="4" fill="#fff" />
-      <rect y="12" width="60" height="4" fill="#fff" />
-      <rect y="20" width="60" height="4" fill="#fff" />
-      <rect y="28" width="60" height="4" fill="#fff" />
-      <rect width="22" height="20" fill="#0d5eaf" />
-      <rect x="9" width="4" height="20" fill="#fff" />
-      <rect y="8" width="22" height="4" fill="#fff" />
-    </svg>
-  ),
-  pt: (
-    <svg viewBox="0 0 60 36" width="22" height="14" aria-hidden="true">
-      <rect width="24" height="36" fill="#006633" />
-      <rect x="24" width="36" height="36" fill="#cc0000" />
-      <circle cx="24" cy="18" r="6" fill="#ffd700" stroke="#fff" strokeWidth="0.8" />
-    </svg>
-  ),
+// Flag bitmaps for each supported language. Served from the
+// public bundle so they cache cleanly and survive React rerenders.
+// Width/height match the SVG dimensions the FAB used to render so
+// the layout (and the round outline in the menu rows) is identical.
+const FLAG_SRC = {
+  en: "/images/flags/en.png",
+  pl: "/images/flags/pl.jpg",
+  es: "/images/flags/es.png",
+  el: "/images/flags/el.jpg",
+  pt: "/images/flags/pt.png",
 };
+const FlagImg = ({ code }) => (
+  <img
+    src={FLAG_SRC[code] || FLAG_SRC.en}
+    alt=""
+    width="22"
+    height="14"
+    aria-hidden="true"
+    style={{ objectFit: "cover", display: "block" }}
+  />
+);
 
 function LanguageFab({ availableLangs = ["en"] }) {
   const { lang, setLang } = useLang();
@@ -1576,7 +1553,7 @@ function LanguageFab({ availableLangs = ["en"] }) {
         aria-label={`Switch to ${LANG_META[other]?.label || other}`}
         title={`Switch to ${LANG_META[other]?.label || other}`}
       >
-        {FLAG_SVGS[other] || FLAG_SVGS.en}
+        <FlagImg code={other} />
       </button>
     );
   }
@@ -1593,7 +1570,7 @@ function LanguageFab({ availableLangs = ["en"] }) {
               className={`lang-fab-menu-item ${code === lang ? "active" : ""}`}
               onClick={() => switchTo(code)}
             >
-              <span className="flag">{FLAG_SVGS[code] || FLAG_SVGS.en}</span>
+              <span className="flag"><FlagImg code={code} /></span>
               <span className="label">{LANG_META[code]?.label || code}</span>
               {code === lang && <span className="dot" aria-hidden>•</span>}
             </button>
@@ -1606,7 +1583,7 @@ function LanguageFab({ availableLangs = ["en"] }) {
         aria-label="Switch language"
         title="Switch language"
       >
-        {FLAG_SVGS[lang] || FLAG_SVGS.en}
+        <FlagImg code={lang} />
       </button>
     </div>
   );
