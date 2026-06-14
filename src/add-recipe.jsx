@@ -1289,7 +1289,16 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, profile, activ
       if (!initialRecipe) logEvent("add-recipe", savedId, { method: addMethod || "manual" });
       onClose();
     } catch (err) {
-      setSaveError(err.message || "Save failed");
+      // Always surface SOMETHING so a silent failure on mobile
+      // doesn't look like a no-op. Cloudflare Access session
+      // expiry shows up as a CORS error here; bare network
+      // errors as TypeError; server-side validation as an
+      // explicit message.
+      const detail = err?.message || String(err);
+      setSaveError(`Save failed: ${detail}`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      // eslint-disable-next-line no-console
+      console.error("AddRecipe save error", err);
     } finally {
       setSaving(false);
     }

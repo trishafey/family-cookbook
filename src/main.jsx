@@ -449,6 +449,14 @@ function App() {
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(body),
     });
+    // Cloudflare Access session expiry shows up as a transparent
+    // redirect to cloudflareaccess.com — fetch follows it and
+    // returns a 200 OK from the sign-in page, which would silently
+    // look like a successful save. Detect that case and surface a
+    // re-sign-in message instead of dropping the recipe.
+    if (res.redirected || !res.url.startsWith(window.location.origin)) {
+      throw new Error("Your sign-in session has expired. Refresh the page to sign in again, then re-save.");
+    }
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({}));
       throw new Error(error || `Save failed (${res.status})`);
@@ -457,6 +465,12 @@ function App() {
     // (e.g. a second "Apple Pie" lands at apple-pie-2). Use that
     // when navigating so the URL matches what was actually stored.
     const result = await res.json().catch(() => ({}));
+    if (!result?.id && !result?.ok) {
+      // Worker always returns { ok: true, id } on success. Anything
+      // else (empty body / HTML response that JSON-parsed to {}) is
+      // a silent failure.
+      throw new Error("Save returned no id — the recipe may not have been written. Refresh and try again.");
+    }
     const savedId = result?.id || draft.id;
     if (isLegacy) setExtraRecipes(arr => arr.filter(x => x.id !== draft.id));
     await refreshRecipes();
