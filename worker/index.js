@@ -4206,9 +4206,10 @@ app.get("/recipe/:id", async (c) => {
   return new Response(injected, {
     headers: {
       "content-type": "text/html; charset=utf-8",
-      // Crawlers may revisit. Short cache is fine — recipe edits
-      // should reflect within minutes.
-      "cache-control": "public, max-age=300",
+      // no-cache so the embedded bundle hash always revalidates —
+      // a cached HTML shell here would pin an old JS bundle for
+      // anyone landing on a recipe deep-link.
+      "cache-control": "no-cache, must-revalidate",
     },
   });
 });
@@ -4220,10 +4221,39 @@ app.get("/recipe/:id", async (c) => {
 // This is what makes /add, /edit/:id, /meal, etc. work when
 // accessed directly (in-app navigation already works via
 // pushState; this is the cold-load + sharable-link path).
+//
+// CACHING (critical — this caused a "saves don't appear" bug):
+// the SPA shell (index.html) references the content-hashed JS
+// bundle. If the browser caches index.html, it keeps loading the
+// OLD bundle hash forever and never picks up shipped fixes. So we
+// force HTML responses to revalidate every load (no-cache), while
+// the /assets/* files — whose names already change on every build
+// — stay immutably cacheable for speed.
+function isHtmlResponse(resp, pathname) {
+  const ct = resp.headers.get("content-type") || "";
+  if (ct.includes("text/html")) return true;
+  // No extension → SPA page route → served as HTML.
+  return !/\.[a-z0-9]+$/i.test(pathname);
+}
+
 app.all("*", async (c) => {
-  const resp = await c.env.ASSETS.fetch(c.req.raw);
-  if (resp.status !== 404) return resp;
   const url = new URL(c.req.url);
+  const resp = await c.env.ASSETS.fetch(c.req.raw);
+  if (resp.status !== 404) {
+    // Content-hashed assets are safe to cache forever; HTML must
+    // always revalidate so a new bundle hash is picked up.
+    if (url.pathname.startsWith("/assets/")) {
+      const r = new Response(resp.body, resp);
+      r.headers.set("cache-control", "public, max-age=31536000, immutable");
+      return r;
+    }
+    if (isHtmlResponse(resp, url.pathname)) {
+      const r = new Response(resp.body, resp);
+      r.headers.set("cache-control", "no-cache, must-revalidate");
+      return r;
+    }
+    return resp;
+  }
   const accept = c.req.header("accept") || "";
   const looksLikeAsset = /\.[a-z0-9]+$/i.test(url.pathname);
   const wantsHtml = accept.includes("text/html");
@@ -4231,7 +4261,10 @@ app.all("*", async (c) => {
   const shell = await c.env.ASSETS.fetch(new Request(new URL("/", c.req.url).toString()));
   return new Response(shell.body, {
     status: 200,
-    headers: { "content-type": "text/html; charset=utf-8" },
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-cache, must-revalidate",
+    },
   });
 });
 
