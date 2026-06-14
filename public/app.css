@@ -1139,6 +1139,52 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   color: #933; font-size: 12px;
 }
 
+/* Bottom-of-screen snackbar. One message + optional inline link. */
+.snackbar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex; align-items: center; gap: 14px;
+  max-width: min(560px, calc(100% - 32px));
+  padding: 12px 14px 12px 18px;
+  background: var(--ink, #1c1813);
+  color: #fff;
+  border-radius: 999px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+  font: inherit;
+  animation: snackbarIn .18s ease-out;
+}
+@keyframes snackbarIn {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.snackbar .msg {
+  font-family: var(--sans, inherit);
+  font-size: 14px;
+  line-height: 1.35;
+}
+.snackbar .link {
+  background: none; border: 0; padding: 0;
+  color: inherit;
+  font: inherit; font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.snackbar .link:hover { color: #fdd; }
+.snackbar .dismiss {
+  background: rgba(255, 255, 255, 0.08);
+  border: 0; cursor: pointer;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  flex-shrink: 0;
+}
+.snackbar .dismiss:hover { background: rgba(255, 255, 255, 0.16); }
+
 /* Overnight toggle row (inside AddRecipe) */
 .input-row .overnight-toggle .check-line {
   display: flex; align-items: center; gap: 10px;

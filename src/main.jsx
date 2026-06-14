@@ -469,6 +469,17 @@ function App() {
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Snackbar — generic one-message toast at the bottom of the
+  // screen. Currently driven by the "Add to cookbook" flow on
+  // the recipe page, but designed as a shared affordance so other
+  // success / undo flows can reuse it. `{ message, action: {
+  // label, onClick } }`. Auto-dismisses after a few seconds.
+  const [snackbar, setSnackbar] = useState(null);
+  useEffect(() => {
+    if (!snackbar) return;
+    const id = setTimeout(() => setSnackbar(null), 5500);
+    return () => clearTimeout(id);
+  }, [snackbar]);
 
   // Analytics: log search queries (debounced) and filter applies.
   // For filters we compare to the previous snapshot and emit one
@@ -913,9 +924,10 @@ function App() {
           userCookbooks={effectiveUserCookbooks}
           activeCookbookId={activeCookbookId}
           onCopyToCookbook={async (destCookbookId) => {
-            // POST the copy, then either jump straight into the
-            // new cookbook + open the fresh copy, or just refresh
-            // if the caller is already in the destination.
+            // POST the copy. On success, fire a bottom-of-screen
+            // snackbar with the destination cookbook name as a
+            // tappable link — the cook stays put on the source
+            // recipe unless they explicitly tap through.
             try {
               const res = await fetch(`/api/admin/recipes/${encodeURIComponent(recipe.id)}/copy-to/${encodeURIComponent(destCookbookId)}`, {
                 method: "POST",
@@ -926,14 +938,20 @@ function App() {
                 throw new Error(data?.error || `Copy failed (${res.status})`);
               }
               const { id: newId } = await res.json();
-              if (destCookbookId !== activeCookbookId) {
-                setActiveCookbookId(destCookbookId);
-              }
-              setTimeout(() => {
-                setRecipeId(newId);
-                setView("recipe");
-                window.scrollTo(0, 0);
-              }, 50);
+              const destCb = effectiveUserCookbooks.find(c => c.id === destCookbookId);
+              setSnackbar({
+                message: "Recipe added to",
+                cookbookName: destCb?.name || "the cookbook",
+                onOpen: () => {
+                  setActiveCookbookId(destCookbookId);
+                  setTimeout(() => {
+                    setRecipeId(newId);
+                    setView("recipe");
+                    window.scrollTo(0, 0);
+                  }, 50);
+                  setSnackbar(null);
+                },
+              });
               return { ok: true };
             } catch (err) {
               return { ok: false, error: err.message || "Could not copy." };
@@ -1186,6 +1204,9 @@ function App() {
           effectiveUserCookbooks.find(c => c.id === activeCookbookId)?.languages || ["en"]
         }
       />
+      {snackbar && (
+        <Snackbar snackbar={snackbar} onClose={() => setSnackbar(null)} />
+      )}
     </>
   );
 }
@@ -1494,6 +1515,30 @@ function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 
 // right; shows only after the page has been scrolled enough that
 // the cook would actually benefit from a jump back to the top
 // (>= one viewport). Smooth-scrolls on tap.
+// Simple bottom-of-screen snackbar with one optional inline link.
+// Used by the "Add to cookbook" flow to confirm the copy and let
+// the cook jump into the destination cookbook if they want to,
+// without forcing them off the source recipe.
+function Snackbar({ snackbar, onClose }) {
+  return (
+    <div className="snackbar" role="status" aria-live="polite">
+      <span className="msg">
+        {snackbar.message}{" "}
+        {snackbar.onOpen ? (
+          <button type="button" className="link" onClick={snackbar.onOpen}>
+            {snackbar.cookbookName}
+          </button>
+        ) : (
+          <strong>{snackbar.cookbookName}</strong>
+        )}
+      </span>
+      <button type="button" className="dismiss" onClick={onClose} aria-label="Dismiss">
+        <Icon name="x" size={14} />
+      </button>
+    </div>
+  );
+}
+
 function BackToTopFab() {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
