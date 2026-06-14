@@ -173,6 +173,32 @@ function CreateCookbookModal({ onClose, onCreated }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  // "Invite people" section — fetches the cook's network
+  // (everyone they share a cookbook with) so they can one-tap
+  // add familiar faces, and falls through to a manual email
+  // input for fresh invites.
+  const [network, setNetwork] = useState([]);
+  // Each invite is { email, role, fromNetwork }. role defaults
+  // to editor (matches the most common case — co-cooks).
+  const [invites, setInvites] = useState([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [manualEmail, setManualEmail] = useState("");
+  useEffect(() => {
+    fetch("/api/admin/me/network", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.network) setNetwork(data.network); })
+      .catch(() => {});
+  }, []);
+  const addInvite = (email, fromNetwork = false) => {
+    const e = email.trim().toLowerCase();
+    if (!e) return;
+    if (invites.some(i => i.email === e)) return;
+    setInvites(prev => [...prev, { email: e, role: "editor", fromNetwork }]);
+  };
+  const removeInvite = (email) => setInvites(prev => prev.filter(i => i.email !== email));
+  const setInviteRole = (email, role) =>
+    setInvites(prev => prev.map(i => i.email === email ? { ...i, role } : i));
+
   const submit = async (e) => {
     e?.preventDefault?.();
     const n = name.trim();
@@ -191,13 +217,38 @@ function CreateCookbookModal({ onClose, onCreated }) {
         throw new Error(msg || `Create failed (${res.status})`);
       }
       const { cookbook } = await res.json();
-      onCreated(cookbook);
+      // Fire each invitation. Failures are non-fatal — the
+      // cookbook itself is already created; we just log issues
+      // and surface them as a soft warning.
+      const inviteErrors = [];
+      for (const inv of invites) {
+        try {
+          const r = await fetch(`/api/admin/cookbooks/${cookbook.id}/invitations`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: inv.email, role: inv.role }),
+          });
+          if (!r.ok) {
+            const { error: msg } = await r.json().catch(() => ({}));
+            inviteErrors.push(`${inv.email}: ${msg || r.status}`);
+          }
+        } catch (err) {
+          inviteErrors.push(`${inv.email}: ${err.message}`);
+        }
+      }
+      onCreated(cookbook, { inviteCount: invites.length - inviteErrors.length, inviteErrors });
     } catch (err) {
       setError(err.message || "Could not create cookbook.");
     } finally {
       setSaving(false);
     }
   };
+
+  // Filter out network people already invited (or already in the
+  // list of suggestions) so the picker doesn't show duplicates.
+  const networkAvailable = network.filter(p => !invites.some(i => i.email === p.email));
+  const niceName = (p) => p.displayName || [p.firstName, p.lastName].filter(Boolean).join(" ") || p.email;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -216,7 +267,7 @@ function CreateCookbookModal({ onClose, onCreated }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Weeknight Quick"
+              placeholder="e.g. Smith Family Cookbook, Healthy recipes, Quick and Easy recipes"
               autoFocus
               maxLength={80}
             />
@@ -232,6 +283,90 @@ function CreateCookbookModal({ onClose, onCreated }) {
               maxLength={280}
             />
           </label>
+
+          {/* Invite people inline. The cookbook is created first
+              on submit, then each invite fires against the new
+              cookbook id. Failures don't block the create. */}
+          <div className="modal-field">
+            <span>Invite people <span className="opt">(optional)</span></span>
+            {invites.length > 0 && (
+              <ul className="create-invite-list">
+                {invites.map(inv => (
+                  <li key={inv.email} className="create-invite-row">
+                    <span className="who">{inv.email}</span>
+                    <select
+                      value={inv.role}
+                      onChange={(e) => setInviteRole(inv.email, e.target.value)}
+                      className="role-select"
+                    >
+                      <option value="editor">editor</option>
+                      <option value="viewer">viewer</option>
+                    </select>
+                    <button
+                      type="button"
+                      className="btn ghost icon-only"
+                      onClick={() => removeInvite(inv.email)}
+                      aria-label="Remove invite"
+                    >
+                      <Icon name="x" size={13} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {networkAvailable.length > 0 && (
+              <div className="create-network">
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() => setPickerOpen(o => !o)}
+                  aria-expanded={pickerOpen}
+                >
+                  {pickerOpen ? "Hide" : `Pick from ${networkAvailable.length} ${networkAvailable.length === 1 ? "person" : "people"} you've cooked with`}
+                  <span className="caret" aria-hidden>{pickerOpen ? " ▴" : " ▾"}</span>
+                </button>
+                {pickerOpen && (
+                  <div className="create-network-grid">
+                    {networkAvailable.map(p => (
+                      <button
+                        key={p.email}
+                        type="button"
+                        className="network-chip"
+                        onClick={() => addInvite(p.email, true)}
+                        title={p.email}
+                      >
+                        <Icon name="plus" size={11} />
+                        <span>{niceName(p)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="create-manual-row">
+              <input
+                type="email"
+                value={manualEmail}
+                onChange={(e) => setManualEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && manualEmail.trim()) {
+                    e.preventDefault();
+                    addInvite(manualEmail);
+                    setManualEmail("");
+                  }
+                }}
+                placeholder="Or type an email address"
+              />
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => { addInvite(manualEmail); setManualEmail(""); }}
+                disabled={!manualEmail.trim()}
+              >
+                Add
+              </button>
+            </div>
+          </div>
 
           {/* Visibility (private / unlisted / public) is set silently
               to 'private' for now. Sharing happens via explicit
