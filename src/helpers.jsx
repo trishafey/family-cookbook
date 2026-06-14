@@ -461,7 +461,11 @@ export function useRecipes(cookbookId = BOOTSTRAP_COOKBOOK_ID) {
   const refresh = useCallback(async () => {
     try {
       const qs = cookbookId ? `?cookbookId=${encodeURIComponent(cookbookId)}` : "";
-      const res = await fetch(`/api/recipes${qs}`);
+      // cache: "no-store" forces a fresh fetch every time. Without
+      // it, mobile Safari was caching the empty Patricia's
+      // Cookbook recipe list and returning [] from cache after
+      // a save, even though the new recipe had been written.
+      const res = await fetch(`/api/recipes${qs}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setRecipes(data.map(normalizeRecipe));

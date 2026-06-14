@@ -641,6 +641,11 @@ app.get("/api/recipes", async (c) => {
     ...JSON.parse(r.blob),
     liveComments: JSON.parse(r.live_comments).map(formatComment),
   }));
+  // Prevent intermediate caching — Cloudflare's CDN + mobile
+  // Safari both like to keep this around, which makes saves
+  // look like no-ops because the post-save refresh returns the
+  // stale list.
+  c.header("Cache-Control", "no-store, must-revalidate");
   return c.json(recipes);
 });
 
