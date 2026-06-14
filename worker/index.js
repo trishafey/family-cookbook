@@ -508,6 +508,39 @@ app.get("/api/invitations/:token", async (c) => {
   });
 });
 
+// Notifications — pending invitations addressed to the signed-in
+// cook's email. Used by the bell-icon notifications page in the
+// avatar menu. Returns invites that target this user by email,
+// haven't been accepted, and haven't expired.
+app.get("/api/admin/notifications", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  await ensureUserBootstrap(c);
+  const now = new Date().toISOString();
+  const rows = await c.env.DB.prepare(
+    `SELECT i.token, i.cookbook_id, i.role, i.invited_by, i.created_at, i.expires_at,
+            cb.name AS cookbook_name, cb.blurb AS cookbook_blurb
+     FROM invitations i
+     LEFT JOIN cookbooks cb ON cb.id = i.cookbook_id
+     WHERE LOWER(i.email) = LOWER(?)
+       AND i.accepted_at IS NULL
+       AND i.expires_at > ?
+     ORDER BY i.created_at DESC`
+  ).bind(email, now).all();
+  return c.json({
+    invitations: (rows.results || []).map(r => ({
+      token: r.token,
+      cookbookId: r.cookbook_id,
+      cookbookName: r.cookbook_name,
+      cookbookBlurb: r.cookbook_blurb,
+      role: r.role,
+      invitedBy: r.invited_by,
+      createdAt: r.created_at,
+      expiresAt: r.expires_at,
+    })),
+  });
+});
+
 // Accept an invitation. Adds the signed-in cook to the cookbook
 // as a member with the invited role; marks the invitation
 // accepted. Authenticated.
@@ -889,8 +922,8 @@ async function ensureUserBootstrap(c) {
   const id = `personal-${emailHash.slice(0, 12)}`;
   const slug = `${baseSlug}-personal-${emailHash.slice(0, 6)}`;
   await c.env.DB.prepare(
-    "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?)"
-  ).bind(id, email, `${personName}'s Cookbook`, slug, now, now).run().catch(() => {});
+    "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', ?, ?, ?)"
+  ).bind(id, email, `${personName}'s Cookbook`, slug, "My favourite recipes", now, now).run().catch(() => {});
   await c.env.DB.prepare(
     "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
   ).bind(id, email, now).run().catch(() => {});

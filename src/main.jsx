@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, useUserCookbooks, useProfile, usePendingApprovalCount, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions, BOOTSTRAP_COOKBOOK_ID } from "./helpers.jsx";
+import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, useUserCookbooks, useProfile, usePendingApprovalCount, useNotificationCount, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions, BOOTSTRAP_COOKBOOK_ID } from "./helpers.jsx";
 import { useLang } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
@@ -13,6 +13,7 @@ import { AddRecipe } from "./add-recipe.jsx";
 import { ExperimentationLab } from "./experiment.jsx";
 import { CookbooksIndex } from "./cookbooks.jsx";
 import { InviteAccept } from "./invite.jsx";
+import { Notifications } from "./notifications.jsx";
 import { ProfileSetupGate, PendingApprovalGate } from "./profile.jsx";
 import { AccountSettings, AdminPage } from "./settings.jsx";
 import { SignedOutLanding } from "./landing.jsx";
@@ -366,6 +367,9 @@ function App() {
   // Pending-approval count for the admin avatar badge. 0 for
   // non-admins / signed-out cooks.
   const pendingCount = usePendingApprovalCount(!!profile?.isAdmin);
+  // Pending cookbook invitations addressed to this cook. Powers
+  // the Notifications menu entry + avatar badge.
+  const notificationCount = useNotificationCount(authEmail);
 
   // ─── Admin "View as" preview ───
   // Admin-only knob — lets an admin preview the app as if they
@@ -736,8 +740,10 @@ function App() {
                 simpleMode={simpleMode}
                 isAdmin={effectiveIsAdmin}
                 pendingCount={effectiveIsAdmin ? pendingCount : 0}
+                notificationCount={notificationCount}
                 onToggleSimpleMode={() => setSimpleMode(m => !m)}
                 onMyCookbooks={() => setView("cookbooks")}
+                onNotifications={() => setView("notifications")}
                 onSettings={() => setView("settings")}
                 onAdmin={() => setView("admin")}
               />
@@ -923,8 +929,14 @@ function App() {
         <InviteAccept
           token={inviteToken}
           authEmail={authEmail}
-          onAccepted={(cookbookId) => { setActiveCookbookId(cookbookId); backToBrowse(); }}
-          onClose={backToBrowse}
+          onAccepted={(cookbookId) => { setActiveCookbookId(cookbookId); setView("cookbooks"); window.scrollTo(0, 0); }}
+          onClose={() => setView("cookbooks")}
+        />
+      )}
+      {view === "notifications" && (
+        <Notifications
+          authEmail={authEmail}
+          onOpenCookbook={(cookbookId) => { setActiveCookbookId(cookbookId); setView("cookbooks"); window.scrollTo(0, 0); }}
         />
       )}
       {view === "settings" && (
@@ -1013,10 +1025,12 @@ function App() {
         onOpenMeal={() => setView("meal")}
         onOpenLab={() => setView("lab")}
         onOpenMyCookbooks={FLAGS.cookbooks ? () => setView("cookbooks") : undefined}
+        onOpenNotifications={() => setView("notifications")}
         onOpenSettings={() => setView("settings")}
         onOpenAdmin={effectiveIsAdmin ? () => setView("admin") : undefined}
         isSystemAdmin={effectiveIsAdmin}
         pendingCount={effectiveIsAdmin ? pendingCount : 0}
+        notificationCount={notificationCount}
         cookbooks={effectiveUserCookbooks}
         activeCookbookId={activeCookbookId}
         onSwitchCookbook={(id) => { setActiveCookbookId(id); backToBrowse(); }}
@@ -1160,8 +1174,8 @@ function MobileMenuDrawer({
   open, onClose,
   authEmail, simpleMode, onToggleSimpleMode,
   onOpenAdd, onOpenMeal, onOpenLab,
-  onOpenMyCookbooks, onOpenSettings, onOpenAdmin,
-  isSystemAdmin, pendingCount = 0,
+  onOpenMyCookbooks, onOpenNotifications, onOpenSettings, onOpenAdmin,
+  isSystemAdmin, pendingCount = 0, notificationCount = 0,
   cookbooks = [], activeCookbookId, onSwitchCookbook,
   currentView,
   selectionCount,
@@ -1242,6 +1256,13 @@ function MobileMenuDrawer({
                 <span>Cookbooks</span>
               </button>
             )}
+            {onOpenNotifications && (
+              <button className={`mobile-menu-item ${currentView === "notifications" ? "active" : ""}`} onClick={() => go(onOpenNotifications)}>
+                <Icon name="comment" size={18} />
+                <span>Notifications</span>
+                {notificationCount > 0 && <span className="badge">{notificationCount}</span>}
+              </button>
+            )}
             {onOpenSettings && (
               <button className={`mobile-menu-item ${currentView === "settings" ? "active" : ""}`} onClick={() => go(onOpenSettings)}>
                 <Icon name="edit" size={18} />
@@ -1280,7 +1301,7 @@ function MobileMenuDrawer({
   );
 }
 
-function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 0, onToggleSimpleMode, onMyCookbooks, onSettings, onAdmin }) {
+function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 0, notificationCount = 0, onToggleSimpleMode, onMyCookbooks, onNotifications, onSettings, onAdmin }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const initial = (email[0] || "?").toUpperCase();
@@ -1306,12 +1327,18 @@ function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 
       <button
         className="avatar"
         onClick={() => setOpen(o => !o)}
-        title={pendingCount > 0 ? `${pendingCount} pending approval${pendingCount === 1 ? "" : "s"}` : email}
+        title={
+          pendingCount > 0
+            ? `${pendingCount} pending approval${pendingCount === 1 ? "" : "s"}`
+            : notificationCount > 0
+              ? `${notificationCount} new notification${notificationCount === 1 ? "" : "s"}`
+              : email
+        }
         aria-label="Menu"
       >
         {initial}
-        {pendingCount > 0 && (
-          <span className="avatar-badge" aria-label={`${pendingCount} pending approval`}>{pendingCount}</span>
+        {(pendingCount + notificationCount) > 0 && (
+          <span className="avatar-badge" aria-label={`${pendingCount + notificationCount} pending`}>{pendingCount + notificationCount}</span>
         )}
       </button>
       {open && (
@@ -1325,6 +1352,19 @@ function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 
               style={itemBtnStyle}
             >
               Cookbooks
+            </button>
+          )}
+          {onNotifications && (
+            <button
+              type="button"
+              className="item"
+              onClick={() => { setOpen(false); onNotifications(); }}
+              style={itemBtnStyle}
+            >
+              Notifications
+              {notificationCount > 0 && (
+                <span className="menu-item-badge">{notificationCount}</span>
+              )}
             </button>
           )}
           {onSettings && (

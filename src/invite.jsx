@@ -68,19 +68,6 @@ export function InviteAccept({ token, authEmail, onAccepted, onClose }) {
     }
   };
 
-  // Auto-accept once the invite is loaded and the cook is signed
-  // in — removes the redundant "click accept" step after the
-  // Cloudflare Access email-pin round trip. The wrong-account
-  // panel still catches mismatches; the existing-accept and
-  // expired states already short-circuit before this runs.
-  useEffect(() => {
-    if (!invite || !authEmail) return;
-    if (invite.acceptedAt || invite.expired) return;
-    if (accepting || done || wrongAccount) return;
-    accept();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invite, authEmail]);
-
   return (
     <div className="invite-page" data-screen-label="09 Accept invitation">
       <div className="invite-card">

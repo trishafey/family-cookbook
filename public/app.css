@@ -2559,6 +2559,71 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   margin-left: 6px;
 }
 
+/* ─── Notifications page (/notifications) ─── */
+.notifications-page {
+  max-width: 720px;
+  margin: 40px auto 80px;
+  padding: 0 20px;
+}
+.notifications-header { margin-bottom: 24px; }
+.notifications-header .page-title {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 6px;
+  font-family: var(--serif); font-weight: 500;
+}
+.notifications-header .page-sub {
+  margin: 0; color: var(--ink-3);
+  font-family: var(--mono); font-size: 12px;
+  letter-spacing: .04em;
+}
+.notifications-loading,
+.notifications-empty,
+.notifications-error {
+  padding: 40px 20px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  text-align: center;
+  color: var(--ink-2);
+  font-family: var(--mono); font-size: 13px;
+}
+.notifications-error { color: #933; }
+.notifications-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.notification-card {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+}
+.notification-eyebrow {
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent); font-weight: 600;
+  margin-bottom: 8px;
+}
+.notification-title {
+  margin: 0 0 8px;
+  font-family: var(--serif); font-weight: 500; font-size: 18px;
+  line-height: 1.35;
+}
+.notification-title .from {
+  color: var(--accent);
+}
+.notification-blurb {
+  margin: 8px 0; color: var(--ink-2); font-size: 14px;
+}
+.notification-meta {
+  margin: 10px 0 16px;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--ink-3);
+}
+.notification-actions {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+
 /* ─── Invite-accept page (/invite/:token) ─── */
 .invite-page {
   max-width: 560px;

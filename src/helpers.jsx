@@ -534,6 +534,30 @@ export function useProfile(authEmail) {
 // badge. Refreshes on a slow interval so a new pending sign-up
 // surfaces within a minute of landing without polling
 // aggressively.
+// Pending cookbook invitations addressed to the signed-in cook.
+// Drives the badge on the Notifications menu entry. Best-effort,
+// refreshes every 60s so a freshly received invite shows up on the
+// next tick without a manual reload.
+export function useNotificationCount(authEmail) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!authEmail) { setCount(0); return; }
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetch("/api/admin/notifications", { credentials: "include" });
+        if (!res.ok || cancelled) return;
+        const { invitations } = await res.json();
+        if (!cancelled) setCount((invitations || []).length);
+      } catch {}
+    };
+    tick();
+    const id = setInterval(tick, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [authEmail]);
+  return count;
+}
+
 export function usePendingApprovalCount(isAdmin) {
   const [count, setCount] = useState(0);
   useEffect(() => {
@@ -688,6 +712,7 @@ function parsePath(p) {
   if (p === "/meal-plan" || p === "/meal-plan/") return { view: "meal-plan", recipeId: null, editingId: null };
   if (p === "/lab" || p === "/lab/") return { view: "lab", recipeId: null, editingId: null };
   if (p === "/cookbooks" || p === "/cookbooks/") return { view: "cookbooks", recipeId: null, editingId: null };
+  if (p === "/notifications" || p === "/notifications/") return { view: "notifications", recipeId: null, editingId: null };
   if (p === "/settings" || p === "/settings/") return { view: "settings", recipeId: null, editingId: null };
   // Legacy paths redirect to the new tabbed /admin page.
   if (p === "/admin" || p === "/admin/") return { view: "admin", recipeId: null, editingId: null };
@@ -707,6 +732,7 @@ function buildPath({ view, recipeId, editingId, inviteToken }) {
     case "meal-plan":       return "/meal-plan";
     case "lab":             return "/lab";
     case "cookbooks":       return "/cookbooks";
+    case "notifications":   return "/notifications";
     case "settings":        return "/settings";
     case "admin":           return "/admin";
     case "browse":
