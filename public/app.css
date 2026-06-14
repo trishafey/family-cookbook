@@ -2579,36 +2579,26 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
    cooks with 2+ memberships, so single-cookbook users (the family
    today) see the nav unchanged. */
 .cookbook-switcher { position: relative; flex-shrink: 0; }
-.cookbook-switcher-toggle {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 8px 10px;
-  background: var(--paper-2);
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  font-family: var(--serif); font-size: 14px; font-style: italic;
-  color: var(--ink-2);
-  cursor: pointer;
-  max-width: 200px;
-  transition: background .14s ease, border-color .14s ease, color .14s ease;
-}
-.cookbook-switcher-toggle:hover {
-  background: var(--paper);
-  border-color: var(--accent);
-  color: var(--ink);
-}
+/* Trigger is a regular .btn.ghost — name + book icon. Width
+   capped so a long cookbook name truncates instead of pushing
+   the rest of the nav around. */
+.cookbook-switcher-toggle { max-width: 220px; }
 .cookbook-switcher-toggle .name {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   max-width: 160px;
 }
 .cookbook-switcher-menu {
-  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
-  min-width: 240px;
+  position: absolute; top: 100%; right: 0; z-index: 60;
+  min-width: 260px;
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.10);
   padding: 6px;
   display: flex; flex-direction: column;
+  /* A 4px lead-in gap kept the menu visually separate but
+     created a "dead zone" that broke hover-stay — keep the menu
+     flush so mouse travel from trigger to menu doesn't close it. */
 }
 .cookbook-switcher-menu .item {
   display: flex; flex-direction: column; gap: 1px;
@@ -2629,12 +2619,46 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   color: var(--ink-3);
 }
 .cookbook-switcher-menu .item.manage {
-  border-top: 1px solid var(--rule);
-  margin-top: 4px; padding-top: 10px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 4px; padding-bottom: 10px;
   font-family: var(--mono); font-size: 11px;
   letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--accent-cool);
 }
+.cookbook-switcher-menu .item.manage:hover { color: var(--accent); background: var(--paper-2); }
+
+/* Make dropdown — collapses "The Lab" + "Build a meal" into one
+   trigger with a menu below. Trigger looks like every other
+   .btn.ghost in the nav-actions cluster. */
+.make-dropdown { position: relative; flex-shrink: 0; }
+.make-dropdown-menu {
+  position: absolute; top: 100%; right: 0; z-index: 60;
+  min-width: 200px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.10);
+  padding: 6px;
+  display: flex; flex-direction: column;
+}
+.make-dropdown-menu .item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px;
+  background: transparent; border: 0; cursor: pointer;
+  border-radius: 6px;
+  font: inherit; font-family: var(--serif); font-size: 15px; color: var(--ink);
+  text-align: left;
+}
+.make-dropdown-menu .item:hover { background: var(--paper-2); }
+.make-dropdown-menu .item.active { background: var(--paper-2); color: var(--accent); }
+.make-dropdown-menu .item .count {
+  margin-left: 8px;
+  padding: 1px 6px;
+  background: var(--accent); color: var(--paper);
+  border-radius: 999px; font-size: 10px; font-weight: 600;
+  font-family: var(--mono);
+}
+
 @media (max-width: 720px) {
   .cookbook-switcher-toggle { max-width: 120px; padding: 6px 8px; font-size: 13px; }
   .cookbook-switcher-toggle .name { max-width: 88px; }

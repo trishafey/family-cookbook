@@ -61,24 +61,40 @@ function CookbookSwitcher({ active, cookbooks, onSwitch, onManage }) {
     document.addEventListener("mousedown", away);
     return () => document.removeEventListener("mousedown", away);
   }, [open]);
-  if (!cookbooks || cookbooks.length < 2) return null;
+  // Render even for a single cookbook so the "My cookbooks" link
+  // is still reachable. If the cook has no cookbooks at all (rare
+  // — first sign-in before bootstrap completes), skip.
+  if (!cookbooks || cookbooks.length === 0) return null;
   const current = cookbooks.find(c => c.id === active) || cookbooks[0];
   return (
-    <div className="cookbook-switcher" ref={ref}>
+    <div className="cookbook-switcher" ref={ref}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
       <button
         type="button"
-        className="cookbook-switcher-toggle"
+        className="btn ghost sm cookbook-switcher-toggle"
         onClick={() => setOpen(o => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
         title={current?.name}
       >
-        <span className="name">{current?.name}</span>
-        <Icon name="chevR" size={13} />
+        <Icon name="book" size={15} />
+        <span className="btn-label name">{current?.name}</span>
       </button>
       {open && (
         <div className="cookbook-switcher-menu" role="menu">
-          {cookbooks.map(c => (
+          {onManage && (
+            <button
+              type="button"
+              role="menuitem"
+              className="item manage"
+              onClick={() => { setOpen(false); onManage(); }}
+            >
+              My cookbooks →
+            </button>
+          )}
+          {cookbooks.length > 1 && cookbooks.map(c => (
             <button
               key={c.id}
               type="button"
@@ -91,14 +107,68 @@ function CookbookSwitcher({ active, cookbooks, onSwitch, onManage }) {
               <div className="s">{c.yourRole}</div>
             </button>
           ))}
-          {onManage && (
+        </div>
+      )}
+    </div>
+  );
+}
+
+// "Make" — consolidates the Lab + Build a meal entries into one
+// dropdown so the nav doesn't grow a button per tool. Icons are
+// stripped from the menu items themselves; the trigger uses the
+// build icon as the Make affordance.
+function MakeDropdown({ currentView, selectionCount, onOpenLab, onOpenMeal, showLab, showMeal }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open]);
+  if (!showLab && !showMeal) return null;
+  const inMake = currentView === "lab" || currentView === "meal" || currentView === "meal-plan";
+  return (
+    <div className="make-dropdown" ref={ref}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        className={`btn ghost sm make-dropdown-toggle ${inMake ? "active" : ""}`}
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <Icon name="build" size={15} />
+        <span className="btn-label">Make</span>
+        {selectionCount > 0 && (
+          <span style={{ marginLeft: 4, padding: "1px 6px", background: "var(--accent)", color: "var(--paper)", borderRadius: 999, fontSize: 10, fontWeight: 600 }}>{selectionCount}</span>
+        )}
+      </button>
+      {open && (
+        <div className="make-dropdown-menu" role="menu">
+          {showLab && (
             <button
               type="button"
               role="menuitem"
-              className="item manage"
-              onClick={() => { setOpen(false); onManage(); }}
+              className={`item ${currentView === "lab" ? "active" : ""}`}
+              onClick={() => { setOpen(false); onOpenLab(); }}
             >
-              My cookbooks
+              The Lab
+            </button>
+          )}
+          {showMeal && (
+            <button
+              type="button"
+              role="menuitem"
+              className={`item ${currentView === "meal" || currentView === "meal-plan" ? "active" : ""}`}
+              onClick={() => { setOpen(false); onOpenMeal(); }}
+            >
+              Build a meal
+              {selectionCount > 0 && (
+                <span className="count">{selectionCount}</span>
+              )}
             </button>
           )}
         </div>
@@ -607,14 +677,6 @@ function App() {
             <img className="brand-logo" src="/images/heirloom-tomato-long.png" alt="Heirloom" />
             <img className="brand-mark" src="/images/heirloom-tomato-h.PNG" alt="Heirloom" />
           </div>
-          {FLAGS.cookbooks && (
-            <CookbookSwitcher
-              active={activeCookbookId}
-              cookbooks={userCookbooks}
-              onSwitch={(id) => { setActiveCookbookId(id); backToBrowse(); }}
-              onManage={() => setView("cookbooks")}
-            />
-          )}
           <NavSearch
             query={query}
             setQuery={(v) => { setQuery(v); if (view !== "browse") setView("browse"); }}
@@ -627,16 +689,23 @@ function App() {
             onOpenRecipe={openRecipe}
           />
           <div className="nav-actions">
-            {!simpleMode && FLAGS.lab && (
-            <button className={`btn ghost sm ${view === "lab" ? "active" : ""}`} onClick={() => setView("lab")} title={t("kitchenExp")}>
-              <Icon name="experiment" size={15} /> <span className="btn-label">{t("theLab")}</span>
-            </button>
+            {FLAGS.cookbooks && (
+              <CookbookSwitcher
+                active={activeCookbookId}
+                cookbooks={userCookbooks}
+                onSwitch={(id) => { setActiveCookbookId(id); backToBrowse(); }}
+                onManage={() => setView("cookbooks")}
+              />
             )}
             {!simpleMode && (
-              <button className={`btn ghost sm ${view === "meal" || view === "meal-plan" ? "active" : ""}`} onClick={() => setView("meal")} title={t("buildMeal")}>
-                <Icon name="build" size={15} /> <span className="btn-label">{t("buildMeal")}</span>
-                {selection.length > 0 && <span style={{ marginLeft: 4, padding: "1px 6px", background: "var(--accent)", color: "var(--paper)", borderRadius: 999, fontSize: 10, fontWeight: 600 }}>{selection.length}</span>}
-              </button>
+              <MakeDropdown
+                currentView={view}
+                selectionCount={selection.length}
+                showLab={FLAGS.lab}
+                showMeal={true}
+                onOpenLab={() => setView("lab")}
+                onOpenMeal={() => setView("meal")}
+              />
             )}
             <button className={`btn primary sm ${view === "add" || view === "edit" ? "active" : ""}`} onClick={() => setView("add")} title={t("addRecipe")}>
               <Icon name="plus" size={15} /> <span className="btn-label">{t("addRecipe")}</span>
@@ -1008,7 +1077,7 @@ const ADMIN_EMAILS = ["patricia.fejdasz@gmail.com"];
 // always shows the active cookbook + chevron; tap to expand and
 // pick another. Mirrors the desktop nav-dropdown affordance in a
 // touch-friendly stacked-list shape.
-function CookbookSubmenu({ cookbooks, activeCookbookId, onSwitchCookbook, go }) {
+function CookbookSubmenu({ cookbooks, activeCookbookId, onSwitchCookbook, onOpenMyCookbooks, go }) {
   const [open, setOpen] = useState(false);
   const active = cookbooks.find(c => c.id === activeCookbookId) || cookbooks[0];
   return (
@@ -1025,6 +1094,15 @@ function CookbookSubmenu({ cookbooks, activeCookbookId, onSwitchCookbook, go }) 
       </button>
       {open && (
         <div className="cookbook-submenu">
+          {onOpenMyCookbooks && (
+            <button
+              type="button"
+              className="mobile-menu-item submenu-item manage"
+              onClick={() => go(onOpenMyCookbooks)}
+            >
+              <span>My cookbooks →</span>
+            </button>
+          )}
           {cookbooks.map(cb => (
             <button
               key={cb.id}
@@ -1085,13 +1163,14 @@ function MobileMenuDrawer({
             the trigger always shows the active cookbook name; tap
             to expand and pick another. Renders only when the cook
             is a member of 2+ cookbooks. */}
-        {authEmail && cookbooks && cookbooks.length >= 2 && onSwitchCookbook && (
+        {authEmail && cookbooks && cookbooks.length >= 1 && onSwitchCookbook && (
           <section className="mobile-menu-section">
             <div className="mobile-menu-section-title">Cookbook</div>
             <CookbookSubmenu
               cookbooks={cookbooks}
               activeCookbookId={activeCookbookId}
               onSwitchCookbook={onSwitchCookbook}
+              onOpenMyCookbooks={onOpenMyCookbooks}
               go={go}
             />
           </section>
