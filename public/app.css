@@ -2187,6 +2187,35 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cookbook-card .role-badge.active-badge {
   background: var(--accent); color: #fff;
 }
+.cookbook-card .role-badge.default-badge {
+  background: color-mix(in srgb, var(--accent-cool, #6e7a3a) 14%, var(--paper));
+  color: var(--accent-cool, #6e7a3a);
+  border: 1px solid color-mix(in srgb, var(--accent-cool, #6e7a3a) 30%, transparent);
+}
+/* Drag-and-drop visual states. The dragged card dims; the
+   drop-target gets an accent outline so the cook can see where
+   the card will land. */
+.cookbook-card[draggable="true"] { cursor: grab; }
+.cookbook-card[draggable="true"]:active { cursor: grabbing; }
+.cookbook-card.dragging {
+  opacity: .5;
+}
+.cookbook-card.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.cookbook-card-default-action {
+  margin-top: 12px;
+  align-self: flex-start;
+  background: none; border: 0; padding: 0;
+  color: var(--ink-3);
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: .04em;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cookbook-card-default-action:hover { color: var(--accent); }
 /* Card body becomes a click target so the gear icon can live in
    the head without becoming the only thing that fires. */
 .cookbook-card-body {

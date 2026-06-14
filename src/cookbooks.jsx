@@ -824,6 +824,10 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
   // editing = { cookbook, tab? } so the onboarding banner can
   // open the modal directly on the Members tab.
   const [editing, setEditing] = useState(null);
+  // Drag-and-drop reorder state. draggedId tracks the card the
+  // cook is dragging; dragOverId paints the drop-target outline.
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
   // Local one-time dismiss for the "invite your family" prompt
   // so it doesn't keep nagging cooks who've decided to skip.
   const [familyPromptDismissed, setFamilyPromptDismissed] = useState(() => {
@@ -850,6 +854,57 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [authEmail]);
+
+  // Persist the cook's new order. Optimistic: reorder local state
+  // first, then PUT. On failure we leave the optimistic order in
+  // place — a refetch on next mount will reconcile.
+  const persistOrder = async (orderedIds) => {
+    try {
+      await fetch("/api/admin/cookbooks/order", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds }),
+      });
+    } catch {}
+  };
+
+  // "Set as default" — move the chosen cookbook to position 0 of
+  // the cook's flat order. Optimistic update; server uses the
+  // defaultId shortcut so we don't have to recompute the rest.
+  const setAsDefault = async (id) => {
+    setCookbooks(prev => {
+      const target = prev.find(c => c.id === id);
+      if (!target) return prev;
+      const rest = prev.filter(c => c.id !== id);
+      return [{ ...target, displayOrder: 0 }, ...rest.map((c, i) => ({ ...c, displayOrder: i + 1 }))];
+    });
+    try {
+      await fetch("/api/admin/cookbooks/order", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ defaultId: id }),
+      });
+    } catch {}
+  };
+
+  // Drop handler: move draggedId to the slot of targetId in the
+  // flat array, then push the new order to the server.
+  const reorder = (sourceId, targetId) => {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    setCookbooks(prev => {
+      const from = prev.findIndex(c => c.id === sourceId);
+      const to = prev.findIndex(c => c.id === targetId);
+      if (from < 0 || to < 0) return prev;
+      const next = prev.slice();
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      const ids = next.map(c => c.id);
+      persistOrder(ids);
+      return next.map((c, i) => ({ ...c, displayOrder: i }));
+    });
+  };
 
   return (
     <div className="cookbooks-page" data-screen-label="08 My Cookbooks">
@@ -961,18 +1016,14 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
         //     family come first here)
         //   - shared: cookbooks where they're editor/viewer
         //   - adminAccess: cookbooks they see only via admin
+        // Source order is the server's display_order; sectioning
+        // preserves that order within each section.
         const owned = cookbooks.filter(c => c.yourRole === "owner");
         const shared = cookbooks.filter(c => c.yourRole === "editor" || c.yourRole === "viewer");
         const adminAccess = cookbooks.filter(c => c.adminAccess || (c.yourRole === "admin" && !c.adminAccess));
-        // Sort owned so personal + family come first, custom cookbooks after.
-        const ownedSorted = [...owned].sort((a, b) => {
-          const score = (c) => {
-            if (/^personal-/i.test(c.id) || /'s Cookbook$/i.test(c.name)) return 0;
-            if (/family/i.test(c.id) || /Family Cookbook/i.test(c.name)) return 1;
-            return 2;
-          };
-          return score(a) - score(b);
-        });
+        // The default cookbook = whichever sits at position 0 in
+        // the cook's flat order. Drives the "Default" badge.
+        const defaultId = cookbooks[0]?.id;
         const renderCard = (cb) => {
           const isOwner = cb.yourRole === "owner";
           // Editors get the gear too — it opens the Members tab
@@ -982,15 +1033,43 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
             isOwner ||
             cb.yourRole === "editor" ||
             cb.yourRole === "admin";
+          // Admin-access cookbooks aren't in cookbook_members for
+          // this cook, so the reorder endpoint has nothing to write
+          // — disable drag + set-as-default on them.
+          const canReorder = !cb.adminAccess;
+          const isDefault = cb.id === defaultId;
           return (
             <div
               key={cb.id}
-              className={`cookbook-card ${cb.id === activeCookbookId ? "active" : ""}`}
+              className={`cookbook-card ${cb.id === activeCookbookId ? "active" : ""} ${draggedId === cb.id ? "dragging" : ""} ${dragOverId === cb.id ? "drag-over" : ""}`}
+              draggable={canReorder}
+              onDragStart={canReorder ? (e) => {
+                setDraggedId(cb.id);
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", cb.id);
+              } : undefined}
+              onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
+              onDragOver={canReorder ? (e) => {
+                if (!draggedId || draggedId === cb.id) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (dragOverId !== cb.id) setDragOverId(cb.id);
+              } : undefined}
+              onDragLeave={() => { if (dragOverId === cb.id) setDragOverId(null); }}
+              onDrop={canReorder ? (e) => {
+                e.preventDefault();
+                reorder(draggedId, cb.id);
+                setDraggedId(null);
+                setDragOverId(null);
+              } : undefined}
             >
               <div className="cookbook-card-head">
                 <div className={`role-badge role-${cb.yourRole}`}>
                   {cb.adminAccess ? "admin access" : cb.yourRole}
                 </div>
+                {isDefault && (
+                  <div className="role-badge default-badge" title="Your default cookbook">Default</div>
+                )}
                 {cb.id === activeCookbookId && (
                   <div className="role-badge active-badge">Active</div>
                 )}
@@ -1017,15 +1096,25 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
                   <span>{cb.ownerEmail === authEmail ? "You own this" : `owned by ${cb.ownerEmail}`}</span>
                 </div>
               </button>
+              {canReorder && !isDefault && (
+                <button
+                  type="button"
+                  className="cookbook-card-default-action"
+                  onClick={(e) => { e.stopPropagation(); setAsDefault(cb.id); }}
+                  title="Show this cookbook first"
+                >
+                  Set as default
+                </button>
+              )}
             </div>
           );
         };
         return (
           <>
-            {ownedSorted.length > 0 && (
+            {owned.length > 0 && (
               <section className="cookbook-section">
                 <div className="section-head">Your cookbooks</div>
-                <div className="cookbooks-grid">{ownedSorted.map(renderCard)}</div>
+                <div className="cookbooks-grid">{owned.map(renderCard)}</div>
               </section>
             )}
             {shared.length > 0 && (

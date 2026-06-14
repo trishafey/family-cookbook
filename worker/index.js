@@ -79,24 +79,26 @@ app.get("/api/admin/cookbooks", async (c) => {
     ? await c.env.DB.prepare(`
         SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
                c.cover_photo, c.created_at, c.updated_at,
-               m.role AS your_role, m.joined_at,
+               m.role AS your_role, m.joined_at, m.display_order AS your_order,
                (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
                (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count
         FROM cookbooks c
         LEFT JOIN cookbook_members m
           ON m.cookbook_id = c.id AND m.user_email = ?
-        ORDER BY (c.owner_email = ?) DESC, c.created_at ASC
+        ORDER BY (m.user_email IS NULL) ASC,
+                 COALESCE(m.display_order, 99999) ASC,
+                 (c.owner_email = ?) DESC, c.created_at ASC
       `).bind(email, email).all()
     : await c.env.DB.prepare(`
         SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
                c.cover_photo, c.created_at, c.updated_at,
-               m.role AS your_role, m.joined_at,
+               m.role AS your_role, m.joined_at, m.display_order AS your_order,
                (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
                (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count
         FROM cookbooks c
         JOIN cookbook_members m ON m.cookbook_id = c.id
         WHERE m.user_email = ?
-        ORDER BY c.created_at ASC
+        ORDER BY COALESCE(m.display_order, 99999) ASC, c.created_at ASC
       `).bind(email).all();
   return c.json({
     isAdmin: admin,
@@ -114,6 +116,7 @@ app.get("/api/admin/cookbooks", async (c) => {
       yourRole: r.your_role || (admin ? "admin" : null),
       adminAccess: admin && !r.your_role,
       joinedAt: r.joined_at,
+      displayOrder: r.your_order ?? null,
       memberCount: r.member_count || 0,
       recipeCount: r.recipe_count || 0,
       createdAt: r.created_at,
@@ -171,6 +174,49 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
 });
 
 // ─── Multi-tenant: create a new cookbook (Phase 4b-1) ───
+// Reorder the caller's cookbooks. Body: { orderedIds: [...] }.
+// Writes display_order = index for each id the caller is a member
+// of. Ids the caller isn't a member of are silently skipped (so
+// admin-access cookbooks don't break the call but also don't get
+// per-user ordering — they're not in cookbook_members for this
+// cook). The optional `defaultId` argument is sugar for "set this
+// cookbook as default" — it's pinned to position 0 and the rest
+// of the list slots in after, preserving relative order.
+app.put("/api/admin/cookbooks/order", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  await ensureUserBootstrap(c);
+  const body = await c.req.json().catch(() => ({}));
+  let ids = Array.isArray(body?.orderedIds) ? body.orderedIds.filter(x => typeof x === "string") : null;
+  const defaultId = typeof body?.defaultId === "string" ? body.defaultId : null;
+
+  // "Set as default" shortcut: caller doesn't have to send the full
+  // ordered list — we re-read their current order and float
+  // `defaultId` to position 0.
+  if (defaultId && !ids) {
+    const cur = await c.env.DB.prepare(
+      `SELECT cookbook_id FROM cookbook_members
+       WHERE user_email = ?
+       ORDER BY COALESCE(display_order, 99999) ASC, joined_at ASC`
+    ).bind(email).all();
+    ids = (cur.results || []).map(r => r.cookbook_id);
+    ids = [defaultId, ...ids.filter(id => id !== defaultId)];
+  }
+
+  if (!ids || ids.length === 0) return c.json({ error: "no ids" }, 400);
+
+  // Batch the updates — D1 prepare/bind/run for each id; skips any
+  // id the caller isn't actually a member of by relying on the
+  // WHERE clause matching zero rows.
+  const stmts = ids.map((id, i) =>
+    c.env.DB.prepare(
+      "UPDATE cookbook_members SET display_order = ? WHERE cookbook_id = ? AND user_email = ?"
+    ).bind(i, id, email)
+  );
+  await c.env.DB.batch(stmts);
+  return c.json({ ok: true, order: ids });
+});
+
 // Caller becomes the owner. Visibility defaults to private.
 // Returns the new cookbook + the caller's membership row.
 app.post("/api/admin/cookbooks", async (c) => {
