@@ -460,12 +460,17 @@ export function useRecipes(cookbookId = BOOTSTRAP_COOKBOOK_ID) {
 
   const refresh = useCallback(async () => {
     try {
-      const qs = cookbookId ? `?cookbookId=${encodeURIComponent(cookbookId)}` : "";
-      // cache: "no-store" forces a fresh fetch every time. Without
-      // it, mobile Safari was caching the empty Patricia's
-      // Cookbook recipe list and returning [] from cache after
-      // a save, even though the new recipe had been written.
-      const res = await fetch(`/api/recipes${qs}`, { cache: "no-store" });
+      // The public /api/recipes route can only serve the bootstrap
+      // family cookbook — Cloudflare Access doesn't inject the auth
+      // header there, so membership checks on any other cookbook
+      // always 403. For non-bootstrap cookbooks we MUST use the
+      // authenticated /api/admin/ route where the header exists.
+      const url = (!cookbookId || cookbookId === BOOTSTRAP_COOKBOOK_ID)
+        ? `/api/recipes`
+        : `/api/admin/cookbooks/${encodeURIComponent(cookbookId)}/recipes`;
+      // cache: "no-store" forces a fresh fetch every time so a
+      // post-save refresh never reads a stale cached list.
+      const res = await fetch(url, { cache: "no-store", credentials: "include" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setRecipes(data.map(normalizeRecipe));

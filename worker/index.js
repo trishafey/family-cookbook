@@ -649,6 +649,47 @@ app.get("/api/recipes", async (c) => {
   return c.json(recipes);
 });
 
+// Shared query — returns every recipe (+ live comments) for a
+// cookbook. Used by both the public bootstrap read above and the
+// authenticated per-cookbook read below.
+async function fetchCookbookRecipes(c, cookbookId) {
+  const rows = await c.env.DB.prepare(
+    `SELECT r.blob, COALESCE(json_group_array(
+       CASE WHEN c.id IS NULL THEN NULL
+            ELSE json_object('id', c.id, 'name', c.author, 'text', c.body, 'created_at', c.created_at, 'created_by', c.created_by, 'rating', c.rating, 'photo', c.photo)
+       END
+     ) FILTER (WHERE c.id IS NOT NULL), '[]') AS live_comments
+     FROM recipes r
+     LEFT JOIN comments c ON c.recipe_id = r.id
+     WHERE r.cookbook_id = ? OR (r.cookbook_id IS NULL AND ? = ?)
+     GROUP BY r.id
+     ORDER BY r.created_at DESC`
+  ).bind(cookbookId, cookbookId, BOOTSTRAP_COOKBOOK_ID).all();
+  return rows.results.map((r) => ({
+    ...JSON.parse(r.blob),
+    liveComments: JSON.parse(r.live_comments).map(formatComment),
+  }));
+}
+
+// Authenticated per-cookbook recipe read. Lives under /api/admin/
+// because Cloudflare Access only injects the
+// cf-access-authenticated-user-email header on that path — which
+// cookbookRole() needs to verify membership on private cookbooks.
+// The public /api/recipes route above can't see that header, so
+// it can only ever serve the bootstrap family cookbook; every
+// other cookbook 403'd there because authedEmail was null. This
+// is the route the client uses for non-bootstrap cookbooks.
+app.get("/api/admin/cookbooks/:cookbookId/recipes", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("cookbookId");
+  const role = await cookbookRole(c, cookbookId);
+  if (!role) return c.json({ error: "not a member" }, 403);
+  const recipes = await fetchCookbookRecipes(c, cookbookId);
+  c.header("Cache-Control", "no-store, must-revalidate");
+  return c.json(recipes);
+});
+
 function formatComment(c) {
   const d = new Date(c.created_at);
   return {
