@@ -241,6 +241,25 @@ h4 { font-size: 17px; line-height: 1.3; }
   font-family: var(--sans); font-size: 14px; text-align: left;
 }
 .mobile-menu-item:hover { background: var(--paper-2); }
+/* Submenu trigger — the active cookbook label with a chevron
+   that rotates 90° when the submenu is open. */
+.cookbook-submenu-trigger .chev {
+  margin-left: auto;
+  font-family: var(--serif); font-size: 18px; color: var(--ink-3);
+  transition: transform .2s ease;
+  display: inline-block;
+}
+.cookbook-submenu-trigger .chev.open { transform: rotate(90deg); }
+.cookbook-submenu {
+  display: flex; flex-direction: column; gap: 2px;
+  margin: 2px 0 4px 28px;
+  padding-left: 8px;
+  border-left: 2px solid var(--rule);
+}
+.cookbook-submenu .submenu-item {
+  padding: 9px 10px;
+  font-size: 14px; color: var(--ink-2);
+}
 .mobile-menu-item.primary {
   background: var(--ink); color: var(--paper);
   margin-bottom: 4px;
@@ -5024,6 +5043,17 @@ button:hover .s-handleleaf, a:hover .s-handleleaf, .btn:hover .s-handleleaf {
 @keyframes ic-shandleleaf {
   from { opacity: 0; transform: scale(0) rotate(-15deg); }
   to   { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+/* Book icon — the front cover (.flip) flips open and shut on
+   hover. Reused for the mobile-menu "Cookbook" submenu trigger
+   so the page-flip cues the disclosure interaction. */
+svg .flip { transform-box: view-box; transform-origin: 12px 12px; backface-visibility: hidden; }
+button:hover svg .flip, a:hover svg .flip, .btn:hover svg .flip,
+.mobile-menu-item.cookbook-submenu-trigger svg .flip { animation: fc-pageflip 1.5s ease-in-out infinite alternate; }
+@keyframes fc-pageflip {
+  from { transform: perspective(140px) rotateY(0); }
+  to   { transform: perspective(140px) rotateY(-168deg); }
 }
 
 /* Origin-pill animations only fire when the pill is SELECTED

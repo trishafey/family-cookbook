@@ -1004,6 +1004,44 @@ const ADMIN_EMAILS = ["patricia.fejdasz@gmail.com"];
 //   2. Make — primary actions (Add recipe, Build a meal, Lab).
 //   3. Settings — Simple mode toggle, admin shortcuts.
 //   4. Footer — Sign in / Sign out.
+// Collapsible cookbook list inside the mobile drawer. Trigger
+// always shows the active cookbook + chevron; tap to expand and
+// pick another. Mirrors the desktop nav-dropdown affordance in a
+// touch-friendly stacked-list shape.
+function CookbookSubmenu({ cookbooks, activeCookbookId, onSwitchCookbook, go }) {
+  const [open, setOpen] = useState(false);
+  const active = cookbooks.find(c => c.id === activeCookbookId) || cookbooks[0];
+  return (
+    <>
+      <button
+        type="button"
+        className={`mobile-menu-item cookbook-submenu-trigger ${open ? "open" : ""}`}
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+      >
+        <Icon name="book" size={18} />
+        <span>{active?.name || "Cookbook"}</span>
+        <span className={`chev ${open ? "open" : ""}`} aria-hidden>›</span>
+      </button>
+      {open && (
+        <div className="cookbook-submenu">
+          {cookbooks.map(cb => (
+            <button
+              key={cb.id}
+              type="button"
+              className={`mobile-menu-item submenu-item ${cb.id === activeCookbookId ? "active" : ""}`}
+              onClick={() => go(() => onSwitchCookbook(cb.id))}
+            >
+              <span>{cb.name}</span>
+              {cb.id === activeCookbookId && <span className="badge">on</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 function MobileMenuDrawer({
   open, onClose,
   authEmail, simpleMode, onToggleSimpleMode,
@@ -1043,23 +1081,19 @@ function MobileMenuDrawer({
         </header>
 
         {/* Cookbook switcher — replaces the top-nav inline dropdown
-            on mobile (hidden via CSS at this breakpoint). Renders
-            only when the cook is a member of 2+ cookbooks so a
-            single-cookbook user never sees an empty pick list. */}
+            on mobile (hidden via CSS at this breakpoint). Collapsible:
+            the trigger always shows the active cookbook name; tap
+            to expand and pick another. Renders only when the cook
+            is a member of 2+ cookbooks. */}
         {authEmail && cookbooks && cookbooks.length >= 2 && onSwitchCookbook && (
           <section className="mobile-menu-section">
             <div className="mobile-menu-section-title">Cookbook</div>
-            {cookbooks.map(cb => (
-              <button
-                key={cb.id}
-                className={`mobile-menu-item ${cb.id === activeCookbookId ? "active" : ""}`}
-                onClick={() => go(() => onSwitchCookbook(cb.id))}
-              >
-                <Icon name="book" size={18} />
-                <span>{cb.name}</span>
-                {cb.id === activeCookbookId && <span className="badge">on</span>}
-              </button>
-            ))}
+            <CookbookSubmenu
+              cookbooks={cookbooks}
+              activeCookbookId={activeCookbookId}
+              onSwitchCookbook={onSwitchCookbook}
+              go={go}
+            />
           </section>
         )}
 

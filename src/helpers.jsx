@@ -851,7 +851,7 @@ export const Icon = ({ name, size = 18 }) => {
     // Recipe-card ingredient list — bound card with seed bullets.
     ingredientList: <><path d="M10 6 H14" strokeWidth="1.8" /><rect x="2.5" y="8" width="19" height="13.5" rx="2.5" /><circle className="seed" cx="5.5" cy="12" r="0.7" /><path d="M7.5 12 H18.5" /><circle className="seed" cx="5.5" cy="15.5" r="0.7" /><path d="M7.5 15.5 H16" /><circle className="seed" cx="5.5" cy="19" r="0.7" /><path d="M7.5 19 H17.5" /></>,
     home:      <><path d="M4 11.5 L12 4.5 L20 11.5 V20 H4 Z" /><path d="M9.4 20 V15 A2.6 2.6 0 0 1 14.6 15 V20" /></>,
-    book:      <><path d="M12 6.4 C10 4.8 6.6 4.8 4 5.4 V19 C6.6 18.4 10 18.4 12 20 C14 18.4 17.4 18.4 20 19 V5.4 C17.4 4.8 14 4.8 12 6.4 Z" /><path d="M12 6.4 V20" /></>,
+    book:      <><path d="M12 6.2C9.8 4.8 6.8 4.3 4 4.8V18c2.8-.5 5.8 0 8 1.4Z" /><path d="M12 6.2c2.2-1.4 5.2-1.9 8-1.4V18c-2.8-.5-5.8 0-8 1.4Z" /><path className="flip" d="M12 6.2c2.2-1.4 5.2-1.9 8-1.4V18c-2.8-.5-5.8 0-8 1.4Z" /></>,
     save:      <><path d="M7 4 H17 V20 L12 16 L7 20 Z" /><path d="M12 8 C10.6 8 9.6 9 9.6 10.4 C11 10.4 12 9.4 12 8 Z" /></>,
     favourite: <><path d="M12 20 C5 15.5 3 12 3 8.6 A4.4 4.4 0 0 1 12 7 A4.4 4.4 0 0 1 21 8.6 C21 12 19 15.5 12 20 Z" /><path d="M12 20.5 V10.5" /><path d="M12 14 L8.6 11.2 M12 14 L15.4 11.2 M12 17 L9.6 14.8 M12 17 L14.4 14.8" /></>,
     favouriteFill: <><path d="M12 20 C5 15.5 3 12 3 8.6 A4.4 4.4 0 0 1 12 7 A4.4 4.4 0 0 1 21 8.6 C21 12 19 15.5 12 20 Z" fill="currentColor" /></>,
