@@ -1074,6 +1074,15 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-family: var(--mono); font-size: 11px;
   color: var(--ink-3); letter-spacing: .04em;
 }
+.translate-all-row {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+.translate-all-msg {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--ink-3); letter-spacing: .03em;
+}
 
 /* Overnight toggle row (inside AddRecipe) */
 .input-row .overnight-toggle .check-line {

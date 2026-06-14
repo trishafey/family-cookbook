@@ -1494,6 +1494,13 @@ const FLAG_SVGS = {
       <rect y="8" width="22" height="4" fill="#fff" />
     </svg>
   ),
+  pt: (
+    <svg viewBox="0 0 60 36" width="22" height="14" aria-hidden="true">
+      <rect width="24" height="36" fill="#006633" />
+      <rect x="24" width="36" height="36" fill="#cc0000" />
+      <circle cx="24" cy="18" r="6" fill="#ffd700" stroke="#fff" strokeWidth="0.8" />
+    </svg>
+  ),
 };
 
 function LanguageFab({ availableLangs = ["en"] }) {

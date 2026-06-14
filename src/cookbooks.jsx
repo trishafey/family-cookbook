@@ -776,6 +776,30 @@ function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [translateMsg, setTranslateMsg] = useState(null);
+
+  // Backfill: queue translations for every recipe in this cookbook
+  // into every cookbook language that doesn't yet have one. Used
+  // after a cookbook adopts a new language so older recipes get
+  // caught up without having to re-save each one by hand.
+  const translateAll = async () => {
+    setTranslating(true);
+    setTranslateMsg(null);
+    try {
+      const res = await fetch(`/api/admin/cookbooks/${cookbook.id}/translate-missing`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Translate failed (${res.status})`);
+      setTranslateMsg(data.message || `Queued ${data.queued} recipes for translation.`);
+    } catch (err) {
+      setTranslateMsg(err.message || "Could not queue translations.");
+    } finally {
+      setTranslating(false);
+    }
+  };
 
   const submit = async (e) => {
     e?.preventDefault?.();
@@ -853,6 +877,19 @@ function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, 
               <div className="modal-field">
                 <span>Languages</span>
                 <LanguagePicker value={languages} onChange={setLanguages} />
+                {languages.length > 1 && (
+                  <div className="translate-all-row">
+                    <button
+                      type="button"
+                      className="btn ghost sm"
+                      onClick={translateAll}
+                      disabled={translating}
+                    >
+                      {translating ? "Queueing…" : "Translate existing recipes"}
+                    </button>
+                    {translateMsg && <span className="translate-all-msg">{translateMsg}</span>}
+                  </div>
+                )}
               </div>
 
               {/* Visibility hidden for now — kept in the form state so

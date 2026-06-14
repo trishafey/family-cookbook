@@ -57,7 +57,7 @@ const app = new Hono();
 // Supported language codes for the per-cookbook switcher. Add a
 // code here when the UI chrome translations land for it; recipe
 // content translation works for any LANG_NAME entry already.
-const SUPPORTED_LANGS = ["en", "pl", "es", "el"];
+const SUPPORTED_LANGS = ["en", "pl", "es", "el", "pt"];
 const MAX_COOKBOOK_LANGS = 3;
 // Normalise + cap a languages array submitted by the client.
 // "en" is always included so a misclick can't strip the cookbook
@@ -1404,7 +1404,7 @@ const AI_TRANSLATE_SCHEMA = {
   },
 };
 
-const LANG_NAME = { en: "English", pl: "Polish", es: "Spanish", el: "Greek" };
+const LANG_NAME = { en: "English", pl: "Polish", es: "Mexican Spanish", el: "Greek", pt: "Portuguese" };
 
 // Fan-out helper: given a recipe + its cookbook, queue
 // translateAndStore for every cookbook language that isn't the
@@ -1603,6 +1603,46 @@ app.post("/api/admin/migrate/reslug", async (c) => {
   }
 
   return c.json({ dryRun: false, total: plan.length, executed, errors });
+});
+
+// Per-cookbook backfill: queue translations for every recipe in
+// this cookbook into every cookbook language that doesn't yet
+// have a stored translation. Surfaces as a "Translate all"
+// button in the cookbook settings page so the owner can backfill
+// when they enable a new language.
+app.post("/api/admin/cookbooks/:id/translate-missing", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("id");
+  const role = await cookbookRole(c, cookbookId);
+  if (role !== "owner" && role !== "editor" && role !== "admin") {
+    return c.json({ error: "owner / editor only" }, 403);
+  }
+  if (!c.env.OPENAI_API_KEY) {
+    return c.json({ error: "OpenAI API key is not configured." }, 500);
+  }
+  const cb = await c.env.DB.prepare("SELECT languages FROM cookbooks WHERE id = ?").bind(cookbookId).first();
+  const langs = cb?.languages ? JSON.parse(cb.languages) : ["en"];
+  const rows = await c.env.DB.prepare(
+    "SELECT id, blob, translations FROM recipes WHERE cookbook_id = ?"
+  ).bind(cookbookId).all();
+  let queued = 0;
+  let skipped = 0;
+  for (const row of rows.results || []) {
+    const existing = row.translations ? JSON.parse(row.translations) : {};
+    const recipe = JSON.parse(row.blob);
+    const from = recipe.canonical_lang || "en";
+    const targets = langs.filter(l => l && l !== from && !existing[l]);
+    if (!targets.length) { skipped++; continue; }
+    for (const to of targets) {
+      c.executionCtx.waitUntil(translateAndStore(c.env, row.id, recipe, from, to, email));
+    }
+    queued++;
+  }
+  return c.json({
+    ok: true, queued, skipped,
+    message: `Queued ${queued} recipe${queued === 1 ? "" : "s"} for translation. They'll land within a minute.`,
+  });
 });
 
 app.get("/api/admin/translate-missing", async (c) => {
@@ -2132,7 +2172,7 @@ const AI_RECIPE_SCHEMA = {
     // to match what the cook wrote, and the worker uses it as
     // the saved recipe's canonical_lang so translateAndStore
     // knows which direction to translate.
-    sourceLang: { type: "string", enum: ["en", "pl", "es", "el"] },
+    sourceLang: { type: "string", enum: ["en", "pl", "es", "el", "pt"] },
     title:    { type: "string" },
     subtitle: { type: ["string", "null"] },
     author:   { type: ["string", "null"] },
@@ -3823,7 +3863,7 @@ app.patch("/api/admin/users/:email", async (c) => {
   if (typeof body?.simpleMode === "boolean") {
     sets.push("simple_mode = ?"); args.push(body.simpleMode ? 1 : 0);
   }
-  if (["en", "pl", "es", "el"].includes(body?.lang)) {
+  if (["en", "pl", "es", "el", "pt"].includes(body?.lang)) {
     sets.push("lang = ?"); args.push(body.lang);
   }
   if (!sets.length) return c.json({ ok: true });
