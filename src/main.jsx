@@ -349,6 +349,37 @@ function App() {
   }, [recipes]);
   const recipe = recipes.find(r => r.id === recipeId);
 
+  // On-demand translation: when the cook lands on a recipe in a
+  // language that doesn't have a stored translation yet, fire the
+  // ensure-translation endpoint in the background and refetch when
+  // it lands. Avoids the "switch to Spanish, see English text"
+  // gap on recipes that pre-date the cookbook's language pick.
+  // Guards against re-firing for the same recipe+lang pair so a
+  // brief failure doesn't spam the API.
+  const translatingRef = useRef(new Set());
+  useEffect(() => {
+    if (view !== "recipe" || !recipeId) return;
+    const canonical = canonicalRecipes.find(r => r.id === recipeId);
+    if (!canonical) return;
+    const canonLang = canonical.canonical_lang || "en";
+    if (currentLang === canonLang) return;
+    if (canonical.translations && canonical.translations[currentLang]) return;
+    const key = `${recipeId}:${currentLang}`;
+    if (translatingRef.current.has(key)) return;
+    translatingRef.current.add(key);
+    (async () => {
+      try {
+        const res = await fetch(`/api/admin/recipes/${encodeURIComponent(recipeId)}/ensure-translation`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lang: currentLang }),
+        });
+        if (res.ok) await refreshRecipes();
+      } catch {}
+    })();
+  }, [view, recipeId, currentLang, canonicalRecipes, refreshRecipes]);
+
   // ─── Language (English / Polish) ───
   // currentLang above is from the same hook; pulling the rest of the
   // helpers here so the localised data flows from one source.

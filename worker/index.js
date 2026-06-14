@@ -1610,6 +1610,36 @@ app.post("/api/admin/migrate/reslug", async (c) => {
 // have a stored translation. Surfaces as a "Translate all"
 // button in the cookbook settings page so the owner can backfill
 // when they enable a new language.
+// On-demand single-recipe translation. Called by the recipe page
+// when a cook switches the FAB to a language that doesn't yet
+// have a stored translation for the recipe they're viewing.
+// Blocks until translateAndStore returns so the client can refetch
+// and re-render with the new text in one beat — no second poll.
+app.post("/api/admin/recipes/:id/ensure-translation", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const id = c.req.param("id");
+  const body = await c.req.json().catch(() => ({}));
+  const to = typeof body?.lang === "string" ? body.lang.toLowerCase() : null;
+  if (!to || !SUPPORTED_LANGS.includes(to)) {
+    return c.json({ error: "invalid lang" }, 400);
+  }
+  const row = await c.env.DB.prepare(
+    "SELECT id, blob, translations FROM recipes WHERE id = ?"
+  ).bind(id).first();
+  if (!row) return c.json({ error: "not found" }, 404);
+  const existing = row.translations ? JSON.parse(row.translations) : {};
+  const recipe = JSON.parse(row.blob);
+  const from = recipe.canonical_lang || "en";
+  if (to === from) return c.json({ ok: true, status: "canonical" });
+  if (existing[to]) return c.json({ ok: true, status: "cached" });
+  if (!c.env.OPENAI_API_KEY) {
+    return c.json({ error: "OpenAI API key is not configured." }, 500);
+  }
+  await translateAndStore(c.env, id, recipe, from, to, email);
+  return c.json({ ok: true, status: "translated" });
+});
+
 app.post("/api/admin/cookbooks/:id/translate-missing", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
