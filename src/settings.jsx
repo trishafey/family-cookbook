@@ -199,6 +199,8 @@ function EditUserModal({ user, onClose, onSaved, onDeleted }) {
   const [phone, setPhone] = useState(user.phone || "");
   const [status, setStatus] = useState(user.status || "approved");
   const [makeAdmin, setMakeAdmin] = useState(!!user.isAdmin);
+  const [simpleMode, setSimpleMode] = useState(!!user.simpleMode);
+  const [lang, setLang] = useState(user.lang || "en");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -219,6 +221,8 @@ function EditUserModal({ user, onClose, onSaved, onDeleted }) {
           displayName,
           status,
           isAdmin: makeAdmin,
+          simpleMode,
+          lang,
         }),
       });
       if (!res.ok) {
@@ -233,6 +237,8 @@ function EditUserModal({ user, onClose, onSaved, onDeleted }) {
         displayName,
         status,
         isAdmin: makeAdmin,
+        simpleMode,
+        lang,
       });
     } catch (err) {
       setError(err.message);
@@ -292,6 +298,20 @@ function EditUserModal({ user, onClose, onSaved, onDeleted }) {
               <option value="approved">approved</option>
               <option value="pending">pending</option>
               <option value="declined">declined</option>
+            </select>
+          </label>
+          <label className="modal-field">
+            <span>Default view</span>
+            <select value={simpleMode ? "simple" : "full"} onChange={(e) => setSimpleMode(e.target.value === "simple")} className="modal-select">
+              <option value="full">Full view — all surfaces (AI, filters, cook mode, timers)</option>
+              <option value="simple">Simple view — recipes + ingredients only</option>
+            </select>
+          </label>
+          <label className="modal-field">
+            <span>Default language</span>
+            <select value={lang} onChange={(e) => setLang(e.target.value)} className="modal-select">
+              <option value="en">English</option>
+              <option value="pl">Polski (Polish)</option>
             </select>
           </label>
           <label className="modal-field admin-toggle">
@@ -462,6 +482,8 @@ export function AdminUsers({ authEmail, onClose }) {
                     <th>Email</th>
                     <th>Phone</th>
                     <th>Status</th>
+                    <th>View</th>
+                    <th>Lang</th>
                     <th className="num">Owned</th>
                     <th className="num">Member of</th>
                     <th aria-label="Actions"></th>
@@ -469,7 +491,7 @@ export function AdminUsers({ authEmail, onClose }) {
                 </thead>
                 <tbody>
                   {filteredOthers.length === 0 ? (
-                    <tr><td colSpan={7} className="empty">No users match "{q}".</td></tr>
+                    <tr><td colSpan={9} className="empty">No users match "{q}".</td></tr>
                   ) : filteredOthers.map(u => {
                     const isSelf = u.email === authEmail;
                     return (
@@ -486,6 +508,8 @@ export function AdminUsers({ authEmail, onClose }) {
                             {u.status}
                           </span>
                         </td>
+                        <td className="email">{u.simpleMode ? "simple" : "full"}</td>
+                        <td className="email">{u.lang === "pl" ? "PL" : "EN"}</td>
                         <td className="num">{u.ownedCount}</td>
                         <td className="num">{u.membershipCount}</td>
                         <td>

@@ -1213,7 +1213,7 @@ function MobileMenuDrawer({
               </button>
             )}
             <button className="mobile-menu-item" onClick={() => go(onToggleSimpleMode)}>
-              <Icon name={simpleMode ? "favourite" : "book"} size={18} />
+              <Icon name="simpleView" size={18} />
               <span>{simpleMode ? t("simpleModeOn") : t("simpleModeOff")}</span>
             </button>
             {isSystemAdmin && onOpenAdminUsers && (

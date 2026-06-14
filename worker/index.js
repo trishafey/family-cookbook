@@ -3531,7 +3531,7 @@ app.get("/api/admin/me/profile", async (c) => {
   if (!email) return c.json({ error: "not signed in" }, 401);
   await ensureUserBootstrap(c);
   const row = await c.env.DB.prepare(
-    "SELECT email, display_name, first_name, last_name, phone, is_admin, status FROM users WHERE email = ?"
+    "SELECT email, display_name, first_name, last_name, phone, is_admin, status, simple_mode, lang FROM users WHERE email = ?"
   ).bind(email).first();
   const firstName = row?.first_name || "";
   const lastName = row?.last_name || "";
@@ -3542,6 +3542,8 @@ app.get("/api/admin/me/profile", async (c) => {
     lastName,
     phone: row?.phone || "",
     isAdmin: !!row?.is_admin,
+    simpleMode: !!row?.simple_mode,
+    lang: row?.lang || "en",
     // Account-approval status. New cooks sign up as 'pending' and
     // sit behind a holding screen until an admin approves them.
     // Invited cooks auto-approve in the invite-accept handler.
@@ -3614,6 +3616,12 @@ app.patch("/api/admin/users/:email", async (c) => {
   }
   if (["approved", "pending", "declined"].includes(body?.status)) {
     sets.push("status = ?"); args.push(body.status);
+  }
+  if (typeof body?.simpleMode === "boolean") {
+    sets.push("simple_mode = ?"); args.push(body.simpleMode ? 1 : 0);
+  }
+  if (["en", "pl"].includes(body?.lang)) {
+    sets.push("lang = ?"); args.push(body.lang);
   }
   if (!sets.length) return c.json({ ok: true });
   args.push(target);
@@ -3731,7 +3739,8 @@ app.get("/api/admin/users", async (c) => {
   if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
   const rows = await c.env.DB.prepare(`
     SELECT u.email, u.display_name, u.first_name, u.last_name, u.phone,
-           u.tier, u.status, u.is_admin, u.created_at, u.last_seen_at,
+           u.tier, u.status, u.is_admin, u.simple_mode, u.lang,
+           u.created_at, u.last_seen_at,
            (SELECT COUNT(*) FROM cookbooks WHERE owner_email = u.email) AS owned_count,
            (SELECT COUNT(*) FROM cookbook_members WHERE user_email = u.email) AS membership_count
     FROM users u
@@ -3747,6 +3756,8 @@ app.get("/api/admin/users", async (c) => {
       tier: r.tier,
       status: r.status,
       isAdmin: !!r.is_admin,
+      simpleMode: !!r.simple_mode,
+      lang: r.lang || "en",
       createdAt: r.created_at,
       lastSeenAt: r.last_seen_at,
       ownedCount: r.owned_count,
