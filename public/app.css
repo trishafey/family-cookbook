@@ -2798,6 +2798,46 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   letter-spacing: 0.08em;
 }
 
+/* ─── Admin "View as" preview ─── */
+.view-as-section {
+  padding: 8px 12px;
+  border-top: 1px solid var(--rule);
+  margin-top: 4px;
+}
+.view-as-label {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 600;
+  margin-bottom: 6px;
+}
+.view-as-options { display: flex; gap: 4px; flex-wrap: wrap; }
+.view-as-chip {
+  flex: 1 0 auto;
+  padding: 5px 10px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 600;
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease, color .14s ease;
+}
+.view-as-chip:hover { color: var(--ink); border-color: var(--accent); }
+.view-as-chip.active {
+  background: var(--accent); color: var(--paper); border-color: var(--accent);
+}
+.view-as-banner {
+  background: color-mix(in srgb, var(--accent) 12%, var(--paper));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, var(--rule));
+  color: var(--ink);
+  padding: 8px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  font-family: var(--serif); font-size: 14px;
+}
+.view-as-banner strong { font-style: italic; color: var(--accent); text-transform: uppercase; }
+
 /* Pending-approval badge on the admin avatar + menu entry. */
 .avatar { position: relative; }
 .avatar-badge {
