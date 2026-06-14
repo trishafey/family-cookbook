@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { Icon, SIGN_OUT_URL } from "./helpers.jsx";
+import { AdminAIUsage } from "./admin-ai-usage.jsx";
 
 export function AccountSettings({ profile, refreshProfile, onClose, saveProfile }) {
   const [firstName, setFirstName] = useState(profile?.firstName || "");
@@ -355,7 +356,11 @@ function EditUserModal({ user, onClose, onSaved, onDeleted }) {
 // Admin users panel — searchable table of every account with
 // inline approve / decline + an edit modal for full profile +
 // admin flag + status + delete.
-export function AdminUsers({ authEmail, onClose }) {
+//
+// Rendered as a TAB inside AdminPage (no page chrome). The
+// legacy AdminUsers default export is preserved as a wrapper
+// for any caller still hitting the old standalone path.
+function AdminUsersTab({ authEmail }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -413,18 +418,10 @@ export function AdminUsers({ authEmail, onClose }) {
   });
 
   return (
-    <div className="settings-page" data-screen-label="12 Admin · Users">
-      <button className="btn ghost" onClick={onClose} style={{ marginBottom: 16 }}>
-        <Icon name="chevL" /> Back to cookbook
-      </button>
-
-      <div className="settings-header">
-        <div className="eyebrow">Admin</div>
-        <h1>All <em>users</em></h1>
-        <div className="intro">
-          Every account on Heirloom. Edit a user to change their name, phone, approval status, or admin flag; delete to cascade-remove their cookbooks, recipes, and memberships.
-        </div>
-      </div>
+    <div data-screen-label="12 Admin · Users">
+      <p className="admin-tab-intro">
+        Every account on Heirloom. Edit a user to change their name, phone, approval status, or admin flag; delete to cascade-remove their cookbooks, recipes, and memberships.
+      </p>
 
       {error && <div className="settings-error">{error}</div>}
 
@@ -552,4 +549,78 @@ export function AdminUsers({ authEmail, onClose }) {
       )}
     </div>
   );
+}
+
+// "View as" preview controls — admin only. Lives as a tab inside
+// the AdminPage; flipping a chip immediately reshapes the rest
+// of the app to look like that role.
+function ViewAsTab({ viewAsRole, onSetViewAs }) {
+  const opts = [
+    ["admin", "Admin", "Default. Everything visible: every cookbook, every member's email, full controls."],
+    ["owner", "Owner", "Hides system-admin tools. Other people's cookbooks drop out of your library."],
+    ["editor", "Editor", "No member management; no rename/delete cookbook. Can still add recipes + invite."],
+    ["viewer", "Viewer", "Read-only. No Add recipe, no settings, no member management."],
+  ];
+  return (
+    <div data-screen-label="View as">
+      <p className="admin-tab-intro">
+        Preview how the app looks for a non-admin role. Cosmetic only — server permissions are unchanged, so you can flip back instantly.
+      </p>
+      <div className="view-as-stack">
+        {opts.map(([role, label, desc]) => {
+          const active = role === "admin" ? !viewAsRole : viewAsRole === role;
+          return (
+            <button
+              key={role}
+              type="button"
+              className={`view-as-row ${active ? "active" : ""}`}
+              onClick={() => onSetViewAs(role === "admin" ? null : role)}
+            >
+              <div className="view-as-row-head">
+                <span className="dot" aria-hidden />
+                <span className="label">{label}</span>
+                {active && <span className="badge">Active</span>}
+              </div>
+              <div className="view-as-row-desc">{desc}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Admin page — tabbed. Lives at /admin. Users · View as · AI usage.
+export function AdminPage({ authEmail, onClose, viewAsRole, onSetViewAs, initialTab = "users" }) {
+  const [tab, setTab] = useState(initialTab);
+  return (
+    <div className="settings-page" data-screen-label="12 Admin">
+      <button className="btn ghost" onClick={onClose} style={{ marginBottom: 16 }}>
+        <Icon name="chevL" /> Back to cookbook
+      </button>
+
+      <div className="settings-header">
+        <div className="eyebrow">Admin</div>
+        <h1><em>Admin</em></h1>
+      </div>
+
+      <div className="tabbed-nav admin-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === "users"} className={`tab ${tab === "users" ? "active" : ""}`} onClick={() => setTab("users")}>Users</button>
+        <button type="button" role="tab" aria-selected={tab === "view-as"} className={`tab ${tab === "view-as" ? "active" : ""}`} onClick={() => setTab("view-as")}>View as</button>
+        <button type="button" role="tab" aria-selected={tab === "ai-usage"} className={`tab ${tab === "ai-usage" ? "active" : ""}`} onClick={() => setTab("ai-usage")}>AI usage</button>
+      </div>
+
+      {tab === "users" && <AdminUsersTab authEmail={authEmail} />}
+      {tab === "view-as" && (
+        <ViewAsTab viewAsRole={viewAsRole} onSetViewAs={onSetViewAs} />
+      )}
+      {tab === "ai-usage" && <AdminAIUsage embedded onClose={() => {}} />}
+    </div>
+  );
+}
+
+// Legacy wrapper kept so any external link (or in-app code that
+// imports `AdminUsers`) keeps working. New routes use AdminPage.
+export function AdminUsers({ authEmail, onClose }) {
+  return <AdminPage authEmail={authEmail} onClose={onClose} initialTab="users" />;
 }

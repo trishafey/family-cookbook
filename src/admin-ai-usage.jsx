@@ -156,7 +156,7 @@ function summariseMeta(feature, metaStr) {
   return bits.join(" · ");
 }
 
-export function AdminAIUsage({ onClose }) {
+export function AdminAIUsage({ onClose, embedded = false }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [includeAdmins, setIncludeAdmins] = useState(false);
@@ -210,19 +210,25 @@ export function AdminAIUsage({ onClose }) {
   const cookedPct = funnelAdded > 0 ? Math.round((funnel.cooked / funnelAdded) * 100) : null;
 
   return (
-    <div className="app admin-ai-usage" data-screen-label="Admin · AI usage">
-      <button className="btn ghost" onClick={onClose} style={{ marginBottom: 24 }}>
-        <Icon name="chevL" /> Back to cookbook
-      </button>
+    <div className={embedded ? "admin-ai-usage embedded" : "app admin-ai-usage"} data-screen-label="Admin · AI usage">
+      {!embedded && (
+        <button className="btn ghost" onClick={onClose} style={{ marginBottom: 24 }}>
+          <Icon name="chevL" /> Back to cookbook
+        </button>
+      )}
 
       <header style={{ marginBottom: 28 }}>
-        <div style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--accent-cool)", marginBottom: 6 }}>
-          Admin
-        </div>
-        <h1 style={{ fontFamily: "var(--serif)", fontSize: 36, fontStyle: "italic", fontWeight: 500, margin: 0 }}>
-          Usage analytics
-        </h1>
-        <p style={{ color: "var(--ink-3)", fontFamily: "var(--serif)", fontSize: 15, marginTop: 8 }}>
+        {!embedded && (
+          <>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--accent-cool)", marginBottom: 6 }}>
+              Admin
+            </div>
+            <h1 style={{ fontFamily: "var(--serif)", fontSize: 36, fontStyle: "italic", fontWeight: 500, margin: 0 }}>
+              Usage analytics
+            </h1>
+          </>
+        )}
+        <p style={{ color: "var(--ink-3)", fontFamily: "var(--serif)", fontSize: 15, marginTop: embedded ? 0 : 8 }}>
           {totalCalls > 0
             ? `${totalCalls} AI ${totalCalls === 1 ? "call" : "calls"} · ${fmtTokens(totalTokens)} tokens · est. ${fmtUsd(estCostUsd)}`
             : "No usage data yet. Once the family uses an AI feature it'll show up here."}
