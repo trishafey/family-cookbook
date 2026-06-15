@@ -2198,8 +2198,16 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   overflow-y: visible;
   scrollbar-width: thin;
 }
-/* Wooden shelf board removed per Trisha's note — the books just
-   sit on the row's baseline with no painted shelf underneath. */
+.shelf::after {
+  /* The wooden shelf board the books sit on. */
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 10px;
+  background: linear-gradient(to bottom, #6b4f33 0%, #4d3724 100%);
+  border-radius: 2px;
+  box-shadow: 0 4px 8px -2px rgba(0,0,0,.25);
+}
 
 /* Default book color when the cookbook hasn't picked one. */
 .book {
@@ -2273,8 +2281,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   background: var(--book-color);
   color: #fff;
   border: 0;
-  border-radius: 14px;
-  padding: 18px 22px 24px;
+  /* Same corner treatment as the cookbook detail-page cover:
+     spine side (left) tight, open side (right) softer. */
+  border-radius: 2px 8px 8px 2px;
+  padding: 18px 22px 24px 30px;
   display: flex; flex-direction: column;
   align-items: stretch;
   cursor: pointer;
@@ -2288,17 +2298,23 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .book-cover-photo {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover;
+  z-index: 0;
 }
-.book-cover-body::after {
+/* Darker spine band on the left edge — matches the cookbook
+   detail-page cover. Sits above any photo so the spine reads
+   even on a photo cover. */
+.book-cover-body::before {
   content: "";
-  position: absolute; inset: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,.05), rgba(0,0,0,.45));
-  pointer-events: none;
+  position: absolute; inset: 0 auto 0 0;
+  width: 10px;
+  background: linear-gradient(to right, rgba(0,0,0,.35), rgba(0,0,0,.08));
+  z-index: 3;
 }
 .book-cover .book-bookmark {
   position: absolute;
-  top: 0; left: 16px;
-  z-index: 2;
+  top: 0; left: 20px;
+  /* Above the spine band (::before z:3) and any photo overlay. */
+  z-index: 4;
   background: var(--accent);
   color: #fff;
   font-family: var(--mono);
@@ -2315,7 +2331,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .book-cover .book-bookmark.role-editor  { background: var(--accent-cool, #6e7a3a); }
 .book-cover .book-bookmark.role-viewer  { background: rgba(255,255,255,.3); color: #fff; }
 .book-cover-content {
-  position: relative; z-index: 2;
+  position: relative;
+  /* Above the spine band so the title + lang line don't get
+     darkened by the inset gradient on the left edge. */
+  z-index: 4;
   margin: auto 0;
   padding-top: 36px;
   display: flex; flex-direction: column;
