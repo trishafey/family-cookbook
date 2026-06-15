@@ -236,14 +236,9 @@ export function CookbookPage({
                 <Icon name="plus" /> Add a recipe
               </button>
             )}
-            {canSeeMembers && (
-              <button className="btn ghost" onClick={() => onTabClick("members")}>
-                <Icon name="chef" /> Invite cooks
-              </button>
-            )}
-            <button className="btn ghost" onClick={shareCookbook}>
-              <Icon name="share" /> {shareCopied ? "Link copied!" : "Share cookbook"}
-            </button>
+            {/* Invite cooks + Share cookbook removed for now — the
+                Members tab still surfaces invites and Share will
+                come back as part of the public viewer URL work. */}
           </div>
         </div>
       </div>
