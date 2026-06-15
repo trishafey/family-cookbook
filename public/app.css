@@ -1267,9 +1267,11 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   object-fit: cover;
 }
 .cookbook-h1 {
+  /* Match the base h1 serif treatment ("The Family Cookbook"
+     masthead) — weight 400, default 48px. */
   margin: 0 0 8px;
   font-family: var(--serif);
-  font-weight: 500;
+  font-weight: 400;
 }
 .cookbook-tagline {
   margin: 0 0 18px;
@@ -1309,6 +1311,8 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   margin: 8px 0 0;
 }
 .cookbook-segmented .seg {
+  /* Same sans 14px / weight 500 as .btn so the segmented toggle
+     reads consistent with the action buttons above it. */
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 16px;
   border-radius: 999px;
@@ -1316,7 +1320,8 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   background: transparent;
   font: inherit;
   font-family: var(--sans);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--ink-3);
   cursor: pointer;
 }
@@ -1377,19 +1382,24 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   border-bottom: 1px solid var(--rule);
 }
 .cb-members-head .eyebrow {
-  font-family: var(--mono); font-size: 11px;
-  letter-spacing: .14em; text-transform: uppercase;
-  color: var(--ink-3); margin-bottom: 4px;
+  /* Inherits the canonical .eyebrow style — sans 11px / 0.14em /
+     uppercase / weight 600 — so the cookbook-page eyebrows match
+     "FAMILY FAVORITES" on the browse view exactly. Only the
+     spacing override remains. */
+  margin-bottom: 4px;
 }
 .cb-members-head h1 {
+  /* Match the section heading on browse ("The ones we keep coming
+     back to") — h2 base style: serif 32px / weight 400, no
+     italics or custom weight tweaks. */
   margin: 0;
-  font-family: var(--serif);
-  font-weight: 500;
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 1.1;
 }
 .cb-members-head h1 em {
   font-style: italic;
   color: var(--ink-3);
-  font-weight: 400;
 }
 .cb-members-count {
   font-family: var(--mono); font-size: 11px;
@@ -1450,20 +1460,22 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 
 /* Role / action select used in each member row — square white
-   field, mono font, mirrors the screenshot. */
+   field. Typography matches the .btn baseline (sans 14px /
+   weight 500) so the select sits naturally next to the
+   "Send invite" button without a typographic break. */
 .cb-role-select {
   appearance: none;
   -webkit-appearance: none;
-  padding: 6px 28px 6px 12px;
+  padding: 8px 32px 8px 14px;
   border: 1px solid var(--rule);
   background: var(--paper)
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M3 5l3 3 3-3' stroke='%231c1813' stroke-width='1.2' fill='none'/></svg>")
     no-repeat right 10px center / 10px;
   border-radius: 6px;
-  font-family: var(--mono); font-size: 12px;
+  font-family: var(--sans); font-size: 14px; font-weight: 500;
   color: var(--ink);
   cursor: pointer;
-  min-width: 110px;
+  min-width: 120px;
 }
 .cb-role-select:focus { outline: none; border-color: var(--accent); }
 .cb-role-select:disabled { opacity: .55; cursor: not-allowed; }
@@ -1496,16 +1508,20 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .cb-invite-card .cb-invite-input:focus { outline: none; border-color: var(--accent); }
 .cb-invite-card .cb-invite-role {
+  /* Match the adjacent "Send invite" button: sans 14px /
+     weight 500 / matching padding. The custom caret stays so it
+     still reads as a select. */
   appearance: none;
   -webkit-appearance: none;
-  font-family: var(--mono); font-size: 11px;
+  font-family: var(--sans); font-size: 14px; font-weight: 500;
   background: var(--paper)
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M3 5l3 3 3-3' stroke='%231c1813' stroke-width='1.2' fill='none'/></svg>")
-    no-repeat right 8px center / 9px;
+    no-repeat right 12px center / 10px;
   border: 1px solid var(--rule);
-  border-radius: 6px;
-  padding: 6px 24px 6px 10px;
+  border-radius: var(--radius);
+  padding: 10px 32px 10px 15px;
   color: var(--ink);
+  cursor: pointer;
 }
 .cb-network-pills {
   margin-top: 6px;
@@ -1513,8 +1529,11 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   border-top: 1px solid var(--rule);
 }
 .cb-network-pills-label {
-  font-family: var(--mono); font-size: 11px;
-  letter-spacing: .12em; text-transform: uppercase;
+  /* Same typography as .eyebrow so all uppercase labels on the
+     page (FAMILY FAVORITES, WHO'S IN THE KITCHEN, etc.) share
+     one rule. */
+  font-family: var(--sans); font-size: 11px; font-weight: 600;
+  letter-spacing: .14em; text-transform: uppercase;
   color: var(--ink-3); margin-bottom: 10px;
 }
 
