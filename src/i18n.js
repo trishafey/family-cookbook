@@ -500,11 +500,12 @@ function lookup(table, value, lang) {
 // FAB to render names and by toLocaleDateString for proper
 // weekday/date formatting.
 export const LANG_META = {
-  en: { label: "English",          locale: "en-US" },
-  pl: { label: "Polski",           locale: "pl-PL" },
-  es: { label: "Español (México)", locale: "es-MX" },
-  el: { label: "Ελληνικά",         locale: "el-GR" },
-  pt: { label: "Português",        locale: "pt-PT" },
+  en:   { label: "English (Canadian)", locale: "en-CA" },
+  enUS: { label: "English (American)", locale: "en-US" },
+  pl:   { label: "Polski",             locale: "pl-PL" },
+  es:   { label: "Español (México)",   locale: "es-MX" },
+  el:   { label: "Ελληνικά",           locale: "el-GR" },
+  pt:   { label: "Português",          locale: "pt-PT" },
 };
 export const SUPPORTED_LANGS = Object.keys(LANG_META);
 

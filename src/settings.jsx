@@ -312,7 +312,8 @@ function EditUserModal({ user, onClose, onSaved, onDeleted }) {
           <label className="modal-field">
             <span>Default language</span>
             <select value={lang} onChange={(e) => setLang(e.target.value)} className="modal-select">
-              <option value="en">English</option>
+              <option value="en">English (Canadian)</option>
+              <option value="enUS">English (American)</option>
               <option value="pl">Polski (Polish)</option>
               <option value="es">Español de México (Mexican Spanish)</option>
               <option value="el">Ελληνικά (Greek)</option>

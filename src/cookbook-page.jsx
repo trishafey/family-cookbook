@@ -20,6 +20,7 @@ import { InviteCookModal } from "./invite-cook-modal.jsx";
 
 const FLAG_SRC = {
   en: "/images/flags/en.png",
+  enUS: "/images/flags/en-us.svg",
   pl: "/images/flags/pl.jpg",
   es: "/images/flags/es.png",
   el: "/images/flags/el.jpg",
@@ -28,6 +29,7 @@ const FLAG_SRC = {
 
 const LANG_NATIONALITY = {
   en: "Canadian",
+  enUS: "American",
   pl: "Polish",
   es: "Mexican",
   el: "Greek",

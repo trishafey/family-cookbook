@@ -3345,6 +3345,13 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   flex-shrink: 0;
   align-items: center;
 }
+/* The default .btn pad is 15px — sized to feel comfortable on a
+   standalone primary call-to-action, but it makes the
+   Cancel / Save-recipe pair in the Add recipe header read as
+   chunky next to the slimmer Saving-to select. Drop to 10px
+   vertical so the buttons match the select height. */
+.add-recipe-header .rhs .btn { padding: 10px 16px; }
+.add-recipe-header .rhs .btn:has(svg) { padding: 10px 16px 10px 12px; }
 @media (max-width: 720px) {
   .add-recipe-header {
     flex-direction: column;

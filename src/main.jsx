@@ -1801,6 +1801,7 @@ function BackToTopFab() {
 // the layout (and the round outline in the menu rows) is identical.
 const FLAG_SRC = {
   en: "/images/flags/en.png",
+  enUS: "/images/flags/en-us.svg",
   pl: "/images/flags/pl.jpg",
   es: "/images/flags/es.png",
   el: "/images/flags/el.jpg",

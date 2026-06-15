@@ -57,7 +57,7 @@ const app = new Hono();
 // Supported language codes for the per-cookbook switcher. Add a
 // code here when the UI chrome translations land for it; recipe
 // content translation works for any LANG_NAME entry already.
-const SUPPORTED_LANGS = ["en", "pl", "es", "el", "pt"];
+const SUPPORTED_LANGS = ["en", "enUS", "pl", "es", "el", "pt"];
 const MAX_COOKBOOK_LANGS = 3;
 // Normalise + cap a languages array submitted by the client.
 // "en" is always included so a misclick can't strip the cookbook
@@ -1521,7 +1521,7 @@ const AI_TRANSLATE_SCHEMA = {
   },
 };
 
-const LANG_NAME = { en: "English", pl: "Polish", es: "Mexican Spanish", el: "Greek", pt: "Portuguese" };
+const LANG_NAME = { en: "Canadian English", enUS: "American English", pl: "Polish", es: "Mexican Spanish", el: "Greek", pt: "Portuguese" };
 
 // Fan-out helper: given a recipe + its cookbook, queue
 // translateAndStore for every cookbook language that isn't the
@@ -2319,7 +2319,7 @@ const AI_RECIPE_SCHEMA = {
     // to match what the cook wrote, and the worker uses it as
     // the saved recipe's canonical_lang so translateAndStore
     // knows which direction to translate.
-    sourceLang: { type: "string", enum: ["en", "pl", "es", "el", "pt"] },
+    sourceLang: { type: "string", enum: ["en", "enUS", "pl", "es", "el", "pt"] },
     title:    { type: "string" },
     subtitle: { type: ["string", "null"] },
     author:   { type: ["string", "null"] },
@@ -4010,7 +4010,7 @@ app.patch("/api/admin/users/:email", async (c) => {
   if (typeof body?.simpleMode === "boolean") {
     sets.push("simple_mode = ?"); args.push(body.simpleMode ? 1 : 0);
   }
-  if (["en", "pl", "es", "el", "pt"].includes(body?.lang)) {
+  if (["en", "enUS", "pl", "es", "el", "pt"].includes(body?.lang)) {
     sets.push("lang = ?"); args.push(body.lang);
   }
   if (!sets.length) return c.json({ ok: true });
