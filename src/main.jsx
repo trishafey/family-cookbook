@@ -1070,6 +1070,8 @@ function App() {
           setActiveCookbookId={setActiveCookbookId}
           goToLibrary={goToLibrary}
           openAddRecipe={() => setView("add")}
+          query={query}
+          setQuery={setQuery}
           renderRecipesTab={() => (
             <Browse
               recipes={filtered}
