@@ -2085,7 +2085,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .discover-cover-langs {
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 6px;
   letter-spacing: .12em;
   text-transform: uppercase;
   color: rgba(255,255,255,.75);

@@ -147,11 +147,6 @@ export function Discover({ onOpenCookbook, onClose }) {
                       ))}
                     </span>
                   </div>
-                  {cb.ownerName && (
-                    <div className="discover-card-owner">
-                      by {cb.ownerName}
-                    </div>
-                  )}
                 </div>
               </button>
             );
