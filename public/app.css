@@ -1320,6 +1320,252 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   }
 }
 
+/* ─── Cookbook page: shared card chrome ─── */
+.cb-card {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+  margin-bottom: 16px;
+}
+.cb-card-title {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.cb-card-desc {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-3);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.cb-members-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.cb-members-head .eyebrow {
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 4px;
+}
+.cb-members-head h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+}
+.cb-members-head h1 em {
+  font-style: italic;
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.cb-members-count {
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: .04em;
+  color: var(--ink-3);
+}
+
+/* Members list — avatar, name, role, controls */
+.cb-members-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.cb-member-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.cb-member-row:last-child { border-bottom: 0; }
+.cb-member-row .avatar {
+  width: 36px; height: 36px;
+  border-radius: 999px;
+  display: grid; place-items: center;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .04em;
+  background: color-mix(in srgb, var(--accent) 12%, var(--paper-2));
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.cb-member-row .avatar.invited {
+  background: var(--paper-2);
+  color: var(--ink-3);
+  border: 1px dashed var(--rule);
+}
+.cb-member-row .who { flex: 1; min-width: 0; }
+.cb-member-row .who .name {
+  font-family: var(--sans); font-size: 14px; color: var(--ink); font-weight: 500;
+}
+.cb-member-row .who .name .you-tag {
+  margin-left: 8px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+  color: var(--ink-3); font-weight: 400;
+}
+.cb-member-row .who .email {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+  margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cb-member-row .role-fixed {
+  font-family: var(--sans); font-size: 13px; color: var(--ink-2);
+}
+.cb-member-row.invited .role-badge.role-invited {
+  background: color-mix(in srgb, var(--accent-cool, #6e7a3a) 14%, var(--paper));
+  color: var(--accent-cool, #6e7a3a);
+  border: 1px solid color-mix(in srgb, var(--accent-cool, #6e7a3a) 30%, transparent);
+}
+
+/* Role explainer card */
+.cb-roles-card .cb-roles-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cb-roles-card .cb-roles-list li {
+  display: flex; align-items: baseline; gap: 12px;
+  font-family: var(--sans); font-size: 13px; color: var(--ink-2);
+  line-height: 1.45;
+}
+.cb-roles-card .role-badge {
+  flex-shrink: 0;
+}
+
+/* Invite by email card */
+.cb-invite-card .cb-invite-row {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.cb-invite-card .cb-invite-input {
+  flex: 1; min-width: 200px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  background: var(--paper);
+  font: inherit; font-size: 14px;
+}
+.cb-invite-card .cb-invite-input:focus { outline: none; border-color: var(--accent); }
+.cb-invite-card .cb-invite-role {
+  font-family: var(--mono); font-size: 12px;
+  background: var(--paper); border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+}
+.cb-network-pills {
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+.cb-network-pills-label {
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 10px;
+}
+
+/* ─── Cookbook settings layout ─── */
+.cb-settings { display: flex; flex-direction: column; }
+.cb-field-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.cb-field-row:last-child { border-bottom: 0; }
+.cb-field-label {
+  font-family: var(--sans); font-size: 13px; color: var(--ink-2);
+}
+.cb-field-input {
+  padding: 10px 12px;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  font: inherit; font-size: 14px;
+  background: var(--paper);
+  font-family: var(--serif);
+}
+.cb-field-input:focus { outline: none; border-color: var(--accent); }
+.cb-field-textarea {
+  font-family: var(--serif);
+  resize: vertical;
+}
+.cb-rows-card { padding: 8px 24px; }
+.cb-setting-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 24px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.cb-setting-row:last-child { border-bottom: 0; }
+.cb-setting-row.disabled .cb-setting-label,
+.cb-setting-row.disabled .cb-setting-desc { opacity: .55; }
+.cb-setting-row.danger .cb-setting-label { color: #933; }
+.cb-setting-text { flex: 1; min-width: 0; }
+.cb-setting-label {
+  font-family: var(--sans); font-size: 14px; font-weight: 500;
+  color: var(--ink); margin-bottom: 4px;
+}
+.cb-setting-desc {
+  font-family: var(--sans); font-size: 13px; color: var(--ink-3);
+  line-height: 1.45;
+}
+.cb-setting-control { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+.cb-delete-confirm { display: inline-flex; gap: 8px; }
+.cb-settings-actions {
+  display: flex; gap: 8px;
+  margin-top: 12px;
+}
+
+/* Private / Public visibility toggle */
+.cb-vis-toggle {
+  display: inline-flex;
+  padding: 4px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+.cb-vis-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  font: inherit;
+  font-family: var(--sans); font-size: 13px;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.cb-vis-btn.active {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+}
+
+/* On/off switch for directory + comments toggles */
+.cb-switch {
+  width: 44px; height: 24px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: background .14s ease, border-color .14s ease;
+}
+.cb-switch .knob {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 1px 3px rgba(0,0,0,.18);
+  transition: transform .14s ease;
+}
+.cb-switch.on {
+  background: var(--accent-cool, #6e7a3a);
+  border-color: var(--accent-cool, #6e7a3a);
+}
+.cb-switch.on .knob { transform: translateX(20px); }
+.cb-switch:disabled { cursor: not-allowed; opacity: .55; }
+
 /* Bottom-of-screen snackbar. One message + optional inline link. */
 .snackbar {
   position: fixed;

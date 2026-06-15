@@ -645,119 +645,188 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
 
   if (loading) return <div className="members-loading">Loading members…</div>;
 
+  // Friendly avatar initials: first letter of first + last name when
+  // both exist, else first two letters of the display name / email
+  // local-part.
+  const initialsFor = (m) => {
+    const first = (m.firstName || "").trim();
+    const last = (m.lastName || "").trim();
+    if (first && last) return (first[0] + last[0]).toUpperCase();
+    const name = m.displayName || (m.email ? m.email.split("@")[0] : "");
+    return (name.slice(0, 2) || "?").toUpperCase();
+  };
+  const displayNameFor = (m) =>
+    m.displayName || [m.firstName, m.lastName].filter(Boolean).join(" ") || (m.email || "").split("@")[0];
+
+  const activeCount = members.length;
+  const invitedCount = invitations.length;
+
+  // Filter network down to people not already a member or already
+  // invited, so the suggestion pills can't double-invite.
+  const alreadyHere = new Set([
+    ...members.map(m => m.email?.toLowerCase()),
+    ...invitations.map(i => (i.email || "").toLowerCase()).filter(Boolean),
+  ]);
+  const availableNetwork = network.filter(p => !alreadyHere.has(p.email?.toLowerCase()));
+
   return (
-    <div className="members-section">
-      <div className="section-head">Members</div>
+    <div className="cb-members">
+      <div className="cb-members-head">
+        <div>
+          <div className="eyebrow">Who's in the kitchen</div>
+          <h1>Members <em>&amp;</em> permissions</h1>
+        </div>
+        <div className="cb-members-count">
+          {activeCount} active{invitedCount > 0 ? ` · ${invitedCount} invited` : ""}
+        </div>
+      </div>
+
       {error && <div className="modal-error">{error}</div>}
-      <ul className="members-list">
-        {members.map(m => (
-          <li key={m.email} className="member-row">
-            <div className="who">
-              <div className="name">{m.displayName || (isAdmin ? m.email : maskEmail(m.email))}</div>
-              {m.displayName && <div className="email">{isAdmin ? m.email : maskEmail(m.email)}</div>}
-            </div>
-            {canRemoveMembers ? (
-              <select
-                className="role-select"
-                value={m.role}
-                onChange={(e) => changeRole(m.email, e.target.value)}
-                disabled={m.email === authEmail && m.role === "owner"}
-                title={m.email === authEmail && m.role === "owner" ? "Promote someone else first to demote yourself" : "Change role"}
-              >
-                <option value="owner">owner</option>
-                <option value="editor">editor</option>
-                <option value="viewer">viewer</option>
-              </select>
-            ) : (
-              // Editor / viewer view — read-only role badge so the
-              // person can see who's an owner / editor / viewer
-              // without being able to change it.
-              <span className={`role-badge role-${m.role}`}>{m.role}</span>
-            )}
-            {canRemoveMembers && (
-              <button
-                type="button"
-                className="btn ghost sm member-remove"
-                onClick={() => removeMember(m.email)}
-                disabled={m.email === authEmail && m.role === "owner"}
-                aria-label="Remove member"
-                title={m.email === authEmail && m.role === "owner" ? "Promote someone else first" : "Remove member"}
-              >
-                <Icon name="x" size={13} />
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
 
-      <div className="section-head">Invite someone</div>
-      <div className="invite-role-row">
-        <label>
-          New invites join as
-          <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} disabled={inviting}>
-            <option value="editor">editor</option>
-            <option value="viewer">viewer</option>
-          </select>
-        </label>
-      </div>
-      {(() => {
-        // Filter out anyone who's already a member or already has a
-        // pending invite for this cookbook, so the suggestion pills
-        // can't double-invite.
-        const alreadyHere = new Set([
-          ...members.map(m => m.email?.toLowerCase()),
-          ...invitations.map(i => (i.email || "").toLowerCase()).filter(Boolean),
-        ]);
-        const available = network.filter(p => !alreadyHere.has(p.email?.toLowerCase()));
-        return (
-          <NetworkPicker
-            networkAvailable={available}
-            manualEmail={inviteEmail}
-            setManualEmail={setInviteEmail}
-            addInvite={(email) => sendInvite(email, inviteRole)}
-            niceName={niceName}
-          />
-        );
-      })()}
-      <div className="invite-hint">
-        Tap a name to send them an invite. Fresh emails land in their inbox; the link's also copied so you can share via text. Expires in 14 days.
-      </div>
-
-      {invitations.length > 0 && (
-        <>
-          <div className="section-head" style={{ marginTop: 18 }}>Pending invitations</div>
-          <ul className="invitations-list">
-            {invitations.map(inv => (
-              <li key={inv.token} className="invitation-row">
+      {/* Active members + pending invites in one card */}
+      <div className="cb-card cb-members-card">
+        <ul className="cb-members-list">
+          {members.map(m => {
+            const isYou = m.email === authEmail;
+            const isSelfOwner = isYou && m.role === "owner";
+            return (
+              <li key={m.email} className="cb-member-row">
+                <div className="avatar">{initialsFor(m)}</div>
                 <div className="who">
                   <div className="name">
-                    {inv.email || "Anyone with the link"} <span className="role-tag">{inv.role}</span>
+                    {displayNameFor(m)}
+                    {isYou && <span className="you-tag">· YOU</span>}
                   </div>
-                  <div className="meta">expires {new Date(inv.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
+                  <div className="email">{isAdmin ? m.email : maskEmail(m.email)}</div>
                 </div>
+                <span className={`role-badge role-${m.role}`}>{m.role}</span>
+                {canRemoveMembers ? (
+                  <>
+                    <select
+                      className="role-select"
+                      value={m.role}
+                      onChange={(e) => changeRole(m.email, e.target.value)}
+                      disabled={isSelfOwner}
+                      title={isSelfOwner ? "Promote someone else first to demote yourself" : "Change role"}
+                    >
+                      <option value="owner">Owner</option>
+                      <option value="editor">Editor</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                    <button
+                      type="button"
+                      className="btn ghost icon-only member-remove"
+                      onClick={() => removeMember(m.email)}
+                      disabled={isSelfOwner}
+                      aria-label="Remove member"
+                      title={isSelfOwner ? "Promote someone else first" : "Remove member"}
+                    >
+                      <Icon name="x" size={13} />
+                    </button>
+                  </>
+                ) : (
+                  <span className="role-fixed">{m.role.charAt(0).toUpperCase() + m.role.slice(1)}</span>
+                )}
+              </li>
+            );
+          })}
+          {invitations.map(inv => (
+            <li key={inv.token} className="cb-member-row invited">
+              <div className="avatar invited">{(inv.email || "?").slice(0, 2).toUpperCase()}</div>
+              <div className="who">
+                <div className="name">{inv.email || "Anyone with the link"}</div>
+                <div className="email">
+                  Invited · expires {new Date(inv.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </div>
+              </div>
+              <span className="role-badge role-invited">invited</span>
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => copyLink(inv.link, inv.token, inv.email)}
+              >
+                {copiedToken === inv.token ? "Copied!" : "Copy link"}
+              </button>
+              {canRemoveMembers && (
                 <button
                   type="button"
-                  className="btn ghost sm"
-                  onClick={() => copyLink(inv.link, inv.token, inv.email)}
-                >
-                  {copiedToken === inv.token ? "Copied!" : "Copy link"}
-                </button>
-                <button
-                  type="button"
-                  className="btn ghost sm"
+                  className="btn ghost icon-only"
                   onClick={() => revoke(inv.token)}
                   aria-label="Revoke invitation"
                 >
                   <Icon name="x" size={13} />
                 </button>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Role explainer */}
+      <div className="cb-card cb-roles-card">
+        <div className="cb-card-title">What each role can do</div>
+        <ul className="cb-roles-list">
+          <li>
+            <span className="role-badge role-owner">owner</span>
+            <span>Full control — recipes, members, languages, settings, and deleting the cookbook.</span>
+          </li>
+          <li>
+            <span className="role-badge role-editor">editor</span>
+            <span>Add, edit, and remove recipes, and invite new cooks.</span>
+          </li>
+          <li>
+            <span className="role-badge role-viewer">viewer</span>
+            <span>Read, cook from, and comment on recipes.</span>
+          </li>
+        </ul>
+      </div>
+
+      {/* Invite by email — text input + role select + Send.
+          Below the row, network pill suggestions from people the
+          cook already shares a cookbook with. */}
+      <div className="cb-card cb-invite-card">
+        <div className="cb-card-title">Invite by email</div>
+        <div className="cb-card-desc">
+          They'll get an invitation to join "{cookbook.name}". For now, the directory is invite-only.
+        </div>
+        <form className="cb-invite-row" onSubmit={invite}>
+          <input
+            type="email"
+            placeholder="name@email.com"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            className="cb-invite-input"
+          />
+          <select
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value)}
+            disabled={inviting}
+            className="cb-invite-role"
+          >
+            <option value="editor">As editor</option>
+            <option value="viewer">As viewer</option>
+          </select>
+          <button type="submit" className="btn primary" disabled={inviting}>
+            <Icon name="plus" size={13} /> Send invite
+          </button>
+        </form>
+        {availableNetwork.length > 0 && (
+          <div className="cb-network-pills">
+            <div className="cb-network-pills-label">People you cook with</div>
+            <NetworkPicker
+              networkAvailable={availableNetwork}
+              manualEmail={inviteEmail}
+              setManualEmail={setInviteEmail}
+              addInvite={(email) => sendInvite(email, inviteRole)}
+              niceName={niceName}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
 
 // Reusable settings form for a cookbook. Renders the same form
 // EditCookbookModal used to render in its Settings tab, so the
@@ -770,6 +839,14 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
   const [name, setName] = useState(cookbook.name);
   const [blurb, setBlurb] = useState(cookbook.blurb || "");
   const [visibility, setVisibility] = useState(cookbook.visibility);
+  const [coverPhoto, setCoverPhoto] = useState(cookbook.coverPhoto || null);
+  // Directory + comments toggles ship with placeholder UI here;
+  // backend persistence + behavior arrives with the public
+  // directory work (Phase 4c). Default off; explicitly disabled
+  // when the cookbook is still private since neither toggle
+  // means anything without a public surface.
+  const [listInDirectory, setListInDirectory] = useState(false);
+  const [allowComments, setAllowComments] = useState(true);
   const [languages, setLanguages] = useState(
     Array.isArray(cookbook.languages) && cookbook.languages.length ? cookbook.languages : ["en"]
   );
@@ -778,6 +855,7 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [translateMsg, setTranslateMsg] = useState(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   const translateAll = async () => {
     setTranslating(true);
@@ -797,6 +875,24 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
     }
   };
 
+  const uploadCover = async (file) => {
+    if (!file) return;
+    setUploadingCover(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const up = await fetch("/api/admin/uploads", { method: "POST", credentials: "include", body: fd });
+      if (!up.ok) throw new Error(`Upload failed (${up.status})`);
+      const { url } = await up.json();
+      setCoverPhoto(url);
+    } catch (err) {
+      setError(err.message || "Could not upload photo.");
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
   const submit = async (e) => {
     e?.preventDefault?.();
     setSaving(true);
@@ -806,13 +902,13 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), blurb, visibility, languages }),
+        body: JSON.stringify({ name: name.trim(), blurb, visibility, languages, coverPhoto }),
       });
       if (!res.ok) {
         const { error: msg } = await res.json().catch(() => ({}));
         throw new Error(msg || `Save failed (${res.status})`);
       }
-      onSaved?.({ ...cookbook, name: name.trim(), blurb, visibility, languages });
+      onSaved?.({ ...cookbook, name: name.trim(), blurb, visibility, languages, coverPhoto });
     } catch (err) {
       setError(err.message || "Could not save changes.");
     } finally {
@@ -845,70 +941,181 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
     return <div className="modal-error">Only the owner can change settings.</div>;
   }
 
+  const isPublic = visibility === "public";
+
   return (
-    <>
-      <form onSubmit={submit}>
-        <label className="modal-field">
-          <span>Name</span>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
-        </label>
+    <form className="cb-settings" onSubmit={submit}>
+      <div className="cb-members-head">
+        <div>
+          <div className="eyebrow">Cookbook settings</div>
+          <h1>Details <em>&amp;</em> languages</h1>
+        </div>
+      </div>
 
-        <label className="modal-field">
-          <span>Description</span>
-          <input type="text" value={blurb} onChange={(e) => setBlurb(e.target.value)} maxLength={280} />
-        </label>
+      {/* Card 1: identity (name + description) */}
+      <div className="cb-card">
+        <div className="cb-field-row">
+          <label className="cb-field-label" htmlFor="cb-name">Name</label>
+          <input
+            id="cb-name"
+            type="text"
+            className="cb-field-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={80}
+          />
+        </div>
+        <div className="cb-field-row">
+          <label className="cb-field-label" htmlFor="cb-blurb">Description</label>
+          <textarea
+            id="cb-blurb"
+            className="cb-field-input cb-field-textarea"
+            value={blurb}
+            onChange={(e) => setBlurb(e.target.value)}
+            maxLength={280}
+            rows={3}
+          />
+        </div>
+      </div>
 
-        <div className="modal-field">
-          <span>Languages</span>
-          <LanguagePicker value={languages} onChange={setLanguages} />
-          {languages.length > 1 && (
-            <div className="translate-all-row">
+      {/* Card 2: languages */}
+      <div className="cb-card">
+        <div className="cb-card-title">Languages</div>
+        <div className="cb-card-desc">The languages this cookbook is kept in. Add one and we can translate the existing recipes into it.</div>
+        <LanguagePicker value={languages} onChange={setLanguages} />
+        {languages.length > 1 && (
+          <div className="translate-all-row">
+            <button type="button" className="btn ghost sm" onClick={translateAll} disabled={translating}>
+              {translating ? "Queueing…" : "Translate existing recipes"}
+            </button>
+            {translateMsg && <span className="translate-all-msg">{translateMsg}</span>}
+          </div>
+        )}
+      </div>
+
+      {/* Card 3: cover photo / visibility / directory / comments / delete */}
+      <div className="cb-card cb-rows-card">
+        <div className="cb-setting-row">
+          <div className="cb-setting-text">
+            <div className="cb-setting-label">Cover photo</div>
+            <div className="cb-setting-desc">Add a family photo and it becomes the cookbook's cover. Without one, the book shows its cloth cover.</div>
+          </div>
+          <div className="cb-setting-control">
+            <label className="btn ghost" style={{ cursor: uploadingCover ? "wait" : "pointer" }}>
+              <Icon name="camera" size={14} /> {uploadingCover ? "Uploading…" : (coverPhoto ? "Replace photo" : "Upload photo")}
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                disabled={uploadingCover}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCover(f); e.target.value = ""; }}
+              />
+            </label>
+            {coverPhoto && (
+              <button type="button" className="btn ghost icon-only" onClick={() => setCoverPhoto(null)} title="Clear photo">
+                <Icon name="x" size={13} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="cb-setting-row">
+          <div className="cb-setting-text">
+            <div className="cb-setting-label">Who can see this cookbook</div>
+            <div className="cb-setting-desc">Private books are visible only to members. Public books can be found in the directory and followed by anyone.</div>
+          </div>
+          <div className="cb-setting-control">
+            <div className="cb-vis-toggle" role="group" aria-label="Visibility">
               <button
                 type="button"
-                className="btn ghost sm"
-                onClick={translateAll}
-                disabled={translating}
+                className={`cb-vis-btn ${visibility === "private" ? "active" : ""}`}
+                onClick={() => setVisibility("private")}
               >
-                {translating ? "Queueing…" : "Translate existing recipes"}
+                <Icon name="bookmark" size={13} /> Private
               </button>
-              {translateMsg && <span className="translate-all-msg">{translateMsg}</span>}
+              <button
+                type="button"
+                className={`cb-vis-btn ${visibility === "public" ? "active" : ""}`}
+                onClick={() => setVisibility("public")}
+              >
+                <Icon name="share" size={13} /> Public
+              </button>
             </div>
-          )}
+          </div>
         </div>
 
-        {error && <div className="modal-error">{error}</div>}
-
-        <div className="modal-actions">
-          {onCancel && (
-            <button type="button" className="btn ghost" onClick={onCancel}>Cancel</button>
-          )}
-          <button type="submit" className="btn primary" disabled={saving || !name.trim()}>
-            {saving ? "Saving…" : "Save changes"}
-          </button>
-        </div>
-      </form>
-
-      {cookbook.id !== "family-cookbook" && (
-        <div className="modal-danger">
-          <div className="head">Danger zone</div>
-          {confirmDelete ? (
-            <div className="danger-actions">
-              <p>Really delete <strong>{cookbook.name}</strong>? Empty cookbooks only — recipes must be moved first.</p>
-              <div className="modal-actions">
-                <button type="button" className="btn ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
-                <button type="button" className="btn danger" onClick={doDelete} disabled={saving}>
-                  {saving ? "Deleting…" : "Delete cookbook"}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button type="button" className="btn ghost danger-link" onClick={() => setConfirmDelete(true)}>
-              Delete this cookbook
+        <div className={`cb-setting-row ${isPublic ? "" : "disabled"}`}>
+          <div className="cb-setting-text">
+            <div className="cb-setting-label">List in the directory</div>
+            <div className="cb-setting-desc">Show up when people browse public family cookbooks. Requires the cookbook to be public.</div>
+          </div>
+          <div className="cb-setting-control">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={listInDirectory && isPublic}
+              className={`cb-switch ${listInDirectory && isPublic ? "on" : ""}`}
+              onClick={() => isPublic && setListInDirectory(v => !v)}
+              disabled={!isPublic}
+            >
+              <span className="knob" />
             </button>
-          )}
+          </div>
         </div>
-      )}
-    </>
+
+        <div className="cb-setting-row">
+          <div className="cb-setting-text">
+            <div className="cb-setting-label">Allow comments from followers</div>
+            <div className="cb-setting-desc">People who follow this cookbook can leave notes on recipes they've cooked.</div>
+          </div>
+          <div className="cb-setting-control">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={allowComments}
+              className={`cb-switch ${allowComments ? "on" : ""}`}
+              onClick={() => setAllowComments(v => !v)}
+            >
+              <span className="knob" />
+            </button>
+          </div>
+        </div>
+
+        {cookbook.id !== "family-cookbook" && (
+          <div className="cb-setting-row danger">
+            <div className="cb-setting-text">
+              <div className="cb-setting-label">Delete this cookbook</div>
+              <div className="cb-setting-desc">Permanently removes the cookbook and its recipes for everyone. This can't be undone.</div>
+            </div>
+            <div className="cb-setting-control">
+              {confirmDelete ? (
+                <div className="cb-delete-confirm">
+                  <button type="button" className="btn ghost sm" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                  <button type="button" className="btn danger sm" onClick={doDelete} disabled={saving}>
+                    {saving ? "Deleting…" : "Confirm delete"}
+                  </button>
+                </div>
+              ) : (
+                <button type="button" className="btn ghost danger-link" onClick={() => setConfirmDelete(true)}>
+                  Delete…
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {error && <div className="modal-error">{error}</div>}
+
+      <div className="cb-settings-actions">
+        {onCancel && (
+          <button type="button" className="btn ghost" onClick={onCancel}>Cancel</button>
+        )}
+        <button type="submit" className="btn primary" disabled={saving || !name.trim()}>
+          <Icon name="check" size={14} /> {saving ? "Saving…" : "Save changes"}
+        </button>
+      </div>
+    </form>
   );
 }
 

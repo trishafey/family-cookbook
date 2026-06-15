@@ -330,6 +330,12 @@ app.patch("/api/admin/cookbooks/:id", async (c) => {
     ).run().catch(() => {});
     sets.push("languages = ?"); args.push(JSON.stringify(langs));
   }
+  if (body?.coverPhoto === null || typeof body?.coverPhoto === "string") {
+    // Accept either a freshly-uploaded /api/images/... URL or
+    // null (clear the cover). Anything else is ignored so a typo
+    // can't blank the cover.
+    sets.push("cover_photo = ?"); args.push(body.coverPhoto || null);
+  }
   if (!sets.length) return c.json({ ok: true });
   const now = new Date().toISOString();
   sets.push("updated_at = ?"); args.push(now, id);
