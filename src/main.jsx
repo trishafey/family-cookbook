@@ -8,6 +8,7 @@ import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
 import { FiltersDrawer } from "./filters.jsx";
 import { Browse } from "./browse.jsx";
+import { CookbookPage } from "./cookbook-page.jsx";
 import { RecipeDetail } from "./recipe.jsx";
 import { AddRecipe } from "./add-recipe.jsx";
 import { ExperimentationLab } from "./experiment.jsx";
@@ -300,9 +301,17 @@ function App() {
   const recipeId = route.recipeId;
   const editingId = route.editingId;
   const inviteToken = route.inviteToken;
+  const cookbookSlug = route.cookbookSlug;
+  const cookbookTab = route.cookbookTab;
   const setView = (newView) => setRoute(s => ({ ...s, view: newView }));
   const setRecipeId = (id) => setRoute(s => ({ ...s, recipeId: id }));
   const setEditingId = (id) => setRoute(s => ({ ...s, editingId: id }));
+  const setCookbookTab = (t) => setRoute(s => ({ ...s, cookbookTab: t }));
+  const goToCookbook = (slug, tab = null) => {
+    setRoute({ view: "cookbook", recipeId: null, editingId: null, cookbookSlug: slug, cookbookTab: tab });
+    window.scrollTo(0, 0);
+  };
+  const goToLibrary = () => { setView("cookbooks"); window.scrollTo(0, 0); };
 
   // ─── Recipe collection ───
   // Server-of-record is the D1 cookbook via /api/recipes; useRecipes caches
@@ -801,13 +810,15 @@ function App() {
             onOpenRecipe={openRecipe}
           />
           <div className="nav-actions">
-            {FLAGS.cookbooks && (
-              <CookbookSwitcher
-                active={activeCookbookId}
-                cookbooks={effectiveUserCookbooks}
-                onSwitch={(id) => { setActiveCookbookId(id); backToBrowse(); }}
-                onManage={() => setView("cookbooks")}
-              />
+            {FLAGS.cookbooks && authEmail && (
+              <button
+                type="button"
+                className={`btn ghost sm nav-mycookbooks ${view === "cookbooks" || view === "cookbook" ? "active" : ""}`}
+                onClick={() => setView("cookbooks")}
+                title="My cookbooks"
+              >
+                <Icon name="book" size={15} /> <span className="btn-label">My cookbooks</span>
+              </button>
             )}
             {!simpleMode && (
               <MakeDropdown
@@ -1046,7 +1057,38 @@ function App() {
           isAdmin={!!profile?.isAdmin}
           activeCookbookId={activeCookbookId}
           onClose={backToBrowse}
-          onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); backToBrowse(); }}
+          onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); goToCookbook(cb.slug || cb.id); }}
+        />
+      )}
+      {FLAGS.cookbooks && view === "cookbook" && (
+        <CookbookPage
+          cookbookSlug={cookbookSlug}
+          cookbookTab={cookbookTab}
+          setCookbookTab={setCookbookTab}
+          authEmail={authEmail}
+          isAdmin={!!profile?.isAdmin}
+          setActiveCookbookId={setActiveCookbookId}
+          goToLibrary={goToLibrary}
+          openAddRecipe={() => setView("add")}
+          renderRecipesTab={() => (
+            <Browse
+              recipes={filtered}
+              allRecipes={recipes}
+              query={query} setQuery={setQuery}
+              filters={filters} setFilters={setFilters}
+              openRecipe={openRecipe}
+              openFilters={() => setFiltersOpen(true)}
+              selection={selection}
+              toggleSelect={toggleSelect}
+              selectionMode={false}
+              favorites={favorites}
+              toggleFavorite={toggleFavorite}
+              openAddRecipe={() => setView("add")}
+              openMealBuilder={() => setView("meal")}
+              openLab={() => setView("lab")}
+              simpleMode={simpleMode}
+            />
+          )}
         />
       )}
       {FLAGS.cookbooks && view === "invite" && (

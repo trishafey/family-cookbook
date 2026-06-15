@@ -505,7 +505,7 @@ function maskEmail(email) {
   return `${head}***@${domain}`;
 }
 
-function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers, onMembersChanged }) {
+export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers, onMembersChanged }) {
   const [members, setMembers] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -756,6 +756,159 @@ function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers, onMemb
         </>
       )}
     </div>
+  );
+}
+
+// Reusable settings form for a cookbook. Renders the same form
+// EditCookbookModal used to render in its Settings tab, so the
+// inline "Settings" tab on the new /cookbook/<slug> page and the
+// legacy edit modal share the exact same fields + danger zone.
+// Caller owns onSaved/onDeleted/onCancel + the surrounding
+// chrome (modal vs. tab).
+export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, onCancel }) {
+  const canSettings = cookbook.yourRole === "owner" || cookbook.yourRole === "admin" || isAdmin;
+  const [name, setName] = useState(cookbook.name);
+  const [blurb, setBlurb] = useState(cookbook.blurb || "");
+  const [visibility, setVisibility] = useState(cookbook.visibility);
+  const [languages, setLanguages] = useState(
+    Array.isArray(cookbook.languages) && cookbook.languages.length ? cookbook.languages : ["en"]
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [translateMsg, setTranslateMsg] = useState(null);
+
+  const translateAll = async () => {
+    setTranslating(true);
+    setTranslateMsg(null);
+    try {
+      const res = await fetch(`/api/admin/cookbooks/${cookbook.id}/translate-missing`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Translate failed (${res.status})`);
+      setTranslateMsg(data.message || `Queued ${data.queued} recipes for translation.`);
+    } catch (err) {
+      setTranslateMsg(err.message || "Could not queue translations.");
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const submit = async (e) => {
+    e?.preventDefault?.();
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/cookbooks/${cookbook.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), blurb, visibility, languages }),
+      });
+      if (!res.ok) {
+        const { error: msg } = await res.json().catch(() => ({}));
+        throw new Error(msg || `Save failed (${res.status})`);
+      }
+      onSaved?.({ ...cookbook, name: name.trim(), blurb, visibility, languages });
+    } catch (err) {
+      setError(err.message || "Could not save changes.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const doDelete = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/cookbooks/${cookbook.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const { error: msg } = await res.json().catch(() => ({}));
+        throw new Error(msg || `Delete failed (${res.status})`);
+      }
+      onDeleted?.(cookbook.id);
+    } catch (err) {
+      setError(err.message || "Could not delete cookbook.");
+      setConfirmDelete(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!canSettings) {
+    return <div className="modal-error">Only the owner can change settings.</div>;
+  }
+
+  return (
+    <>
+      <form onSubmit={submit}>
+        <label className="modal-field">
+          <span>Name</span>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
+        </label>
+
+        <label className="modal-field">
+          <span>Description</span>
+          <input type="text" value={blurb} onChange={(e) => setBlurb(e.target.value)} maxLength={280} />
+        </label>
+
+        <div className="modal-field">
+          <span>Languages</span>
+          <LanguagePicker value={languages} onChange={setLanguages} />
+          {languages.length > 1 && (
+            <div className="translate-all-row">
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={translateAll}
+                disabled={translating}
+              >
+                {translating ? "Queueing…" : "Translate existing recipes"}
+              </button>
+              {translateMsg && <span className="translate-all-msg">{translateMsg}</span>}
+            </div>
+          )}
+        </div>
+
+        {error && <div className="modal-error">{error}</div>}
+
+        <div className="modal-actions">
+          {onCancel && (
+            <button type="button" className="btn ghost" onClick={onCancel}>Cancel</button>
+          )}
+          <button type="submit" className="btn primary" disabled={saving || !name.trim()}>
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </form>
+
+      {cookbook.id !== "family-cookbook" && (
+        <div className="modal-danger">
+          <div className="head">Danger zone</div>
+          {confirmDelete ? (
+            <div className="danger-actions">
+              <p>Really delete <strong>{cookbook.name}</strong>? Empty cookbooks only — recipes must be moved first.</p>
+              <div className="modal-actions">
+                <button type="button" className="btn ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                <button type="button" className="btn danger" onClick={doDelete} disabled={saving}>
+                  {saving ? "Deleting…" : "Delete cookbook"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="btn ghost danger-link" onClick={() => setConfirmDelete(true)}>
+              Delete this cookbook
+            </button>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 

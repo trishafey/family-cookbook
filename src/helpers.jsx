@@ -712,6 +712,16 @@ function parsePath(p) {
   if (p === "/meal-plan" || p === "/meal-plan/") return { view: "meal-plan", recipeId: null, editingId: null };
   if (p === "/lab" || p === "/lab/") return { view: "lab", recipeId: null, editingId: null };
   if (p === "/cookbooks" || p === "/cookbooks/") return { view: "cookbooks", recipeId: null, editingId: null };
+  const cookbookPage = p.match(/^\/cookbook\/([^\/]+)(?:\/([^\/]+))?\/?$/);
+  if (cookbookPage) {
+    return {
+      view: "cookbook",
+      recipeId: null,
+      editingId: null,
+      cookbookSlug: decodeURIComponent(cookbookPage[1]),
+      cookbookTab: cookbookPage[2] ? decodeURIComponent(cookbookPage[2]) : null,
+    };
+  }
   if (p === "/notifications" || p === "/notifications/") return { view: "notifications", recipeId: null, editingId: null };
   if (p === "/settings" || p === "/settings/") return { view: "settings", recipeId: null, editingId: null };
   // Legacy paths redirect to the new tabbed /admin page.
@@ -722,11 +732,16 @@ function parsePath(p) {
   return { view: "browse", recipeId: null, editingId: null };
 }
 
-function buildPath({ view, recipeId, editingId, inviteToken }) {
+function buildPath({ view, recipeId, editingId, inviteToken, cookbookSlug, cookbookTab }) {
   switch (view) {
     case "recipe":          return recipeId ? `/recipe/${encodeURIComponent(recipeId)}` : "/";
     case "edit":            return editingId ? `/edit/${encodeURIComponent(editingId)}` : "/";
     case "invite":          return inviteToken ? `/i/${encodeURIComponent(inviteToken)}` : "/";
+    case "cookbook":
+      if (!cookbookSlug) return "/cookbooks";
+      return cookbookTab
+        ? `/cookbook/${encodeURIComponent(cookbookSlug)}/${encodeURIComponent(cookbookTab)}`
+        : `/cookbook/${encodeURIComponent(cookbookSlug)}`;
     case "add":             return "/add";
     case "meal":            return "/meal";
     case "meal-plan":       return "/meal-plan";
@@ -764,7 +779,7 @@ export function useRouting() {
     if (target !== window.location.pathname) {
       window.history.pushState({}, "", target);
     }
-  }, [route.view, route.recipeId, route.editingId]);
+  }, [route.view, route.recipeId, route.editingId, route.cookbookSlug, route.cookbookTab]);
 
   return [route, setRoute];
 }
