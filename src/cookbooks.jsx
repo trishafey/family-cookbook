@@ -751,7 +751,10 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
                   Expires {new Date(inv.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                 </div>
               </div>
-              <span className="cb-invited-pill">INVITED</span>
+              <span className="cb-invited-pill" title="Invitation pending">
+                <Icon name="send" size={11} />
+                <span className="cb-invited-text">INVITED</span>
+              </span>
               <select
                 className="cb-role-select"
                 defaultValue={inv.role}
@@ -992,10 +995,12 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
         </div>
       </div>
 
-      {/* Card 1: identity (name + description) */}
+      {/* Card 1: identity (name + description) — labels stack
+          on top of inputs so long names / descriptions can use
+          the full card width on mobile. */}
       <div className="cb-card">
-        <div className="cb-field-row">
-          <label className="cb-field-label" htmlFor="cb-name">Name</label>
+        <div className="cb-field-stack">
+          <label className="cb-field-label" htmlFor="cb-name">Cookbook name</label>
           <input
             id="cb-name"
             type="text"
@@ -1005,7 +1010,7 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
             maxLength={80}
           />
         </div>
-        <div className="cb-field-row">
+        <div className="cb-field-stack">
           <label className="cb-field-label" htmlFor="cb-blurb">Description</label>
           <textarea
             id="cb-blurb"

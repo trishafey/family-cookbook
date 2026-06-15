@@ -1150,10 +1150,12 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .cookbook-header {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) 1fr;
-  gap: 40px;
+  /* Smaller compact cover (~half the previous size) — fits the
+     initials-only treatment without dominating the page. */
+  grid-template-columns: 130px 1fr;
+  gap: 24px;
   align-items: start;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 /* Cover — centered content stack, bookmark ribbon top-left. */
@@ -1162,10 +1164,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   aspect-ratio: 3 / 4;
   background: var(--accent-cool, #6e7a3a);
   color: #fff;
-  border-radius: var(--radius-lg);
-  padding: 22px 20px;
+  border-radius: var(--radius);
+  padding: 10px 8px;
   display: flex; flex-direction: column;
-  box-shadow: 0 16px 40px -20px rgba(0,0,0,.35);
+  box-shadow: 0 12px 28px -16px rgba(0,0,0,.3);
   overflow: hidden;
 }
 .cookbook-cover .cover-photo {
@@ -1190,52 +1192,32 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cookbook-cover .cover-bookmark {
   position: absolute;
   top: 0;
-  left: 18px;
-  padding: 14px 10px 18px;
+  left: 10px;
+  padding: 8px 5px 12px;
   background: var(--accent);
   color: #fff;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: .14em;
+  font-size: 8px;
+  letter-spacing: .12em;
   text-transform: uppercase;
   /* Pointed tip at the bottom — bookmark / ribbon silhouette. */
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
-  min-width: 56px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+  min-width: 32px;
   text-align: center;
 }
 .cookbook-cover .cover-body {
   flex: 1;
-  display: flex; flex-direction: column;
+  display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 8px 4px 4px;
 }
-.cookbook-cover .cover-nationality {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  margin-bottom: 18px;
-  opacity: .8;
-}
-.cookbook-cover .cover-stack {
-  display: flex; flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-.cookbook-cover .cover-name {
+.cookbook-cover .cover-initials {
   font-family: var(--serif);
-  font-size: 24px;
+  font-size: 32px;
   font-weight: 500;
-  line-height: 1.15;
-}
-.cookbook-cover .cover-blurb {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  opacity: .82;
+  letter-spacing: 0.04em;
+  line-height: 1;
 }
 
 /* Info — pill row + accent-highlighted title + meta. */
@@ -1332,7 +1314,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   box-shadow: 0 1px 3px rgba(0,0,0,.06), inset 0 0 0 1px var(--rule);
 }
 .cookbook-tab-body { margin-top: 24px; }
-.cookbook-recipes-tab { margin-top: 4px; }
+.cookbook-recipes-tab { margin-top: 24px; }
 /* Browse's own .app wrapper adds an extra 32/28 padding band that
    pushes the recipe cards inward from the cookbook page's own
    container. Strip it inside the Recipes tab so the cards align
@@ -1341,15 +1323,30 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   max-width: none;
   padding: 0;
 }
+/* Browse's first section-head ("Family favorites") has an inline
+   marginTop: 48 — that's right when Browse is the whole page,
+   but inside the cookbook's Recipes tab it stacks on top of the
+   24px tab-body margin and pushes the eyebrow way down. Reset it
+   so Recipes / Members / Settings all start at the same offset
+   below the segmented toggle. */
+.cookbook-recipes-tab .section-head { margin-top: 0 !important; }
 
 @media (max-width: 720px) {
   .cookbook-header {
-    grid-template-columns: 1fr;
-    gap: 20px;
+    /* Keep the cover beside the info column even on mobile —
+       it's now compact enough (110px) to leave room for the
+       title + action buttons next to it. */
+    grid-template-columns: 110px 1fr;
+    gap: 16px;
   }
   .cookbook-cover {
-    max-width: 220px;
+    max-width: 110px;
   }
+  .cookbook-cover .cover-initials { font-size: 26px; }
+  /* "INVITED" pill shrinks to icon-only on narrow screens so it
+     doesn't crowd the email + role dropdown on a member row. */
+  .cb-invited-pill { padding: 6px 8px; }
+  .cb-invited-pill .cb-invited-text { display: none; }
 }
 
 /* ─── Cookbook page: shared card chrome ─── */
@@ -1434,6 +1431,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cb-member-row .who { flex: 1; min-width: 0; }
 .cb-member-row .who .name {
   font-family: var(--sans); font-size: 14px; color: var(--ink); font-weight: 500;
+  /* Long display values (e.g. an email used as a name on a
+     pending invitation row) overflow into the role pill on
+     mobile if we don't clamp here. */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cb-member-row .who .name .you-tag {
   margin-left: 8px;
@@ -1449,7 +1450,8 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-family: var(--sans); font-size: 13px; color: var(--ink-2);
 }
 .cb-invited-pill {
-  display: inline-flex; align-items: center;
+  display: inline-flex; align-items: center; gap: 5px;
+  flex-shrink: 0;
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px dashed var(--accent);
@@ -1458,6 +1460,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-family: var(--mono); font-size: 10px; letter-spacing: .14em;
   text-transform: uppercase;
 }
+.cb-invited-pill .cb-invited-text { display: inline; }
 
 /* Role / action select used in each member row — square white
    field. Typography matches the .btn baseline (sans 14px /
@@ -1548,6 +1551,20 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   border-bottom: 1px solid var(--rule);
 }
 .cb-field-row:last-child { border-bottom: 0; }
+/* Stacked layout — label on its own line above the input, full
+   width below. Works at any viewport so mobile inputs never run
+   off the edge. */
+.cb-field-stack {
+  display: flex; flex-direction: column;
+  gap: 6px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.cb-field-stack:last-child { border-bottom: 0; }
+.cb-field-stack .cb-field-input {
+  width: 100%;
+  box-sizing: border-box;
+}
 .cb-field-label {
   font-family: var(--sans); font-size: 13px; color: var(--ink-2);
 }

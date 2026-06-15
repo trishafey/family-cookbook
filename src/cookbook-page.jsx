@@ -5,7 +5,7 @@
 // role on that cookbook. Members + Settings render inline (no
 // more EditCookbookModal for the in-cookbook flow).
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "./helpers.jsx";
 import { LANG_META } from "./i18n.js";
 import { MembersSection, CookbookSettingsForm } from "./cookbooks.jsx";
@@ -80,29 +80,32 @@ export function CookbookPage({
     return t;
   })();
 
-  // Save scroll position on tab change so the page doesn't snap
-  // to the top when switching from the long Recipes tab to the
-  // shorter Members / Settings tabs. We restore the position
-  // after the new tab content paints.
+  // Keep the segmented tab bar anchored at the top of the
+  // viewport when the cook switches tabs. Without this, going
+  // from the tall Recipes tab to the shorter Members / Settings
+  // can leave the browser snapping scroll position (because the
+  // page is no longer tall enough to support the previous
+  // offset), or the cook ends up looking at the cookbook header
+  // again. useLayoutEffect runs synchronously before the browser
+  // paints the new tab content so the cook never sees an
+  // intermediate frame.
   const tabBarRef = useRef(null);
   const tabChangeFlag = useRef(false);
   const onTabClick = (t) => {
     tabChangeFlag.current = true;
     setCookbookTab?.(t === "recipes" ? null : t);
   };
-  // After the new tab renders, keep the tab bar inside the
-  // viewport (no jump to page top), but only on an explicit tab
-  // change — initial mount shouldn't scroll.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!tabChangeFlag.current) return;
     tabChangeFlag.current = false;
     const el = tabBarRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    // Only scroll if the tab bar is above the visible viewport.
-    if (rect.top < 0) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    // Position the tab bar at the top of the viewport (or as
+    // close as the page allows). Plain window.scrollTo using the
+    // element's absolute Y avoids the "snap to 0" the browser
+    // sometimes does when the page shrinks.
+    const y = el.getBoundingClientRect().top + window.scrollY - 8;
+    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
   }, [cookbookTab]);
 
   const shareCookbook = async () => {
@@ -139,6 +142,18 @@ export function CookbookPage({
   const languages = (cookbook.languages && cookbook.languages.length ? cookbook.languages : ["en"]);
   const roleLabel = cookbook.adminAccess ? "admin access" : (role || "viewer");
   const nationalityLine = languages.map(c => LANG_NATIONALITY[c] || LANG_META[c]?.label || c).join(" · ");
+  // Cover initials — first letter of each "significant" word in
+  // the cookbook name, capped at 4 chars. e.g.
+  //   "Heirloom Family Cookbook" → HFC
+  //   "Wiktoria's Kitchen" → WK
+  //   "Patricia's Personal Cookbook" → PPC
+  const coverInitials = (cookbook.name || "")
+    .split(/\s+/)
+    .filter(w => w && !/^(the|a|an|of|&|and)$/i.test(w))
+    .map(w => w.replace(/['']s$/i, "")[0] || "")
+    .join("")
+    .slice(0, 4)
+    .toUpperCase();
 
   return (
     <div className="cookbook-page" data-screen-label={`Cookbook: ${cookbook.name}`}>
@@ -157,14 +172,11 @@ export function CookbookPage({
           <div className={`cover-bookmark role-${role || "viewer"}`}>
             {roleLabel}
           </div>
-          {/* Centered cover content: nationality line above,
-              title + tagline middle-aligned vertically. */}
+          {/* Compact cover content: just the initials of the
+              cookbook name, centered. Tagline / nationality
+              info has moved into the info column. */}
           <div className="cover-body">
-            <div className="cover-nationality">{nationalityLine}</div>
-            <div className="cover-stack">
-              <div className="cover-name">{cookbook.name}</div>
-              {cookbook.blurb && <div className="cover-blurb">{cookbook.blurb}</div>}
-            </div>
+            <div className="cover-initials">{coverInitials || "·"}</div>
           </div>
         </div>
 
