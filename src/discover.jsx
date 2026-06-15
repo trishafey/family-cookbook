@@ -121,7 +121,6 @@ export function Discover({ onOpenCookbook, onClose }) {
                   {cb.coverPhoto && (
                     <img className="book-cover-photo" src={cb.coverPhoto} alt="" />
                   )}
-                  <span className="book-bookmark role-viewer">PUBLIC</span>
                   <span className="book-cover-content">
                     {langLine && <span className="book-cover-langs">{langLine}</span>}
                     <span className="book-cover-title">{cb.name}</span>

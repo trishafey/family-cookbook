@@ -2039,6 +2039,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   align-self: center;
   transition: transform .14s, box-shadow .14s;
 }
+/* Discover tiles don't carry a bookmark ribbon, so drop the
+   reservation that pushes the title/langs stack down on the
+   shelf book. The content centres in the card instead. */
+.discover-book .book-cover-content { padding-top: 0; }
 .discover-book:hover {
   transform: translateY(-2px);
   box-shadow:
