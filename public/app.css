@@ -1868,6 +1868,47 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .lab-promote-target:focus { outline: none; border-color: var(--accent); }
 
+/* Build a meal — cross-cookbook filter row. Cookbook pills
+   above a slim search input. */
+.meal-filter-row {
+  display: flex; flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.meal-cookbook-pills {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.meal-cookbook-pill {
+  padding: 6px 12px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-family: var(--sans); font-size: 13px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.meal-cookbook-pill:hover { color: var(--ink); }
+.meal-cookbook-pill.active {
+  background: var(--ink); color: var(--paper);
+  border-color: var(--ink);
+}
+.meal-search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px 8px 14px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  max-width: 420px;
+}
+.meal-search > svg { color: var(--ink-3); flex-shrink: 0; }
+.meal-search-input {
+  flex: 1; min-width: 0;
+  border: 0; background: transparent;
+  font: inherit; font-family: var(--sans); font-size: 14px;
+  color: var(--ink);
+  outline: none;
+}
+
 /* Bottom-of-screen snackbar. One message + optional inline link. */
 .snackbar {
   position: fixed;

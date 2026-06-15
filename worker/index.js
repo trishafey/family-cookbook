@@ -855,6 +855,44 @@ app.get("/api/admin/cookbooks/:cookbookId/recipes", async (c) => {
   return c.json(recipes);
 });
 
+// Aggregate read across every cookbook the caller is a member
+// of (plus any they have admin access to). Used by the
+// cross-cookbook "Build a meal" flow so the cook can pick
+// recipes from any of their books in one place. Each recipe
+// gets `cookbookId` + `cookbookName` stamped on for grouping /
+// labelling client-side.
+app.get("/api/admin/me/recipes", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  await ensureUserBootstrap(c);
+  const admin = await isAdmin(c);
+  const cookbookRows = admin
+    ? await c.env.DB.prepare(
+        "SELECT id, name FROM cookbooks ORDER BY name ASC"
+      ).all()
+    : await c.env.DB.prepare(
+        `SELECT c.id, c.name
+         FROM cookbooks c
+         JOIN cookbook_members m ON m.cookbook_id = c.id
+         WHERE m.user_email = ?
+         ORDER BY c.name ASC`
+      ).bind(email).all();
+  const cookbooks = cookbookRows.results || [];
+  const out = [];
+  for (const cb of cookbooks) {
+    try {
+      const recipes = await fetchCookbookRecipes(c, cb.id);
+      for (const r of recipes) {
+        out.push({ ...r, cookbookId: cb.id, cookbookName: cb.name });
+      }
+    } catch (err) {
+      console.error("cross-cookbook read failed", cb.id, err);
+    }
+  }
+  c.header("Cache-Control", "no-store, must-revalidate");
+  return c.json(out);
+});
+
 function formatComment(c) {
   const d = new Date(c.created_at);
   return {

@@ -1219,6 +1219,7 @@ function App() {
           openRecipe={openRecipe}
           onClose={backToBrowse}
           onPlanMeal={openPlanMeal}
+          authEmail={authEmail}
         />
       )}
       {view === "meal-plan" && mealPlan && (
