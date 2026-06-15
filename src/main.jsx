@@ -9,6 +9,7 @@ import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from ".
 import { FiltersDrawer } from "./filters.jsx";
 import { Browse } from "./browse.jsx";
 import { CookbookPage } from "./cookbook-page.jsx";
+import { CreateCookbookPage } from "./create-cookbook-page.jsx";
 import { RecipeDetail } from "./recipe.jsx";
 import { AddRecipe } from "./add-recipe.jsx";
 import { ExperimentationLab } from "./experiment.jsx";
@@ -1172,6 +1173,13 @@ function App() {
           activeCookbookId={activeCookbookId}
           onClose={backToBrowse}
           onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); goToCookbook(cb.slug || cb.id); }}
+          onOpenCreateCookbook={() => setView("cookbook-new")}
+        />
+      )}
+      {FLAGS.cookbooks && view === "cookbook-new" && (
+        <CreateCookbookPage
+          onClose={() => setView("cookbooks")}
+          onCreated={(cb) => { setActiveCookbookId(cb.id); goToCookbook(cb.slug || cb.id); }}
         />
       )}
       {FLAGS.cookbooks && view === "cookbook" && (
@@ -1244,7 +1252,8 @@ function App() {
           viewAsRole={viewAsRole}
           onSetViewAs={setViewAsRole}
           activeCookbookId={activeCookbookId}
-          onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); backToBrowse(); }}
+          onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); goToCookbook(cb.slug || cb.id); }}
+          onEditCookbook={(cb) => { setActiveCookbookId(cb.id); goToCookbook(cb.slug || cb.id, "settings"); }}
           onClose={backToBrowse}
         />
       )}

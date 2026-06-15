@@ -15,7 +15,7 @@ const MAX_COOKBOOK_LANGS = 3;
 // Multi-select language picker shared by Create + Edit cookbook
 // modals. English is always present and locked; up to two
 // additional languages can be toggled on as pills.
-function LanguagePicker({ value, onChange }) {
+export function LanguagePicker({ value, onChange }) {
   const selected = Array.isArray(value) && value.length ? value : ["en"];
   const toggle = (code) => {
     if (code === "en") return; // English is the base; can't remove
@@ -1401,7 +1401,7 @@ export function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, on
   );
 }
 
-export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, onOpenCookbook }) {
+export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, onOpenCookbook, onOpenCreateCookbook }) {
   const [cookbooks, setCookbooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1503,7 +1503,7 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
           </div>
         </div>
         {authEmail && (
-          <button className="btn primary" onClick={() => setCreateOpen(true)}>
+          <button className="btn primary" onClick={() => onOpenCreateCookbook ? onOpenCreateCookbook() : setCreateOpen(true)}>
             <Icon name="plus" /> New cookbook
           </button>
         )}
@@ -1574,7 +1574,7 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
                 <p>You're only in your personal cookbook so far. Make a family cookbook to share recipes with the people you cook with — or wait for an invite from someone who already has one.</p>
               </div>
               <div className="actions">
-                <button className="btn primary" onClick={() => setCreateOpen(true)}>
+                <button className="btn primary" onClick={() => onOpenCreateCookbook ? onOpenCreateCookbook() : setCreateOpen(true)}>
                   <Icon name="plus" size={14} /> Create a family cookbook
                 </button>
                 <button className="btn ghost sm" onClick={dismissFamilyPrompt}>Dismiss</button>
@@ -1747,11 +1747,10 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
 // them via the searchable AdminCookbookTable. Owners get the
 // edit-modal dialog wired in too so admins can rename, manage
 // members, or delete from one place.
-export function AdminCookbooksTab({ authEmail, activeCookbookId, onOpenCookbook }) {
+export function AdminCookbooksTab({ authEmail, activeCookbookId, onOpenCookbook, onEditCookbook }) {
   const [cookbooks, setCookbooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [editing, setEditing] = useState(null);
 
   const load = async () => {
     setError(null);
@@ -1773,32 +1772,12 @@ export function AdminCookbooksTab({ authEmail, activeCookbookId, onOpenCookbook 
   if (error) return <div className="cookbooks-empty" style={{ color: "#933" }}>{error}</div>;
 
   return (
-    <>
-      <AdminCookbookTable
-        cookbooks={cookbooks}
-        activeCookbookId={activeCookbookId}
-        authEmail={authEmail}
-        onOpenCookbook={onOpenCookbook}
-        onEdit={(cb) => setEditing({ cookbook: cb })}
-      />
-      {editing && (
-        <EditCookbookModal
-          cookbook={editing.cookbook}
-          initialTab={editing.tab || "settings"}
-          authEmail={authEmail}
-          isAdmin={true}
-          onClose={() => setEditing(null)}
-          onSaved={(updated) => {
-            setEditing(null);
-            setCookbooks(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
-          }}
-          onDeleted={(id) => {
-            setEditing(null);
-            setCookbooks(prev => prev.filter(c => c.id !== id));
-          }}
-          onMembersChanged={load}
-        />
-      )}
-    </>
+    <AdminCookbookTable
+      cookbooks={cookbooks}
+      activeCookbookId={activeCookbookId}
+      authEmail={authEmail}
+      onOpenCookbook={onOpenCookbook}
+      onEdit={(cb) => onEditCookbook?.(cb)}
+    />
   );
 }

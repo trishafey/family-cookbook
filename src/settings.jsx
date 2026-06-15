@@ -595,7 +595,7 @@ function ViewAsTab({ viewAsRole, onSetViewAs }) {
 }
 
 // Admin page — tabbed. Lives at /admin. Users · View as · AI usage.
-export function AdminPage({ authEmail, onClose, viewAsRole, onSetViewAs, activeCookbookId, onOpenCookbook, initialTab = "users" }) {
+export function AdminPage({ authEmail, onClose, viewAsRole, onSetViewAs, activeCookbookId, onOpenCookbook, onEditCookbook, initialTab = "users" }) {
   const [tab, setTab] = useState(initialTab);
   return (
     <div className="settings-page" data-screen-label="12 Admin">
@@ -621,6 +621,7 @@ export function AdminPage({ authEmail, onClose, viewAsRole, onSetViewAs, activeC
           authEmail={authEmail}
           activeCookbookId={activeCookbookId}
           onOpenCookbook={onOpenCookbook}
+          onEditCookbook={onEditCookbook}
         />
       )}
       {tab === "view-as" && (
