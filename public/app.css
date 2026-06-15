@@ -1304,18 +1304,31 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   display: flex; gap: 8px; flex-wrap: wrap;
 }
 
-/* Cookbook-scoped search bar — always expanded, sits under
-   the segmented toggle on the Recipes tab. Full width on
-   mobile, capped width on desktop. */
+/* Row that hosts the segmented toggle (left) and the cookbook-
+   scoped search + filters (right) on desktop. On mobile the
+   toggle stretches edge-to-edge and the search + filters drop
+   to their own row below — see the @media block. */
+.cookbook-tabs-row {
+  display: flex; align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 0 0;
+}
+.cookbook-tabs-row .cookbook-segmented { margin: 0; }
+
+/* Cookbook-scoped search bar — always expanded, inline with
+   the toggle on desktop. */
 .cookbook-search {
   display: flex; align-items: center;
   gap: 8px;
-  margin-top: 14px;
+  margin-left: auto;
   padding: 8px 10px 8px 14px;
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: 999px;
-  max-width: 420px;
+  min-width: 240px;
+  max-width: 360px;
+  flex: 0 1 320px;
 }
 .cookbook-search > svg { color: var(--ink-3); flex-shrink: 0; }
 /* Botanical search icon — hide the bloom + handle-leaf pieces
@@ -1350,6 +1363,32 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   color: var(--ink-3);
 }
 .cookbook-search-close:hover { background: var(--paper-2); color: var(--ink); }
+
+/* Filters button — sits to the right of the search on desktop,
+   wraps to the next row alongside the search on mobile. */
+.cookbook-filters-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-family: var(--sans); font-size: 14px; font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+.cookbook-filters-btn:hover { background: var(--paper-2); }
+.cookbook-filters-btn .count {
+  display: inline-grid; place-items: center;
+  min-width: 18px; height: 18px;
+  padding: 0 5px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0;
+  font-weight: 600;
+}
 
 /* Segmented Recipes / Members / Settings toggle — new pattern,
    fresh styling per Trisha's carve-out. Pill-shaped container,
@@ -1417,11 +1456,19 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .cb-invited-pill .cb-invited-text { display: none; }
   /* Mobile: segmented Recipes / Members / Settings toggle
      stretches edge-to-edge so each segment is a comfortable
-     tap target. Cookbook-scoped search drops below at full
-     width. */
-  .cookbook-segmented { display: flex; width: 100%; }
+     tap target. Cookbook-scoped search + filters drop to their
+     own row below, search filling the remaining width. */
+  .cookbook-tabs-row { flex-wrap: wrap; gap: 10px; }
+  .cookbook-segmented { display: flex; width: 100%; flex-basis: 100%; }
   .cookbook-segmented .seg { flex: 1; justify-content: center; }
-  .cookbook-search { max-width: none; }
+  .cookbook-search {
+    margin-left: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+  }
+  .cookbook-filters-btn { flex-shrink: 0; }
+  .cookbook-filters-btn .label { display: none; }
 }
 
 /* ─── Cookbook page: shared card chrome ─── */

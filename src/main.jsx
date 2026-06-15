@@ -1072,6 +1072,8 @@ function App() {
           openAddRecipe={() => setView("add")}
           query={query}
           setQuery={setQuery}
+          filters={filters}
+          openFilters={() => setFiltersOpen(true)}
           renderRecipesTab={() => (
             <Browse
               recipes={filtered}

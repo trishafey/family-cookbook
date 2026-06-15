@@ -41,6 +41,8 @@ export function CookbookPage({
   renderRecipesTab,
   query,
   setQuery,
+  filters,
+  openFilters,
 }) {
   const [cookbook, setCookbook] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -98,11 +100,22 @@ export function CookbookPage({
     setCookbookTab?.(t === "recipes" ? null : t);
   };
 
-  // Cookbook-scoped search. Always expanded — sits under the
-  // toggle on the Recipes tab and on its own row for viewers
-  // (who don't see a toggle at all). The botanical search-icon
-  // animation only fires when the input is focused.
+  // Cookbook-scoped search. Always expanded — sits inline with
+  // the toggle on desktop, drops below on mobile. The botanical
+  // search-icon animation only fires when the input is focused.
   const searchInputRef = useRef(null);
+
+  // Active filter count for the Filters button badge. Looks at
+  // every list bucket the cookbook honours + maxTime.
+  const filterCount = (() => {
+    if (!filters) return 0;
+    let n = 0;
+    for (const k of ["origins", "courses", "diets", "occasions", "authors", "cuisines", "difficulties"]) {
+      n += (filters[k] || []).length;
+    }
+    if (filters.maxTime) n += 1;
+    return n;
+  })();
   useLayoutEffect(() => {
     if (!tabChangeFlag.current) return;
     tabChangeFlag.current = false;
@@ -235,73 +248,85 @@ export function CookbookPage({
         </div>
       </div>
 
-      {/* Segmented toggle — Recipes · Members · Settings.
-          Stretches full width on mobile so each segment is a
-          comfortable tap target. */}
-      {showTabs && (
-        <div className="cookbook-segmented" role="tablist" ref={tabBarRef}>
+      {/* Tabs + search + filters row. Desktop: toggle left,
+          search and filters inline on the right. Mobile: toggle
+          stretches full width, search drops below. Search and
+          Filters only render on the Recipes tab. */}
+      <div className="cookbook-tabs-row" ref={tabBarRef}>
+        {showTabs && (
+          <div className="cookbook-segmented" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "recipes"}
+              className={`seg ${activeTab === "recipes" ? "active" : ""}`}
+              onClick={() => onTabClick("recipes")}
+            >
+              <Icon name="book" size={14} /> Recipes
+            </button>
+            {canSeeMembers && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "members"}
+                className={`seg ${activeTab === "members" ? "active" : ""}`}
+                onClick={() => onTabClick("members")}
+              >
+                <Icon name="chef" size={14} /> Members
+              </button>
+            )}
+            {canSeeSettings && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "settings"}
+                className={`seg ${activeTab === "settings" ? "active" : ""}`}
+                onClick={() => onTabClick("settings")}
+              >
+                <Icon name="edit" size={14} /> Settings
+              </button>
+            )}
+          </div>
+        )}
+
+        {setQuery && activeTab === "recipes" && (
+          <div className="cookbook-search">
+            <Icon name="search" size={16} />
+            <input
+              ref={searchInputRef}
+              type="search"
+              className="cookbook-search-input"
+              placeholder={`Search ${cookbook.name}…`}
+              value={query || ""}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query && (
+              <button
+                type="button"
+                className="cookbook-search-close"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+              >
+                <Icon name="x" size={14} />
+              </button>
+            )}
+          </div>
+        )}
+
+        {openFilters && activeTab === "recipes" && (
           <button
             type="button"
-            role="tab"
-            aria-selected={activeTab === "recipes"}
-            className={`seg ${activeTab === "recipes" ? "active" : ""}`}
-            onClick={() => onTabClick("recipes")}
+            className="cookbook-filters-btn"
+            onClick={openFilters}
+            aria-label="Filters"
+            title="Filters"
           >
-            <Icon name="book" size={14} /> Recipes
+            <Icon name="filter" size={15} />
+            <span className="label">Filters</span>
+            {filterCount > 0 && <span className="count">{filterCount}</span>}
           </button>
-          {canSeeMembers && (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "members"}
-              className={`seg ${activeTab === "members" ? "active" : ""}`}
-              onClick={() => onTabClick("members")}
-            >
-              <Icon name="chef" size={14} /> Members
-            </button>
-          )}
-          {canSeeSettings && (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "settings"}
-              className={`seg ${activeTab === "settings" ? "active" : ""}`}
-              onClick={() => onTabClick("settings")}
-            >
-              <Icon name="edit" size={14} /> Settings
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Cookbook-scoped search — only shown on the Recipes
-          tab (or for viewers, who don't have a toggle at all).
-          Always expanded; the botanical search-icon animation is
-          gated to :focus-within in CSS so it only blooms when
-          the input is actually selected. */}
-      {setQuery && activeTab === "recipes" && (
-        <div className="cookbook-search">
-          <Icon name="search" size={16} />
-          <input
-            ref={searchInputRef}
-            type="search"
-            className="cookbook-search-input"
-            placeholder={`Search ${cookbook.name}…`}
-            value={query || ""}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          {query && (
-            <button
-              type="button"
-              className="cookbook-search-close"
-              onClick={() => setQuery("")}
-              aria-label="Clear search"
-            >
-              <Icon name="x" size={14} />
-            </button>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       {activeTab === "recipes" && (
         <div className="cookbook-recipes-tab">
