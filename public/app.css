@@ -2916,6 +2916,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--accent-2); font-weight: 600;
   margin-bottom: 12px;
+  /* Drop the inherited divider — the section headers on the
+     library page sit cleanly above the grid without it. */
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 .cookbook-card {
   display: flex; flex-direction: column;
