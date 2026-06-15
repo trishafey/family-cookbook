@@ -1154,14 +1154,21 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
      initials-only treatment without dominating the page. */
   grid-template-columns: 130px 1fr;
   gap: 24px;
-  align-items: start;
+  /* Stretch so the cover height tracks the info column — the
+     book's bottom edge aligns with the bottom of the action
+     buttons row instead of dropping below it. */
+  align-items: stretch;
   margin-bottom: 28px;
 }
 
 /* Cover — centered content stack, bookmark ribbon top-left. */
 .cookbook-cover {
   position: relative;
-  aspect-ratio: 3 / 4;
+  /* No fixed aspect ratio — the grid's align-items:stretch makes
+     the cover match the info column height (cover bottom aligns
+     with the bottom of the Add recipe / Invite cooks /
+     Share cookbook row). */
+  height: 100%;
   background: var(--accent-cool, #6e7a3a);
   color: #fff;
   border-radius: var(--radius);
@@ -1215,7 +1222,9 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cookbook-cover .cover-initials {
   font-family: var(--serif);
   font-size: 32px;
-  font-weight: 500;
+  /* Lighter weight reads more like a deboss / blind-stamp on a
+     real book cover than the heavier 500 that was here before. */
+  font-weight: 300;
   letter-spacing: 0.04em;
   line-height: 1;
 }
@@ -1332,17 +1341,14 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cookbook-recipes-tab .section-head { margin-top: 0 !important; }
 
 @media (max-width: 720px) {
+  /* Mobile drops the book entirely — the info column has the
+     title, action buttons, role + language pills already, and
+     the cover added little once shrunk this small. */
   .cookbook-header {
-    /* Keep the cover beside the info column even on mobile —
-       it's now compact enough (110px) to leave room for the
-       title + action buttons next to it. */
-    grid-template-columns: 110px 1fr;
-    gap: 16px;
+    grid-template-columns: 1fr;
+    gap: 0;
   }
-  .cookbook-cover {
-    max-width: 110px;
-  }
-  .cookbook-cover .cover-initials { font-size: 26px; }
+  .cookbook-cover { display: none; }
   /* "INVITED" pill shrinks to icon-only on narrow screens so it
      doesn't crowd the email + role dropdown on a member row. */
   .cb-invited-pill { padding: 6px 8px; }
