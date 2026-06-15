@@ -1304,38 +1304,36 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   display: flex; gap: 8px; flex-wrap: wrap;
 }
 
-/* Row that hosts the segmented toggle (left) and the
-   collapsible cookbook-scoped search (right). */
-.cookbook-tabs-row {
-  display: flex; align-items: center; gap: 12px;
-  margin: 8px 0 0;
-}
+/* Cookbook-scoped search bar — always expanded, sits under
+   the segmented toggle on the Recipes tab. Full width on
+   mobile, capped width on desktop. */
 .cookbook-search {
-  margin-left: auto;
-  display: inline-flex; align-items: center;
-}
-.cookbook-search-icon {
-  width: 38px; height: 38px;
-  display: grid; place-items: center;
-  background: var(--paper-2);
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  color: var(--ink-2);
-  cursor: pointer;
-  transition: background .14s, color .14s;
-}
-.cookbook-search-icon:hover { background: var(--paper); color: var(--ink); }
-.cookbook-search.open {
+  display: flex; align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 8px 10px 8px 14px;
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: 999px;
-  padding: 4px 6px 4px 12px;
-  gap: 8px;
-  min-width: 220px;
-  max-width: 340px;
-  flex: 0 1 320px;
+  max-width: 420px;
 }
-.cookbook-search.open svg { color: var(--ink-3); flex-shrink: 0; }
+.cookbook-search > svg { color: var(--ink-3); flex-shrink: 0; }
+/* Botanical search icon — hide the bloom + handle-leaf pieces
+   by default so it reads as a clean magnifying glass. Only
+   bloom into the floral mark once the input is focused; lens
+   fades out at the same time. */
+.cookbook-search .sg-glass { transform-box: view-box; transform-origin: 11px 11px; }
+.cookbook-search .sg-bloom,
+.cookbook-search .s-handleleaf { opacity: 0; }
+.cookbook-search:focus-within .sg-glass {
+  animation: ic-glassout .45s ease forwards;
+}
+.cookbook-search:focus-within .sg-bloom {
+  animation: ic-glassbloom .5s ease forwards;
+}
+.cookbook-search:focus-within .s-handleleaf {
+  animation: ic-handleleaf .55s ease forwards;
+}
 .cookbook-search-input {
   flex: 1; min-width: 0;
   border: 0; background: transparent;
@@ -1417,11 +1415,13 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
      doesn't crowd the email + role dropdown on a member row. */
   .cb-invited-pill { padding: 6px 8px; }
   .cb-invited-pill .cb-invited-text { display: none; }
-  /* Open cookbook search drops to its own row on mobile so the
-     segmented toggle doesn't get squashed when the cook is
-     typing. */
-  .cookbook-tabs-row { flex-wrap: wrap; }
-  .cookbook-search.open { width: 100%; max-width: none; flex-basis: 100%; }
+  /* Mobile: segmented Recipes / Members / Settings toggle
+     stretches edge-to-edge so each segment is a comfortable
+     tap target. Cookbook-scoped search drops below at full
+     width. */
+  .cookbook-segmented { display: flex; width: 100%; }
+  .cookbook-segmented .seg { flex: 1; justify-content: center; }
+  .cookbook-search { max-width: none; }
 }
 
 /* ─── Cookbook page: shared card chrome ─── */
