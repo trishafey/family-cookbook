@@ -1087,6 +1087,7 @@ function App() {
               openMealBuilder={() => setView("meal")}
               openLab={() => setView("lab")}
               simpleMode={simpleMode}
+              embedded
             />
           )}
         />

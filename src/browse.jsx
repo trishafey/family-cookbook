@@ -167,7 +167,7 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
 // most evocative word ("Family" in "Heirloom Family Cookbook",
 // "Cookbook" in "Patricia's Cookbook") so the editorial typography
 // keeps the same rhythm as the default "The Family Cookbook" did.
-function renderCookbookTitle(name) {
+export function renderCookbookTitle(name) {
   if (!name) return null;
   const words = name.split(/\s+/);
   // Find the index of the word to italicise: prefer "Family",
@@ -184,7 +184,7 @@ function renderCookbookTitle(name) {
   );
 }
 
-export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab, simpleMode, activeCookbookName, canWriteActive = true }) {
+export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilters, openRecipe, openFilters, selection, toggleSelect, selectionMode, favorites = [], toggleFavorite, openAddRecipe, openMealBuilder, openLab, simpleMode, activeCookbookName, canWriteActive = true, embedded = false }) {
   const { t, tCourse, tOccasion, tDiet, tOrigin, lang } = useLang();
 
   // Active filter chips — origins lead the row because it's the
@@ -219,34 +219,39 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
 
   return (
     <div className="app" data-screen-label="01 Browse">
-      {/* Editorial masthead */}
-      <header className="home-masthead">
-        <h1 className="home-title">
-          {activeCookbookName
-            ? renderCookbookTitle(activeCookbookName)
-            : lang === "pl"
-              ? <><em style={{ color: "var(--accent)" }}>Rodzinna</em> Książka Kucharska</>
-              : <>The <em style={{ color: "var(--accent)" }}>Family</em> Cookbook</>}
-        </h1>
-        <div className="home-search-row">
-          <HomeSearch
-            query={query}
-            setQuery={setQuery}
-            openFilters={openFilters}
-            recipes={allRecipes || []}
-            onOpenRecipe={openRecipe}
-            placeholder={t("searchPlaceholder")}
-            mobilePlaceholder={t("searchPlaceholderShort")}
-            filtersLabel={t("filters")}
-          />
-          {canWriteActive && (
-            <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> {t("addRecipe")}</button>
-          )}
-          {!simpleMode && (
-            <button className="btn" onClick={openMealBuilder}><Icon name="build" /> {t("buildMeal")}</button>
-          )}
-        </div>
-      </header>
+      {/* Editorial masthead — hidden when Browse is embedded inside
+          the new cookbook page (cookbook page renders its own
+          title + actions; the search/add/build-a-meal row will
+          come back as separate surfaces later). */}
+      {!embedded && (
+        <header className="home-masthead">
+          <h1 className="home-title">
+            {activeCookbookName
+              ? renderCookbookTitle(activeCookbookName)
+              : lang === "pl"
+                ? <><em style={{ color: "var(--accent)" }}>Rodzinna</em> Książka Kucharska</>
+                : <>The <em style={{ color: "var(--accent)" }}>Family</em> Cookbook</>}
+          </h1>
+          <div className="home-search-row">
+            <HomeSearch
+              query={query}
+              setQuery={setQuery}
+              openFilters={openFilters}
+              recipes={allRecipes || []}
+              onOpenRecipe={openRecipe}
+              placeholder={t("searchPlaceholder")}
+              mobilePlaceholder={t("searchPlaceholderShort")}
+              filtersLabel={t("filters")}
+            />
+            {canWriteActive && (
+              <button className="btn primary" onClick={openAddRecipe}><Icon name="plus" /> {t("addRecipe")}</button>
+            )}
+            {!simpleMode && (
+              <button className="btn" onClick={openMealBuilder}><Icon name="build" /> {t("buildMeal")}</button>
+            )}
+          </div>
+        </header>
+      )}
 
       {/* Active filters */}
       {activeChips.length > 0 &&
