@@ -163,7 +163,10 @@ export function CookbookPage({
 
       {/* Header — book cover (left) + book info (right) */}
       <div className="cookbook-header">
-        <div className={`cookbook-cover ${cookbook.coverPhoto ? "has-photo" : ""}`}>
+        <div
+          className={`cookbook-cover ${cookbook.coverPhoto ? "has-photo" : ""}`}
+          style={cookbook.coverColor ? { "--cookbook-cover-color": cookbook.coverColor } : undefined}
+        >
           {cookbook.coverPhoto && (
             <img className="cover-photo" src={cookbook.coverPhoto} alt="" />
           )}

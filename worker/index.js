@@ -100,6 +100,9 @@ app.get("/api/admin/cookbooks", async (c) => {
   await c.env.DB.prepare(
     "ALTER TABLE cookbooks ADD COLUMN languages TEXT"
   ).run().catch(() => {});
+  await c.env.DB.prepare(
+    "ALTER TABLE cookbooks ADD COLUMN cover_color TEXT"
+  ).run().catch(() => {});
   const admin = await isAdmin(c);
 
   // Admins see every cookbook (member or not). For non-admins,
@@ -110,7 +113,7 @@ app.get("/api/admin/cookbooks", async (c) => {
   const rows = admin
     ? await c.env.DB.prepare(`
         SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
-               c.cover_photo, c.languages, c.created_at, c.updated_at,
+               c.cover_photo, c.cover_color, c.languages, c.created_at, c.updated_at,
                m.role AS your_role, m.joined_at, m.display_order AS your_order,
                (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
                (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count
@@ -123,7 +126,7 @@ app.get("/api/admin/cookbooks", async (c) => {
       `).bind(email, email).all()
     : await c.env.DB.prepare(`
         SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
-               c.cover_photo, c.languages, c.created_at, c.updated_at,
+               c.cover_photo, c.cover_color, c.languages, c.created_at, c.updated_at,
                m.role AS your_role, m.joined_at, m.display_order AS your_order,
                (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
                (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count
@@ -142,6 +145,7 @@ app.get("/api/admin/cookbooks", async (c) => {
       visibility: r.visibility,
       blurb: r.blurb || "",
       coverPhoto: r.cover_photo || null,
+      coverColor: r.cover_color || null,
       languages: r.languages ? JSON.parse(r.languages) : ["en"],
       // yourRole is the explicit membership role if any, else
       // "admin" (the admin-access fallback) — keeps the client
@@ -169,8 +173,11 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
   await c.env.DB.prepare(
     "ALTER TABLE cookbooks ADD COLUMN languages TEXT"
   ).run().catch(() => {});
+  await c.env.DB.prepare(
+    "ALTER TABLE cookbooks ADD COLUMN cover_color TEXT"
+  ).run().catch(() => {});
   const cb = await c.env.DB.prepare(
-    "SELECT id, owner_email, name, slug, visibility, blurb, cover_photo, languages, created_at, updated_at FROM cookbooks WHERE id = ?"
+    "SELECT id, owner_email, name, slug, visibility, blurb, cover_photo, cover_color, languages, created_at, updated_at FROM cookbooks WHERE id = ?"
   ).bind(id).first();
   if (!cb) return c.json({ error: "not found" }, 404);
   const members = await c.env.DB.prepare(`
@@ -194,6 +201,7 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
       visibility: cb.visibility,
       blurb: cb.blurb || "",
       coverPhoto: cb.cover_photo || null,
+      coverColor: cb.cover_color || null,
       languages: cb.languages ? JSON.parse(cb.languages) : ["en"],
       createdAt: cb.created_at,
       updatedAt: cb.updated_at,
@@ -335,6 +343,20 @@ app.patch("/api/admin/cookbooks/:id", async (c) => {
     // null (clear the cover). Anything else is ignored so a typo
     // can't blank the cover.
     sets.push("cover_photo = ?"); args.push(body.coverPhoto || null);
+  }
+  if (body?.coverColor === null || typeof body?.coverColor === "string") {
+    // Accept a short colour token from the swatch palette (or
+    // null to reset to the default green). Reject anything that
+    // looks suspect — only allow letters / digits / hash / hyphen
+    // so we can't get tricked into stuffing CSS into a style
+    // attribute downstream.
+    const cc = body.coverColor;
+    if (cc === null || /^[a-zA-Z0-9#\-]{0,32}$/.test(cc)) {
+      await c.env.DB.prepare(
+        "ALTER TABLE cookbooks ADD COLUMN cover_color TEXT"
+      ).run().catch(() => {});
+      sets.push("cover_color = ?"); args.push(cc || null);
+    }
   }
   if (!sets.length) return c.json({ ok: true });
   const now = new Date().toISOString();

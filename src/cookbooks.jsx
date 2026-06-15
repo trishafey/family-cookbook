@@ -853,12 +853,26 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
 // legacy edit modal share the exact same fields + danger zone.
 // Caller owns onSaved/onDeleted/onCancel + the surrounding
 // chrome (modal vs. tab).
+// Curated swatch palette for the book cover. Keep them dark-
+// enough that the white serif title + bookmark stay legible.
+export const COVER_COLORS = [
+  { value: "#6e7a3a", label: "Olive" },
+  { value: "#3f5a6e", label: "Slate" },
+  { value: "#b04a2a", label: "Brick" },
+  { value: "#4f3b2c", label: "Walnut" },
+  { value: "#5e3a52", label: "Plum" },
+  { value: "#2c5e4f", label: "Pine" },
+  { value: "#8a6b35", label: "Mustard" },
+  { value: "#3a3a3a", label: "Graphite" },
+];
+
 export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, onCancel }) {
   const canSettings = cookbook.yourRole === "owner" || cookbook.yourRole === "admin" || isAdmin;
   const [name, setName] = useState(cookbook.name);
   const [blurb, setBlurb] = useState(cookbook.blurb || "");
   const [visibility, setVisibility] = useState(cookbook.visibility);
   const [coverPhoto, setCoverPhoto] = useState(cookbook.coverPhoto || null);
+  const [coverColor, setCoverColor] = useState(cookbook.coverColor || null);
   // Directory + comments toggles ship with placeholder UI here;
   // backend persistence + behavior arrives with the public
   // directory work (Phase 4c). Default off; explicitly disabled
@@ -866,9 +880,13 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
   // means anything without a public surface.
   const [listInDirectory, setListInDirectory] = useState(false);
   const [allowComments, setAllowComments] = useState(true);
-  const [languages, setLanguages] = useState(
-    Array.isArray(cookbook.languages) && cookbook.languages.length ? cookbook.languages : ["en"]
-  );
+  // Track the language set the cook landed on so we can show
+  // "Translate existing recipes" only when they've actually
+  // changed the language set — and hide it again if they revert
+  // back to the saved value.
+  const initialLanguages = Array.isArray(cookbook.languages) && cookbook.languages.length ? cookbook.languages : ["en"];
+  const [languages, setLanguages] = useState(initialLanguages);
+  const languagesDirty = JSON.stringify([...languages].sort()) !== JSON.stringify([...initialLanguages].sort());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -945,13 +963,13 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), blurb, visibility, languages, coverPhoto }),
+        body: JSON.stringify({ name: name.trim(), blurb, visibility, languages, coverPhoto, coverColor }),
       });
       if (!res.ok) {
         const { error: msg } = await res.json().catch(() => ({}));
         throw new Error(msg || `Save failed (${res.status})`);
       }
-      onSaved?.({ ...cookbook, name: name.trim(), blurb, visibility, languages, coverPhoto });
+      onSaved?.({ ...cookbook, name: name.trim(), blurb, visibility, languages, coverPhoto, coverColor });
     } catch (err) {
       setError(err.message || "Could not save changes.");
     } finally {
@@ -1023,12 +1041,15 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
         </div>
       </div>
 
-      {/* Card 2: languages */}
+      {/* Card 2: languages — translate-existing button follows
+          the pills and only shows when the cook has changed the
+          language set from what's saved. If they revert back to
+          the original, the button disappears again. */}
       <div className="cb-card">
         <div className="cb-card-title">Languages</div>
         <div className="cb-card-desc">The languages this cookbook is kept in. Add one and we can translate the existing recipes into it.</div>
         <LanguagePicker value={languages} onChange={setLanguages} />
-        {languages.length > 1 && (
+        {languagesDirty && languages.length > 1 && (
           <div className="translate-all-row">
             <button type="button" className="btn ghost sm" onClick={translateAll} disabled={translating}>
               {translating ? "Queueing…" : "Translate existing recipes"}
@@ -1038,8 +1059,40 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
         )}
       </div>
 
-      {/* Card 3: cover photo / visibility / directory / comments / delete */}
+      {/* Card 3: cover colour / cover photo / visibility / directory / comments / delete */}
       <div className="cb-card cb-rows-card">
+        <div className="cb-setting-row">
+          <div className="cb-setting-text">
+            <div className="cb-setting-label">Cover colour</div>
+            <div className="cb-setting-desc">The cloth colour of the book when there's no cover photo.</div>
+          </div>
+          <div className="cb-setting-control">
+            <div className="cb-color-swatches" role="radiogroup" aria-label="Cover colour">
+              {COVER_COLORS.map(c => (
+                <button
+                  key={c.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={coverColor === c.value}
+                  className={`cb-color-swatch ${coverColor === c.value ? "active" : ""}`}
+                  style={{ background: c.value }}
+                  onClick={() => setCoverColor(c.value)}
+                  title={c.label}
+                />
+              ))}
+              {coverColor && (
+                <button
+                  type="button"
+                  className="cb-color-swatch reset"
+                  onClick={() => setCoverColor(null)}
+                  title="Reset to default"
+                >
+                  <Icon name="x" size={11} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
         <div className="cb-setting-row">
           <div className="cb-setting-text">
             <div className="cb-setting-label">Cover photo</div>

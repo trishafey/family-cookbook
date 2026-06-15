@@ -1150,9 +1150,11 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .cookbook-header {
   display: grid;
-  /* Smaller compact cover (~half the previous size) — fits the
-     initials-only treatment without dominating the page. */
-  grid-template-columns: 130px 1fr;
+  /* Compact cover, sized to read as a book rather than a phone-
+     icon square: 160px wide with the height tracking the info
+     column's height — closer to a 5:6 book block ratio in
+     practice. */
+  grid-template-columns: 160px 1fr;
   gap: 24px;
   /* Stretch so the cover height tracks the info column — the
      book's bottom edge aligns with the bottom of the action
@@ -1169,13 +1171,25 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
      with the bottom of the Add recipe / Invite cooks /
      Share cookbook row). */
   height: 100%;
-  background: var(--accent-cool, #6e7a3a);
+  background: var(--cookbook-cover-color, var(--accent-cool, #6e7a3a));
   color: #fff;
-  border-radius: var(--radius);
-  padding: 10px 8px;
+  /* Spine is on the left — tight corners along that edge, softer
+     rounding on the open side. */
+  border-radius: 2px 8px 8px 2px;
+  padding: 10px 12px 10px 22px;
   display: flex; flex-direction: column;
   box-shadow: 0 12px 28px -16px rgba(0,0,0,.3);
   overflow: hidden;
+}
+/* Darker spine band on the left edge — sits above the photo /
+   gradient overlay so a real cover photo still has the spine
+   running along its bound side. */
+.cookbook-cover::before {
+  content: "";
+  position: absolute; inset: 0 auto 0 0;
+  width: 10px;
+  background: linear-gradient(to right, rgba(0,0,0,.35), rgba(0,0,0,.08));
+  z-index: 3;
 }
 .cookbook-cover .cover-photo {
   position: absolute; inset: 0;
@@ -1199,7 +1213,8 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cookbook-cover .cover-bookmark {
   position: absolute;
   top: 0;
-  left: 10px;
+  /* Sits just to the right of the 10px-wide spine band. */
+  left: 18px;
   padding: 8px 5px 12px;
   background: var(--accent);
   color: #fff;
@@ -1608,6 +1623,30 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .cb-setting-control { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
 .cb-delete-confirm { display: inline-flex; gap: 8px; }
+
+/* Cover colour swatch row inside the Settings card. */
+.cb-color-swatches {
+  display: inline-flex; flex-wrap: wrap; gap: 6px;
+  align-items: center;
+}
+.cb-color-swatch {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--rule);
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.cb-color-swatch:hover { transform: scale(1.08); }
+.cb-color-swatch.active {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink);
+}
+.cb-color-swatch.reset {
+  background: var(--paper);
+  color: var(--ink-3);
+  display: grid; place-items: center;
+}
 .cb-settings-actions {
   display: flex; gap: 8px;
   margin-top: 12px;
