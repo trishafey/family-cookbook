@@ -1328,18 +1328,28 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   color: var(--ink-2);
 }
 .cookbook-info-meta {
-  display: flex; gap: 18px; align-items: center;
+  /* Counts row sits above the pill row on desktop. Icon + bold
+     number + label, mono for the trailing word. */
+  display: flex; gap: 16px; align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11px;
+  letter-spacing: .04em;
   color: var(--ink-3);
+}
+.cookbook-info-meta .meta-stat {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.cookbook-info-meta .meta-stat svg {
+  color: var(--ink-2);
 }
 .cookbook-info-meta strong {
   font-family: var(--sans);
   font-size: 14px;
+  font-weight: 600;
   color: var(--ink);
-  margin-right: 4px;
+  margin-right: 2px;
 }
 .cookbook-actions {
   display: flex; gap: 8px; flex-wrap: wrap;

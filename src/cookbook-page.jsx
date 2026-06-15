@@ -231,6 +231,20 @@ export function CookbookPage({
         </div>
 
         <div className="cookbook-info">
+          {/* Recipe + cook counts moved up so they sit above the
+              pill row on desktop (hidden on mobile to keep the
+              header tight). Each pairs an icon with a number. */}
+          <div className="cookbook-info-meta">
+            <span className="meta-stat">
+              <Icon name="build" size={14} />
+              <strong>{cookbook.recipeCount || 0}</strong> recipes
+            </span>
+            <span className="meta-stat">
+              <Icon name="chef" size={14} />
+              <strong>{cookbook.memberCount || 0}</strong> {(cookbook.memberCount || 0) === 1 ? "cook" : "cooks"}
+            </span>
+          </div>
+
           <div className="cookbook-pill-row">
             <span className={`info-pill role-pill role-${role || "viewer"}`}>{roleLabel}</span>
             {languages.map(code => (
@@ -248,11 +262,6 @@ export function CookbookPage({
 
           <h1 className="cookbook-h1">{renderCookbookTitle(cookbook.name)}</h1>
           {cookbook.blurb && <p className="cookbook-tagline">{cookbook.blurb}</p>}
-
-          <div className="cookbook-info-meta">
-            <span><strong>{cookbook.recipeCount || 0}</strong> recipes</span>
-            <span><strong>{cookbook.memberCount || 0}</strong> {(cookbook.memberCount || 0) === 1 ? "cook" : "cooks"}</span>
-          </div>
 
           <div className="cookbook-actions">
             {role !== "viewer" && (
