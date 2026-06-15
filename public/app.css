@@ -1327,29 +1327,22 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   font-style: italic;
   color: var(--ink-2);
 }
-.cookbook-info-meta {
-  /* Counts row sits above the pill row on desktop. Icon + bold
-     number + label, mono for the trailing word. */
-  display: flex; gap: 16px; align-items: center;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: .04em;
-  color: var(--ink-3);
+/* Count pills (recipe / cook count) live inline in the same
+   row as the role + language pills. Mono trailing word + bold
+   sans number to mirror the meta style we had before, but the
+   silhouette matches the other pills exactly. */
+.info-pill.count-pill {
+  gap: 5px;
 }
-.cookbook-info-meta .meta-stat {
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.cookbook-info-meta .meta-stat svg {
+.info-pill.count-pill svg {
   color: var(--ink-2);
 }
-.cookbook-info-meta strong {
+.info-pill.count-pill strong {
   font-family: var(--sans);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--ink);
-  margin-right: 2px;
+  letter-spacing: 0;
 }
 .cookbook-actions {
   display: flex; gap: 8px; flex-wrap: wrap;
@@ -1516,10 +1509,11 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
      doesn't crowd the email + role dropdown on a member row. */
   .cb-invited-pill { padding: 6px 8px; }
   .cb-invited-pill .cb-invited-text { display: none; }
-  /* Mobile cookbook header: drop the recipe / cook counts row,
-     turn the secondary action buttons (Invite cook / Settings)
-     into icon-only chips. */
-  .cookbook-info-meta { display: none; }
+  /* Mobile cookbook header: drop the recipe / cook count pills
+     (kept inline with the role / language pills on desktop),
+     and turn the secondary action buttons (Invite cook /
+     Settings) into icon-only chips. */
+  .info-pill.count-pill.desktop-only { display: none; }
   .cookbook-action-btn .btn-label { display: none; }
   /* Recipe sections — drop the "5 recipes" count badge on the
      right of each section header so the cookbook page can

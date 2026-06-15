@@ -231,21 +231,20 @@ export function CookbookPage({
         </div>
 
         <div className="cookbook-info">
-          {/* Recipe + cook counts moved up so they sit above the
-              pill row on desktop (hidden on mobile to keep the
-              header tight). Each pairs an icon with a number. */}
-          <div className="cookbook-info-meta">
-            <span className="meta-stat">
-              <Icon name="build" size={14} />
-              <strong>{cookbook.recipeCount || 0}</strong> recipes
-            </span>
-            <span className="meta-stat">
-              <Icon name="chef" size={14} />
-              <strong>{cookbook.memberCount || 0}</strong> {(cookbook.memberCount || 0) === 1 ? "cook" : "cooks"}
-            </span>
-          </div>
-
+          {/* All pills in one row: count pills (desktop-only) +
+              role pill + language pills. The count pills hide on
+              mobile so the header stays tight. */}
           <div className="cookbook-pill-row">
+            <span className="info-pill count-pill desktop-only">
+              <Icon name="build" size={12} />
+              <strong>{cookbook.recipeCount || 0}</strong>
+              {(cookbook.recipeCount || 0) === 1 ? "recipe" : "recipes"}
+            </span>
+            <span className="info-pill count-pill desktop-only">
+              <Icon name="chef" size={12} />
+              <strong>{cookbook.memberCount || 0}</strong>
+              {(cookbook.memberCount || 0) === 1 ? "cook" : "cooks"}
+            </span>
             <span className={`info-pill role-pill role-${role || "viewer"}`}>{roleLabel}</span>
             {languages.map(code => (
               <span key={code} className="info-pill lang-pill">
