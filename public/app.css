@@ -1291,8 +1291,17 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   line-height: 1;
 }
 
-/* Info — pill row + accent-highlighted title + meta. */
-.cookbook-info { padding-top: 4px; }
+/* Info — pill row + accent-highlighted title + meta. Lays out
+   as a flex column so the action row sits at the bottom even
+   when the cookbook has no tagline. That keeps the cover from
+   sticking out below the buttons on tagline-less cookbooks. */
+.cookbook-info {
+  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+}
+.cookbook-info .cookbook-actions { margin-top: auto; }
 .cookbook-pill-row {
   display: flex; flex-wrap: wrap; gap: 6px;
   margin-bottom: 14px;
