@@ -1312,11 +1312,13 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   object-fit: cover;
 }
 .cookbook-h1 {
-  /* Match the base h1 serif treatment ("The Family Cookbook"
-     masthead) — weight 400, default 48px. */
+  /* Base h1 is 48px; the cookbook detail page boosts to 58px
+     so the title reads at masthead scale next to the cover. */
   margin: 0 0 8px;
   font-family: var(--serif);
   font-weight: 400;
+  font-size: 58px;
+  line-height: 1.05;
 }
 .cookbook-tagline {
   margin: 0 0 18px;
@@ -1355,19 +1357,25 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .cookbook-tabs-row .cookbook-segmented { margin: 0; }
 
-/* Cookbook-scoped search bar — always expanded, inline with
-   the toggle on desktop. */
+/* Cookbook-scoped search bar — same idle / focus styling as
+   the nav search bar (var(--paper-2) idle → var(--paper) on
+   focus-within, border-color steps to var(--ink-3)). Hover
+   nudges towards the focus tone so the field feels live. */
 .cookbook-search {
   display: flex; align-items: center;
   gap: 8px;
-  margin-left: auto;
-  padding: 8px 10px 8px 14px;
-  background: var(--paper);
+  margin: 18px 0 16px;
+  padding: 10px 10px 10px 14px;
+  background: var(--paper-2);
   border: 1px solid var(--rule);
   border-radius: 999px;
-  min-width: 240px;
-  max-width: 360px;
-  flex: 0 1 320px;
+  max-width: 460px;
+  transition: background .14s ease, border-color .14s ease;
+}
+.cookbook-search:hover { background: var(--paper); }
+.cookbook-search:focus-within {
+  background: var(--paper);
+  border-color: var(--ink-3);
 }
 .cookbook-search > svg { color: var(--ink-3); flex-shrink: 0; }
 /* Botanical search icon — hide the bloom + handle-leaf pieces
@@ -1894,13 +1902,26 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .meal-search {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px 8px 14px;
-  background: var(--paper);
+  padding: 10px 10px 10px 14px;
+  background: var(--paper-2);
   border: 1px solid var(--rule);
   border-radius: 999px;
-  max-width: 420px;
+  max-width: 460px;
+  transition: background .14s ease, border-color .14s ease;
+}
+.meal-search:hover { background: var(--paper); }
+.meal-search:focus-within {
+  background: var(--paper);
+  border-color: var(--ink-3);
 }
 .meal-search > svg { color: var(--ink-3); flex-shrink: 0; }
+/* Apply the same focus-gated botanical bloom animation as the
+   cookbook search so the icon doesn't fire on hover. */
+.meal-search .sg-bloom,
+.meal-search .s-handleleaf { opacity: 0; }
+.meal-search:focus-within .sg-glass { animation: ic-glassout .45s ease forwards; }
+.meal-search:focus-within .sg-bloom { animation: ic-glassbloom .5s ease forwards; }
+.meal-search:focus-within .s-handleleaf { animation: ic-handleleaf .55s ease forwards; }
 .meal-search-input {
   flex: 1; min-width: 0;
   border: 0; background: transparent;
@@ -2024,6 +2045,19 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   margin-top: 8px;
   font-family: var(--mono); font-size: 11px;
   color: var(--ink-3);
+}
+
+/* Invite-cook modal — small green confirmation under the
+   network picker after an invite fires. */
+.invite-confirmation {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 14px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--accent-cool, #6e7a3a) 12%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--accent-cool, #6e7a3a) 28%, transparent);
+  border-radius: var(--radius);
+  color: var(--accent-cool, #6e7a3a);
+  font-family: var(--sans); font-size: 13px;
 }
 
 /* Bottom-of-screen snackbar. One message + optional inline link. */

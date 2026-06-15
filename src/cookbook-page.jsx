@@ -1,15 +1,22 @@
-// New /cookbook/<slug> page — replaces the old "click a card →
-// switch active cookbook + go to browse" flow with a dedicated
-// destination. Has a book-cover header, action buttons, and a
-// Recipes / Members / Settings tab toggle gated by the cook's
-// role on that cookbook. Members + Settings render inline (no
-// more EditCookbookModal for the in-cookbook flow).
+// /cookbook/<slug>[/<tab>]
+//
+// Two surfaces share this route:
+//   1. No tab in the URL → the cookbook landing page. Header
+//      with the book cover + info + action row (Add recipe /
+//      Invite cook / Settings), then the recipe grid below.
+//   2. tab = "members" or "settings" → the full-page Manage
+//      view, with its own back-button and a Members / Settings
+//      tab toggle.
+//
+// Invite cook opens a small modal scoped to the invite-by-email
+// + network-pill picker only — not the full member roster.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "./helpers.jsx";
 import { LANG_META } from "./i18n.js";
 import { MembersSection, CookbookSettingsForm } from "./cookbooks.jsx";
 import { renderCookbookTitle } from "./browse.jsx";
+import { InviteCookModal } from "./invite-cook-modal.jsx";
 
 const FLAG_SRC = {
   en: "/images/flags/en.png",
@@ -19,8 +26,6 @@ const FLAG_SRC = {
   pt: "/images/flags/pt.png",
 };
 
-// Map a lang code to a friendlier nationality-style label for the
-// cover ("Polish · Canadian") and the info pills.
 const LANG_NATIONALITY = {
   en: "Canadian",
   pl: "Polish",
@@ -47,7 +52,7 @@ export function CookbookPage({
   const [cookbook, setCookbook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [shareCopied, setShareCopied] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const load = async () => {
     if (!authEmail) { setLoading(false); return; }
@@ -76,37 +81,22 @@ export function CookbookPage({
   const role = cookbook?.yourRole;
   const canSeeMembers = role === "owner" || role === "editor" || role === "admin";
   const canSeeSettings = role === "owner" || role === "admin" || isAdmin;
-  const showTabs = canSeeMembers || canSeeSettings;
-  const activeTab = (() => {
-    const t = cookbookTab || "recipes";
-    if (t === "members" && !canSeeMembers) return "recipes";
-    if (t === "settings" && !canSeeSettings) return "recipes";
-    return t;
+  // URL-driven mode: if tab is "members" or "settings", show
+  // the full-page manage view. Default (null) shows the cookbook
+  // landing.
+  const isManageMode = cookbookTab === "members" || cookbookTab === "settings";
+  const manageTab = (() => {
+    if (cookbookTab === "settings" && canSeeSettings) return "settings";
+    if (cookbookTab === "members" && canSeeMembers) return "members";
+    if (canSeeSettings) return "settings";
+    if (canSeeMembers) return "members";
+    return null;
   })();
 
-  // Keep the segmented tab bar anchored at the top of the
-  // viewport when the cook switches tabs. Without this, going
-  // from the tall Recipes tab to the shorter Members / Settings
-  // can leave the browser snapping scroll position (because the
-  // page is no longer tall enough to support the previous
-  // offset), or the cook ends up looking at the cookbook header
-  // again. useLayoutEffect runs synchronously before the browser
-  // paints the new tab content so the cook never sees an
-  // intermediate frame.
-  const tabBarRef = useRef(null);
-  const tabChangeFlag = useRef(false);
-  const onTabClick = (t) => {
-    tabChangeFlag.current = true;
-    setCookbookTab?.(t === "recipes" ? null : t);
-  };
+  const goToManage = (tab) => setCookbookTab?.(tab);
+  const exitManage = () => setCookbookTab?.(null);
 
-  // Cookbook-scoped search. Always expanded — sits inline with
-  // the toggle on desktop, drops below on mobile. The botanical
-  // search-icon animation only fires when the input is focused.
-  const searchInputRef = useRef(null);
-
-  // Active filter count for the Filters button badge. Looks at
-  // every list bucket the cookbook honours + maxTime.
+  // Active filter count for the Filters button badge.
   const filterCount = (() => {
     if (!filters) return 0;
     let n = 0;
@@ -116,28 +106,16 @@ export function CookbookPage({
     if (filters.maxTime) n += 1;
     return n;
   })();
-  useLayoutEffect(() => {
-    if (!tabChangeFlag.current) return;
-    tabChangeFlag.current = false;
-    const el = tabBarRef.current;
-    if (!el) return;
-    // Position the tab bar at the top of the viewport (or as
-    // close as the page allows). Plain window.scrollTo using the
-    // element's absolute Y avoids the "snap to 0" the browser
-    // sometimes does when the page shrinks.
-    const y = el.getBoundingClientRect().top + window.scrollY - 8;
-    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
-  }, [cookbookTab]);
 
-  const shareCookbook = async () => {
-    if (!cookbook) return;
-    const url = `${window.location.origin}/cookbook/${encodeURIComponent(cookbook.slug || cookbook.id)}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setShareCopied(true);
-      setTimeout(() => setShareCopied(false), 1800);
-    } catch {}
-  };
+  // When entering manage mode, scroll the page to the top
+  // (manage is its own surface so a stale recipe-grid scroll
+  // position doesn't make sense).
+  const lastTabRef = useRef(cookbookTab);
+  useLayoutEffect(() => {
+    if (lastTabRef.current === cookbookTab) return;
+    lastTabRef.current = cookbookTab;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [cookbookTab]);
 
   if (loading) {
     return (
@@ -163,11 +141,6 @@ export function CookbookPage({
   const languages = (cookbook.languages && cookbook.languages.length ? cookbook.languages : ["en"]);
   const roleLabel = cookbook.adminAccess ? "admin access" : (role || "viewer");
   const nationalityLine = languages.map(c => LANG_NATIONALITY[c] || LANG_META[c]?.label || c).join(" · ");
-  // Cover initials — first letter of each "significant" word in
-  // the cookbook name, capped at 4 chars. e.g.
-  //   "Heirloom Family Cookbook" → HFC
-  //   "Wiktoria's Kitchen" → WK
-  //   "Patricia's Personal Cookbook" → PPC
   const coverInitials = (cookbook.name || "")
     .split(/\s+/)
     .filter(w => w && !/^(the|a|an|of|&|and)$/i.test(w))
@@ -176,13 +149,71 @@ export function CookbookPage({
     .slice(0, 4)
     .toUpperCase();
 
+  // ─── Manage mode (Members + Settings tabs) ───
+  if (isManageMode) {
+    return (
+      <div className="cookbook-page cookbook-manage" data-screen-label={`Manage: ${cookbook.name}`}>
+        <button className="btn ghost" onClick={exitManage} style={{ marginBottom: 16 }}>
+          <Icon name="chevL" /> Back to {cookbook.name}
+        </button>
+
+        <div className="cookbook-segmented" role="tablist">
+          {canSeeMembers && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={manageTab === "members"}
+              className={`seg ${manageTab === "members" ? "active" : ""}`}
+              onClick={() => goToManage("members")}
+            >
+              <Icon name="chef" size={14} /> Members
+            </button>
+          )}
+          {canSeeSettings && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={manageTab === "settings"}
+              className={`seg ${manageTab === "settings" ? "active" : ""}`}
+              onClick={() => goToManage("settings")}
+            >
+              <Icon name="edit" size={14} /> Settings
+            </button>
+          )}
+        </div>
+
+        {manageTab === "members" && canSeeMembers && (
+          <div className="cookbook-tab-body">
+            <MembersSection
+              cookbook={cookbook}
+              authEmail={authEmail}
+              isAdmin={isAdmin}
+              canRemoveMembers={canSeeSettings}
+              onMembersChanged={load}
+            />
+          </div>
+        )}
+        {manageTab === "settings" && canSeeSettings && (
+          <div className="cookbook-tab-body">
+            <CookbookSettingsForm
+              cookbook={cookbook}
+              isAdmin={isAdmin}
+              onSaved={(updated) => setCookbook(prev => ({ ...prev, ...updated }))}
+              onDeleted={() => goToLibrary?.()}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ─── Landing mode (header + action row + recipe grid) ───
   return (
     <div className="cookbook-page" data-screen-label={`Cookbook: ${cookbook.name}`}>
       <button className="btn ghost" onClick={goToLibrary} style={{ marginBottom: 16 }}>
         <Icon name="chevL" /> Back to library
       </button>
 
-      {/* Header — book cover (left) + book info (right) */}
       <div className="cookbook-header">
         <div
           className={`cookbook-cover ${cookbook.coverPhoto ? "has-photo" : ""}`}
@@ -191,22 +222,15 @@ export function CookbookPage({
           {cookbook.coverPhoto && (
             <img className="cover-photo" src={cookbook.coverPhoto} alt="" />
           )}
-          {/* Bookmark ribbon — top-left tag styled like the
-              "YOURS" / role marker on a real book spine. */}
           <div className={`cover-bookmark role-${role || "viewer"}`}>
             {roleLabel}
           </div>
-          {/* Compact cover content: just the initials of the
-              cookbook name, centered. Tagline / nationality
-              info has moved into the info column. */}
           <div className="cover-body">
             <div className="cover-initials">{coverInitials || "·"}</div>
           </div>
         </div>
 
         <div className="cookbook-info">
-          {/* Pill row — role + per-language flag-and-name pills.
-              Replaces the old mono eyebrow line. */}
           <div className="cookbook-pill-row">
             <span className={`info-pill role-pill role-${role || "viewer"}`}>{roleLabel}</span>
             {languages.map(code => (
@@ -236,116 +260,65 @@ export function CookbookPage({
                 <Icon name="plus" /> Add a recipe
               </button>
             )}
-            {/* Invite cooks + Share cookbook removed for now — the
-                Members tab still surfaces invites and Share will
-                come back as part of the public viewer URL work. */}
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs + search + filters row. Desktop: toggle left,
-          search and filters inline on the right. Mobile: toggle
-          stretches full width, search drops below. Search and
-          Filters only render on the Recipes tab. */}
-      <div className="cookbook-tabs-row" ref={tabBarRef}>
-        {showTabs && (
-          <div className="cookbook-segmented" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "recipes"}
-              className={`seg ${activeTab === "recipes" ? "active" : ""}`}
-              onClick={() => onTabClick("recipes")}
-            >
-              <Icon name="book" size={14} /> Recipes
-            </button>
             {canSeeMembers && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "members"}
-                className={`seg ${activeTab === "members" ? "active" : ""}`}
-                onClick={() => onTabClick("members")}
-              >
-                <Icon name="chef" size={14} /> Members
+              <button className="btn" onClick={() => setInviteOpen(true)}>
+                <Icon name="chef" /> Invite cook
               </button>
             )}
             {canSeeSettings && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "settings"}
-                className={`seg ${activeTab === "settings" ? "active" : ""}`}
-                onClick={() => onTabClick("settings")}
-              >
-                <Icon name="edit" size={14} /> Settings
+              <button className="btn" onClick={() => goToManage("settings")}>
+                <Icon name="edit" /> Settings
               </button>
             )}
           </div>
-        )}
-
-        {setQuery && activeTab === "recipes" && (
-          <div className="cookbook-search">
-            <Icon name="search" size={16} />
-            <input
-              ref={searchInputRef}
-              type="search"
-              className="cookbook-search-input"
-              placeholder={`Search ${cookbook.name}…`}
-              value={query || ""}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            {query && (
-              <button
-                type="button"
-                className="cookbook-search-close"
-                onClick={() => setQuery("")}
-                aria-label="Clear search"
-              >
-                <Icon name="x" size={14} />
-              </button>
-            )}
-            {openFilters && (
-              <button
-                type="button"
-                className="cookbook-search-filter"
-                onClick={openFilters}
-                aria-label="Filters"
-                title="Filters"
-              >
-                <Icon name="filter" size={15} />
-                {filterCount > 0 && <span className="count">{filterCount}</span>}
-              </button>
-            )}
-          </div>
-        )}
+        </div>
       </div>
 
-      {activeTab === "recipes" && (
-        <div className="cookbook-recipes-tab">
-          {renderRecipesTab ? renderRecipesTab() : null}
+      {/* Cookbook-scoped search — always above the recipe grid. */}
+      {setQuery && (
+        <div className="cookbook-search">
+          <Icon name="search" size={16} />
+          <input
+            type="search"
+            className="cookbook-search-input"
+            placeholder={`Search ${cookbook.name}…`}
+            value={query || ""}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query && (
+            <button
+              type="button"
+              className="cookbook-search-close"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+            >
+              <Icon name="x" size={14} />
+            </button>
+          )}
+          {openFilters && (
+            <button
+              type="button"
+              className="cookbook-search-filter"
+              onClick={openFilters}
+              aria-label="Filters"
+              title="Filters"
+            >
+              <Icon name="filter" size={15} />
+              {filterCount > 0 && <span className="count">{filterCount}</span>}
+            </button>
+          )}
         </div>
       )}
-      {activeTab === "members" && canSeeMembers && (
-        <div className="cookbook-tab-body">
-          <MembersSection
-            cookbook={cookbook}
-            authEmail={authEmail}
-            isAdmin={isAdmin}
-            canRemoveMembers={canSeeSettings}
-            onMembersChanged={load}
-          />
-        </div>
-      )}
-      {activeTab === "settings" && canSeeSettings && (
-        <div className="cookbook-tab-body">
-          <CookbookSettingsForm
-            cookbook={cookbook}
-            isAdmin={isAdmin}
-            onSaved={(updated) => setCookbook(prev => ({ ...prev, ...updated }))}
-            onDeleted={() => goToLibrary?.()}
-          />
-        </div>
+
+      <div className="cookbook-recipes-tab">
+        {renderRecipesTab ? renderRecipesTab() : null}
+      </div>
+
+      {inviteOpen && (
+        <InviteCookModal
+          cookbook={cookbook}
+          onClose={() => setInviteOpen(false)}
+        />
       )}
     </div>
   );

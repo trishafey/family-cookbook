@@ -698,7 +698,10 @@ export const SIGN_OUT_URL = "/cdn-cgi/access/logout";
 // else (history pushing, popstate handling, initial hydration)
 // works for free.
 function parsePath(p) {
-  if (!p || p === "/") return { view: "browse", recipeId: null, editingId: null };
+  // Phase-4 decommission: the legacy /browse landing view is
+  // gone. Bare "/" now lands the cook on their library so they
+  // pick (or land on their default) cookbook explicitly.
+  if (!p || p === "/") return { view: "cookbooks", recipeId: null, editingId: null };
   const recipe = p.match(/^\/recipe\/([^\/]+)\/?$/);
   if (recipe) return { view: "recipe", recipeId: decodeURIComponent(recipe[1]), editingId: null };
   const edit = p.match(/^\/edit\/([^\/]+)\/?$/);

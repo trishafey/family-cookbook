@@ -228,7 +228,7 @@ function InvitePicker({ cookbooks, onPick }) {
 // clipped by the modal/keyboard on mobile. Free-form email entry
 // at the top falls through to addInvite(email) when it parses;
 // tapping a pill calls addInvite(email, true).
-function NetworkPicker({ networkAvailable, manualEmail, setManualEmail, addInvite, niceName }) {
+export function NetworkPicker({ networkAvailable, manualEmail, setManualEmail, addInvite, niceName }) {
   const q = manualEmail.trim().toLowerCase();
   const sorted = [...networkAvailable].sort((a, b) =>
     niceName(a).toLowerCase().localeCompare(niceName(b).toLowerCase())

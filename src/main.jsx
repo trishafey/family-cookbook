@@ -782,7 +782,18 @@ function App() {
 
   // ─── Open recipe helper ───
   const openRecipe = (r) => { setRecipeId(r.id); setView("recipe"); window.scrollTo(0, 0); };
-  const backToBrowse = () => { setView("browse"); window.scrollTo(0, 0); };
+  // "Back" goes to the current cookbook's page when the cook
+  // is actively in one; otherwise drops them on the library so
+  // they can pick. The standalone /browse view is decommissioned.
+  const backToBrowse = () => {
+    const active = effectiveUserCookbooks?.find?.(c => c.id === activeCookbookId);
+    if (active) {
+      goToCookbook(active.slug || active.id);
+    } else {
+      setView("cookbooks");
+      window.scrollTo(0, 0);
+    }
+  };
 
   // First landing per session: when a freshly-signed-in cook hits
   // the generic root view, drop them on the My Cookbooks index so
@@ -879,7 +890,17 @@ function App() {
           </div>
           <NavSearch
             query={query}
-            setQuery={(v) => { setQuery(v); if (view !== "browse" && view !== "cookbook") setView("browse"); }}
+            setQuery={(v) => {
+              setQuery(v);
+              // Make sure the cook can actually see results when
+              // they type — if they're in /add, /lab, /meal etc.,
+              // route them back to the active cookbook page where
+              // the recipe grid lives.
+              if (v && view !== "cookbook" && view !== "discover") {
+                const active = effectiveUserCookbooks?.find?.(c => c.id === activeCookbookId);
+                if (active) goToCookbook(active.slug || active.id);
+              }
+            }}
             placeholder={t("searchPlaceholder")}
             mobilePlaceholder={t("searchPlaceholderShort")}
             simpleMode={simpleMode}
@@ -1112,7 +1133,7 @@ function App() {
           // Defensive: the recipe id may be stale (recipe was deleted in
           // another tab, or extraRecipes got cleared). Send the user back
           // home instead of crashing.
-          setTimeout(() => { setEditingId(null); setView("browse"); }, 0);
+          setTimeout(() => { setEditingId(null); backToBrowse(); }, 0);
           return null;
         }
         return (
