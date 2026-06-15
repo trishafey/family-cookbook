@@ -696,6 +696,31 @@ function App() {
   const openRecipe = (r) => { setRecipeId(r.id); setView("recipe"); window.scrollTo(0, 0); };
   const backToBrowse = () => { setView("browse"); window.scrollTo(0, 0); };
 
+  // First landing per session: when a freshly-signed-in cook hits
+  // the generic root view, drop them on the My Cookbooks index so
+  // they can pick (or recognise) their default cookbook before
+  // diving in. Subsequent in-tab navigation works normally, and
+  // refreshing or browser-back keeps the URL they were on —
+  // sessionStorage clears only when the tab closes, so the next
+  // sign-in starts fresh.
+  // Deep links (/recipe/<slug>, /i/<token>, /cookbooks itself,
+  // etc.) bypass the redirect — if the cook explicitly went
+  // somewhere, respect that.
+  useEffect(() => {
+    if (authLoading || !authEmail) return;
+    if (typeof sessionStorage === "undefined") return;
+    if (sessionStorage.getItem("session:landed")) return;
+    // Wait for profile to finish loading so we don't race the
+    // pending / profile-setup gates.
+    if (profileLoading) return;
+    if (profile?.profileComplete === false) return;
+    if (profile?.status === "pending") return;
+    sessionStorage.setItem("session:landed", "1");
+    if (view === "browse") {
+      setView("cookbooks");
+    }
+  }, [authLoading, authEmail, profileLoading, profile, view]);
+
   // Signed-out landing: if the cook isn't authenticated and isn't
   // hitting a path that has its own public surface (recipe deep
   // link, invite acceptance), render the marketing / sign-in
