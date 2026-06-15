@@ -689,6 +689,30 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
           {members.map(m => {
             const isYou = m.email === authEmail;
             const isSelfOwner = isYou && m.role === "owner";
+            const onMemberSelect = (e) => {
+              const v = e.target.value;
+              if (v === "__remove__") {
+                e.target.value = m.role; // revert dropdown visually
+                const name = displayNameFor(m);
+                if (window.confirm(`Are you sure you want to remove ${name} from this cookbook?`)) {
+                  // confirm() already happened — call removeMember
+                  // directly without the redundant prompt inside it.
+                  fetch(`/api/admin/cookbooks/${cookbook.id}/members/${encodeURIComponent(m.email)}`, {
+                    method: "DELETE", credentials: "include",
+                  }).then(async r => {
+                    if (!r.ok) {
+                      const { error: msg } = await r.json().catch(() => ({}));
+                      setError(msg || "Could not remove member");
+                      return;
+                    }
+                    setMembers(prev => prev.filter(x => x.email !== m.email));
+                    onMembersChanged?.();
+                  }).catch(err => setError(err.message));
+                }
+                return;
+              }
+              if (v !== m.role) changeRole(m.email, v);
+            };
             return (
               <li key={m.email} className="cb-member-row">
                 <div className="avatar">{initialsFor(m)}</div>
@@ -699,31 +723,19 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
                   </div>
                   <div className="email">{isAdmin ? m.email : maskEmail(m.email)}</div>
                 </div>
-                <span className={`role-badge role-${m.role}`}>{m.role}</span>
                 {canRemoveMembers ? (
-                  <>
-                    <select
-                      className="role-select"
-                      value={m.role}
-                      onChange={(e) => changeRole(m.email, e.target.value)}
-                      disabled={isSelfOwner}
-                      title={isSelfOwner ? "Promote someone else first to demote yourself" : "Change role"}
-                    >
-                      <option value="owner">Owner</option>
-                      <option value="editor">Editor</option>
-                      <option value="viewer">Viewer</option>
-                    </select>
-                    <button
-                      type="button"
-                      className="btn ghost icon-only member-remove"
-                      onClick={() => removeMember(m.email)}
-                      disabled={isSelfOwner}
-                      aria-label="Remove member"
-                      title={isSelfOwner ? "Promote someone else first" : "Remove member"}
-                    >
-                      <Icon name="x" size={13} />
-                    </button>
-                  </>
+                  <select
+                    className="cb-role-select"
+                    value={m.role}
+                    onChange={onMemberSelect}
+                    disabled={isSelfOwner}
+                    title={isSelfOwner ? "Promote someone else first to demote yourself" : "Change role"}
+                  >
+                    <option value="owner">Owner</option>
+                    <option value="editor">Editor</option>
+                    <option value="viewer">Viewer</option>
+                    <option value="__remove__" disabled={isSelfOwner}>Remove…</option>
+                  </select>
                 ) : (
                   <span className="role-fixed">{m.role.charAt(0).toUpperCase() + m.role.slice(1)}</span>
                 )}
@@ -736,27 +748,31 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
               <div className="who">
                 <div className="name">{inv.email || "Anyone with the link"}</div>
                 <div className="email">
-                  Invited · expires {new Date(inv.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  Expires {new Date(inv.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                 </div>
               </div>
-              <span className="role-badge role-invited">invited</span>
-              <button
-                type="button"
-                className="btn ghost sm"
-                onClick={() => copyLink(inv.link, inv.token, inv.email)}
+              <span className="cb-invited-pill">INVITED</span>
+              <select
+                className="cb-role-select"
+                defaultValue={inv.role}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "__copy__") {
+                    e.target.value = inv.role;
+                    copyLink(inv.link, inv.token, inv.email);
+                  } else if (v === "__remove__") {
+                    e.target.value = inv.role;
+                    if (window.confirm(`Are you sure you want to revoke this invitation?`)) {
+                      revoke(inv.token);
+                    }
+                  }
+                }}
               >
-                {copiedToken === inv.token ? "Copied!" : "Copy link"}
-              </button>
-              {canRemoveMembers && (
-                <button
-                  type="button"
-                  className="btn ghost icon-only"
-                  onClick={() => revoke(inv.token)}
-                  aria-label="Revoke invitation"
-                >
-                  <Icon name="x" size={13} />
-                </button>
-              )}
+                <option value="viewer" disabled>Viewer</option>
+                <option value="editor" disabled>Editor</option>
+                <option value="__copy__">{copiedToken === inv.token ? "Copied!" : "Copy link"}</option>
+                {canRemoveMembers && <option value="__remove__">Remove…</option>}
+              </select>
             </li>
           ))}
         </ul>
@@ -875,6 +891,10 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
     }
   };
 
+  // Upload + immediately persist the new cover. The cookbook
+  // header on the page reads cookbook.coverPhoto, so saving
+  // straight away (instead of waiting for the "Save changes"
+  // submit) lets the cover panel update live.
   const uploadCover = async (file) => {
     if (!file) return;
     setUploadingCover(true);
@@ -886,11 +906,31 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
       if (!up.ok) throw new Error(`Upload failed (${up.status})`);
       const { url } = await up.json();
       setCoverPhoto(url);
+      // Persist immediately so the cookbook header refreshes.
+      const patch = await fetch(`/api/admin/cookbooks/${cookbook.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coverPhoto: url }),
+      });
+      if (patch.ok) onSaved?.({ ...cookbook, coverPhoto: url });
     } catch (err) {
       setError(err.message || "Could not upload photo.");
     } finally {
       setUploadingCover(false);
     }
+  };
+  const clearCover = async () => {
+    setCoverPhoto(null);
+    try {
+      const patch = await fetch(`/api/admin/cookbooks/${cookbook.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coverPhoto: null }),
+      });
+      if (patch.ok) onSaved?.({ ...cookbook, coverPhoto: null });
+    } catch {}
   };
 
   const submit = async (e) => {
@@ -1012,7 +1052,7 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
               />
             </label>
             {coverPhoto && (
-              <button type="button" className="btn ghost icon-only" onClick={() => setCoverPhoto(null)} title="Clear photo">
+              <button type="button" className="btn ghost icon-only" onClick={clearCover} title="Clear photo">
                 <Icon name="x" size={13} />
               </button>
             )}

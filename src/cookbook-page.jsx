@@ -5,7 +5,7 @@
 // role on that cookbook. Members + Settings render inline (no
 // more EditCookbookModal for the in-cookbook flow).
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "./helpers.jsx";
 import { LANG_META } from "./i18n.js";
 import { MembersSection, CookbookSettingsForm } from "./cookbooks.jsx";
@@ -80,7 +80,30 @@ export function CookbookPage({
     return t;
   })();
 
-  const onTabClick = (t) => setCookbookTab?.(t === "recipes" ? null : t);
+  // Save scroll position on tab change so the page doesn't snap
+  // to the top when switching from the long Recipes tab to the
+  // shorter Members / Settings tabs. We restore the position
+  // after the new tab content paints.
+  const tabBarRef = useRef(null);
+  const tabChangeFlag = useRef(false);
+  const onTabClick = (t) => {
+    tabChangeFlag.current = true;
+    setCookbookTab?.(t === "recipes" ? null : t);
+  };
+  // After the new tab renders, keep the tab bar inside the
+  // viewport (no jump to page top), but only on an explicit tab
+  // change — initial mount shouldn't scroll.
+  useEffect(() => {
+    if (!tabChangeFlag.current) return;
+    tabChangeFlag.current = false;
+    const el = tabBarRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    // Only scroll if the tab bar is above the visible viewport.
+    if (rect.top < 0) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [cookbookTab]);
 
   const shareCookbook = async () => {
     if (!cookbook) return;
@@ -125,7 +148,10 @@ export function CookbookPage({
 
       {/* Header — book cover (left) + book info (right) */}
       <div className="cookbook-header">
-        <div className="cookbook-cover">
+        <div className={`cookbook-cover ${cookbook.coverPhoto ? "has-photo" : ""}`}>
+          {cookbook.coverPhoto && (
+            <img className="cover-photo" src={cookbook.coverPhoto} alt="" />
+          )}
           {/* Bookmark ribbon — top-left tag styled like the
               "YOURS" / role marker on a real book spine. */}
           <div className={`cover-bookmark role-${role || "viewer"}`}>
@@ -189,7 +215,7 @@ export function CookbookPage({
       {/* Segmented toggle — Recipes · Members · Settings. New
           styling, per Trisha's carve-out for the new component. */}
       {showTabs && (
-        <div className="cookbook-segmented" role="tablist">
+        <div className="cookbook-segmented" role="tablist" ref={tabBarRef}>
           <button
             type="button"
             role="tab"

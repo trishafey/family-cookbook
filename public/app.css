@@ -1168,6 +1168,25 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   box-shadow: 0 16px 40px -20px rgba(0,0,0,.35);
   overflow: hidden;
 }
+.cookbook-cover .cover-photo {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+/* When a photo is set, darken with a gradient so the white text
+   (nationality / name / blurb) stays legible. */
+.cookbook-cover.has-photo::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,.18) 0%, rgba(0,0,0,.55) 80%);
+  z-index: 1;
+}
+.cookbook-cover .cover-bookmark,
+.cookbook-cover .cover-body {
+  position: relative;
+  z-index: 2;
+}
 .cookbook-cover .cover-bookmark {
   position: absolute;
   top: 0;
@@ -1308,7 +1327,15 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   box-shadow: 0 1px 3px rgba(0,0,0,.06), inset 0 0 0 1px var(--rule);
 }
 .cookbook-tab-body { margin-top: 24px; }
-.cookbook-recipes-tab { margin-top: 16px; }
+.cookbook-recipes-tab { margin-top: 4px; }
+/* Browse's own .app wrapper adds an extra 32/28 padding band that
+   pushes the recipe cards inward from the cookbook page's own
+   container. Strip it inside the Recipes tab so the cards align
+   flush with the header above. */
+.cookbook-recipes-tab .app {
+  max-width: none;
+  padding: 0;
+}
 
 @media (max-width: 720px) {
   .cookbook-header {
@@ -1411,11 +1438,35 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cb-member-row .role-fixed {
   font-family: var(--sans); font-size: 13px; color: var(--ink-2);
 }
-.cb-member-row.invited .role-badge.role-invited {
-  background: color-mix(in srgb, var(--accent-cool, #6e7a3a) 14%, var(--paper));
-  color: var(--accent-cool, #6e7a3a);
-  border: 1px solid color-mix(in srgb, var(--accent-cool, #6e7a3a) 30%, transparent);
+.cb-invited-pill {
+  display: inline-flex; align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--paper));
+  color: var(--accent);
+  font-family: var(--mono); font-size: 10px; letter-spacing: .14em;
+  text-transform: uppercase;
 }
+
+/* Role / action select used in each member row — square white
+   field, mono font, mirrors the screenshot. */
+.cb-role-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 6px 28px 6px 12px;
+  border: 1px solid var(--rule);
+  background: var(--paper)
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M3 5l3 3 3-3' stroke='%231c1813' stroke-width='1.2' fill='none'/></svg>")
+    no-repeat right 10px center / 10px;
+  border-radius: 6px;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+  min-width: 110px;
+}
+.cb-role-select:focus { outline: none; border-color: var(--accent); }
+.cb-role-select:disabled { opacity: .55; cursor: not-allowed; }
 
 /* Role explainer card */
 .cb-roles-card .cb-roles-list {
@@ -1445,10 +1496,16 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .cb-invite-card .cb-invite-input:focus { outline: none; border-color: var(--accent); }
 .cb-invite-card .cb-invite-role {
-  font-family: var(--mono); font-size: 12px;
-  background: var(--paper); border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  padding: 4px 10px;
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: var(--mono); font-size: 11px;
+  background: var(--paper)
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M3 5l3 3 3-3' stroke='%231c1813' stroke-width='1.2' fill='none'/></svg>")
+    no-repeat right 8px center / 9px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 6px 24px 6px 10px;
+  color: var(--ink);
 }
 .cb-network-pills {
   margin-top: 6px;
