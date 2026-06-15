@@ -1191,6 +1191,7 @@ function App() {
           isAdmin={!!profile?.isAdmin}
           setActiveCookbookId={setActiveCookbookId}
           goToLibrary={goToLibrary}
+          goToAdmin={() => setView("admin")}
           openAddRecipe={() => setView("add")}
           query={query}
           setQuery={setQuery}
@@ -1252,8 +1253,20 @@ function App() {
           viewAsRole={viewAsRole}
           onSetViewAs={setViewAsRole}
           activeCookbookId={activeCookbookId}
-          onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); goToCookbook(cb.slug || cb.id); }}
-          onEditCookbook={(cb) => { setActiveCookbookId(cb.id); goToCookbook(cb.slug || cb.id, "settings"); }}
+          onOpenCookbook={(cb) => {
+            // Stash the entry point so the cookbook page's back
+            // button reads "Back to admin page" — admins clicking
+            // a cookbook title from /admin should be able to
+            // return to that admin tab, not bounce to /cookbooks.
+            try { sessionStorage.setItem("cookbook-manage:from", "admin"); } catch {}
+            setActiveCookbookId(cb.id);
+            goToCookbook(cb.slug || cb.id);
+          }}
+          onEditCookbook={(cb) => {
+            try { sessionStorage.setItem("cookbook-manage:from", "admin"); } catch {}
+            setActiveCookbookId(cb.id);
+            goToCookbook(cb.slug || cb.id, "settings");
+          }}
           onClose={backToBrowse}
         />
       )}

@@ -595,7 +595,7 @@ function ViewAsTab({ viewAsRole, onSetViewAs }) {
 }
 
 // Admin page — tabbed. Lives at /admin. Users · View as · AI usage.
-export function AdminPage({ authEmail, onClose, viewAsRole, onSetViewAs, activeCookbookId, onOpenCookbook, onEditCookbook, initialTab = "users" }) {
+export function AdminPage({ authEmail, onClose, viewAsRole, onSetViewAs, activeCookbookId, onOpenCookbook, onEditCookbook, initialTab = "cookbooks" }) {
   const [tab, setTab] = useState(initialTab);
   return (
     <div className="settings-page" data-screen-label="12 Admin">
@@ -609,8 +609,8 @@ export function AdminPage({ authEmail, onClose, viewAsRole, onSetViewAs, activeC
       </div>
 
       <div className="tabbed-nav admin-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === "users"} className={`tab ${tab === "users" ? "active" : ""}`} onClick={() => setTab("users")}>Users</button>
         <button type="button" role="tab" aria-selected={tab === "cookbooks"} className={`tab ${tab === "cookbooks" ? "active" : ""}`} onClick={() => setTab("cookbooks")}>Cookbooks</button>
+        <button type="button" role="tab" aria-selected={tab === "users"} className={`tab ${tab === "users" ? "active" : ""}`} onClick={() => setTab("users")}>Users</button>
         <button type="button" role="tab" aria-selected={tab === "view-as"} className={`tab ${tab === "view-as" ? "active" : ""}`} onClick={() => setTab("view-as")}>View as</button>
         <button type="button" role="tab" aria-selected={tab === "ai-usage"} className={`tab ${tab === "ai-usage" ? "active" : ""}`} onClick={() => setTab("ai-usage")}>AI usage</button>
       </div>

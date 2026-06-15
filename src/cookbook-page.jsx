@@ -42,6 +42,7 @@ export function CookbookPage({
   isAdmin,
   setActiveCookbookId,
   goToLibrary,
+  goToAdmin,
   openAddRecipe,
   renderRecipesTab,
   query,
@@ -49,6 +50,17 @@ export function CookbookPage({
   filters,
   openFilters,
 }) {
+  // Track whether the cook landed here from /admin so the back
+  // button knows where to send them. Captured once on mount and
+  // cleared so a subsequent navigation away & back doesn't
+  // pick up the stale flag.
+  const [fromAdmin] = useState(() => {
+    try {
+      const v = sessionStorage.getItem("cookbook-manage:from") === "admin";
+      if (v) sessionStorage.removeItem("cookbook-manage:from");
+      return v;
+    } catch { return false; }
+  });
   const [cookbook, setCookbook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -79,7 +91,7 @@ export function CookbookPage({
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [cookbookSlug, authEmail]);
 
   const role = cookbook?.yourRole;
-  const canSeeMembers = role === "owner" || role === "editor" || role === "admin";
+  const canSeeMembers = role === "owner" || role === "editor" || role === "admin" || isAdmin;
   const canSeeSettings = role === "owner" || role === "admin" || isAdmin;
   // URL-driven mode: if tab is "members" or "settings", show
   // the full-page manage view. Default (null) shows the cookbook
@@ -120,8 +132,12 @@ export function CookbookPage({
   if (loading) {
     return (
       <div className="cookbook-page" data-screen-label="Cookbook">
-        <button className="btn ghost" onClick={goToLibrary} style={{ marginBottom: 16 }}>
-          <Icon name="chevL" /> Back to library
+        <button
+          className="btn ghost"
+          onClick={fromAdmin && goToAdmin ? goToAdmin : goToLibrary}
+          style={{ marginBottom: 16 }}
+        >
+          <Icon name="chevL" /> {fromAdmin && goToAdmin ? "Back to admin page" : "Back to library"}
         </button>
         <div style={{ color: "var(--ink-3)" }}>Loading cookbook…</div>
       </div>
@@ -130,8 +146,12 @@ export function CookbookPage({
   if (error || !cookbook) {
     return (
       <div className="cookbook-page" data-screen-label="Cookbook">
-        <button className="btn ghost" onClick={goToLibrary} style={{ marginBottom: 16 }}>
-          <Icon name="chevL" /> Back to library
+        <button
+          className="btn ghost"
+          onClick={fromAdmin && goToAdmin ? goToAdmin : goToLibrary}
+          style={{ marginBottom: 16 }}
+        >
+          <Icon name="chevL" /> {fromAdmin && goToAdmin ? "Back to admin page" : "Back to library"}
         </button>
         <div className="cookbooks-empty" style={{ color: "#933" }}>{error || "Not found."}</div>
       </div>
@@ -153,8 +173,12 @@ export function CookbookPage({
   if (isManageMode) {
     return (
       <div className="cookbook-page cookbook-manage" data-screen-label={`Manage: ${cookbook.name}`}>
-        <button className="btn ghost" onClick={exitManage} style={{ marginBottom: 16 }}>
-          <Icon name="chevL" /> Back to {cookbook.name}
+        <button
+          className="btn ghost"
+          onClick={fromAdmin && goToAdmin ? goToAdmin : exitManage}
+          style={{ marginBottom: 16 }}
+        >
+          <Icon name="chevL" /> {fromAdmin && goToAdmin ? "Back to admin page" : `Back to ${cookbook.name}`}
         </button>
 
         <div className="cookbook-segmented" role="tablist">
