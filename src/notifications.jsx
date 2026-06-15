@@ -61,9 +61,10 @@ export function Notifications({ authEmail, onOpenCookbook }) {
 
   return (
     <div className="notifications-page" data-screen-label="Notifications">
-      <div className="notifications-header">
-        <h1 className="page-title">Notifications</h1>
-        <p className="page-sub">Cookbook invitations and updates.</p>
+      <div className="page-header">
+        <div className="eyebrow">Updates</div>
+        <h1><em>Notifications</em></h1>
+        <div className="intro">Cookbook invitations and updates.</div>
       </div>
 
       {loading ? (

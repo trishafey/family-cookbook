@@ -76,7 +76,7 @@ export function AccountSettings({ profile, refreshProfile, onClose, saveProfile 
         <Icon name="chevL" /> Back to cookbook
       </button>
 
-      <div className="settings-header">
+      <div className="page-header">
         <div className="eyebrow">Your account</div>
         <h1>Account <em>settings</em></h1>
         <div className="intro">
@@ -603,7 +603,7 @@ export function AdminPage({ authEmail, onClose, viewAsRole, onSetViewAs, activeC
         <Icon name="chevL" /> Back to cookbook
       </button>
 
-      <div className="settings-header">
+      <div className="page-header">
         <div className="eyebrow">Admin</div>
         <h1><em>Admin</em></h1>
       </div>

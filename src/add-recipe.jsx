@@ -1332,10 +1332,10 @@ export function AddRecipe({ onClose, onSave, onDelete, authEmail, profile, activ
         </div>
       )}
 
-      <div className="section-head">
+      <div className="page-header add-recipe-header">
         <div className="lhs">
           <div className="eyebrow">{editing ? t("editing") : t("newEntry")}</div>
-          <h2>{editing ? draft?.title || t("editRecipeTitle") : t("addRecipeToCookbook")}</h2>
+          <h1><em>{editing ? draft?.title || t("editRecipeTitle") : t("addRecipeToCookbook")}</em></h1>
           {/* Destination cookbook indicator. New drafts can be
               re-targeted via the picker; updates are pinned to
               the recipe's existing cookbook so they don't move

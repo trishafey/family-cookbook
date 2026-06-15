@@ -3294,21 +3294,30 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   margin: 0 auto;
   padding: 32px 28px 100px;
 }
+/* Canonical page header — green eyebrow, big serif title with
+   red italic <em>, serif intro. The cookbook library is the
+   reference; .page-header and .cookbooks-header share the same
+   recipe so every top-level page renders the same masthead. */
+.page-header,
 .cookbooks-header {
   border-bottom: 1px solid var(--rule);
   padding-bottom: 24px;
   margin-bottom: 28px;
 }
+.page-header .eyebrow,
 .cookbooks-header .eyebrow {
   font-family: var(--mono); font-size: 11px;
   letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--accent-2); font-weight: 600;
 }
+.page-header h1,
 .cookbooks-header h1 {
   font-family: var(--serif); font-size: 56px; font-weight: 400;
   margin: 6px 0 12px; letter-spacing: -0.02em;
 }
+.page-header h1 em,
 .cookbooks-header h1 em { font-style: italic; color: var(--accent); }
+.page-header .intro,
 .cookbooks-header .intro {
   max-width: 56ch;
   font-family: var(--serif); font-size: 17px; color: var(--ink-2);
@@ -4627,29 +4636,34 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 @media (max-width: 720px) {
   .cookbooks-page { padding: 24px 20px 100px; }
-  .cookbooks-header h1 { font-size: 40px; }
+  .cookbooks-header h1,
+  .page-header h1 { font-size: 40px; }
 }
+/* Lab page header — same masthead recipe as the cookbook
+   library (.page-header rules above), plus a flex layout so
+   the New Experiment button sits on the right. */
 .lab-header {
   border-bottom: 1px solid var(--rule);
   padding-bottom: 24px;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: 32px;
 }
-.lab-header .lhs { max-width: 60ch; }
+.lab-header .lhs { max-width: 56ch; }
+.lab-header .eyebrow {
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 600;
+}
 .lab-header h1 {
-  font-size: 64px;
-  font-weight: 400;
-  margin: 8px 0;
-  letter-spacing: -0.02em;
+  font-family: var(--serif); font-size: 56px; font-weight: 400;
+  margin: 6px 0 12px; letter-spacing: -0.02em;
 }
-.lab-header h1 em { color: var(--accent-2); font-style: italic; }
+.lab-header h1 em { color: var(--accent); font-style: italic; }
 .lab-header .intro {
-  font-family: var(--serif); font-style: italic;
-  font-size: 18px; color: var(--ink-3);
-  margin-top: 8px;
+  font-family: var(--serif); font-size: 17px; color: var(--ink-2);
+  line-height: 1.5;
 }
-.lab-header .eyebrow { color: var(--accent-2); }
 
 .lab-experiments-row {
   display: grid;

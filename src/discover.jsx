@@ -51,12 +51,12 @@ export function Discover({ onOpenCookbook, onClose }) {
 
   return (
     <div className="discover-page" data-screen-label="Discover">
-      <div className="discover-header">
+      <div className="page-header">
         <div className="eyebrow">Cookbooks shared by other cooks</div>
-        <h1>Discover</h1>
-        <p className="discover-tagline">
+        <h1><em>Discover</em></h1>
+        <div className="intro">
           Family cookbooks people have made public. Open one to read along, save recipes to your own library, or follow it for new posts.
-        </p>
+        </div>
       </div>
 
       <div className="discover-search">

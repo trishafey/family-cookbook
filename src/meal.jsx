@@ -66,13 +66,11 @@ export function BuildAMeal({ recipes, selection, clearSelection, toggleSelect, o
         <Icon name="chevL" /> Back to cookbook
       </button>
 
-      <div className="section-head">
-        <div className="lhs">
-          <div className="eyebrow">Multi-select mode</div>
-          <h2>Build a meal</h2>
-          <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "var(--ink-3)", marginTop: 6 }}>
-            Pick the courses, we'll merge the shopping lists and stagger the cook times.
-          </div>
+      <div className="page-header">
+        <div className="eyebrow">Multi-select mode</div>
+        <h1><em>Build a meal</em></h1>
+        <div className="intro">
+          Pick the courses, we'll merge the shopping lists and stagger the cook times.
         </div>
       </div>
 
