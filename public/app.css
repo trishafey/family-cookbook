@@ -1505,6 +1505,19 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
      doesn't crowd the email + role dropdown on a member row. */
   .cb-invited-pill { padding: 6px 8px; }
   .cb-invited-pill .cb-invited-text { display: none; }
+  /* Mobile cookbook header: drop the recipe / cook counts row,
+     turn the secondary action buttons (Invite cook / Settings)
+     into icon-only chips. */
+  .cookbook-info-meta { display: none; }
+  .cookbook-action-btn .btn-label { display: none; }
+  /* Recipe sections — drop the "5 recipes" count badge on the
+     right of each section header so the cookbook page can
+     breathe on mobile. */
+  .cookbook-recipes-tab .section-head .rhs { display: none; }
+  /* Recipe grid collapses to one column on mobile so a section
+     with an odd recipe count doesn't leave an obvious empty
+     cell on the right of the last row. */
+  .cookbook-recipes-tab .grid { grid-template-columns: 1fr; }
   /* Mobile: segmented Recipes / Members / Settings toggle
      stretches edge-to-edge so each segment is a comfortable
      tap target. Cookbook-scoped search (with the inline filter
