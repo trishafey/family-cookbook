@@ -51,10 +51,6 @@ export function Discover({ onOpenCookbook, onClose }) {
 
   return (
     <div className="discover-page" data-screen-label="Discover">
-      <button className="btn ghost" onClick={onClose} style={{ marginBottom: 16 }}>
-        <Icon name="chevL" /> Back
-      </button>
-
       <div className="discover-header">
         <div className="eyebrow">Cookbooks shared by other cooks</div>
         <h1>Discover</h1>
