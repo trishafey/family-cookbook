@@ -12,6 +12,17 @@ import { LANG_META, SUPPORTED_LANGS } from "./i18n.js";
 
 const MAX_COOKBOOK_LANGS = 3;
 
+// Friendly nationality labels for the cover-facing book — used
+// on both the cookbook library shelf and the Discover page.
+const LANG_NATIONALITY = {
+  en: "Canadian",
+  enUS: "American",
+  pl: "Polish",
+  es: "Mexican",
+  el: "Greek",
+  pt: "Portuguese",
+};
+
 // Multi-select language picker shared by Create + Edit cookbook
 // modals. English is always present and locked; up to two
 // additional languages can be toggled on as pills.
@@ -1771,9 +1782,16 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
                 >
                   {cb.coverPhoto && <img className="book-cover-photo" src={cb.coverPhoto} alt="" />}
                   <span className={`book-bookmark role-${role}`}>{cb.adminAccess ? "admin" : role}</span>
-                  <span className="book-cover-stack">
-                    <span className="book-cover-initials">{coverInitials(cb.name) || "·"}</span>
+                  <span className="book-cover-content">
+                    {(cb.languages?.length || 0) > 0 && (
+                      <span className="book-cover-langs">
+                        {(cb.languages || ["en"]).map(c => LANG_NATIONALITY[c] || c).join(" · ")}
+                      </span>
+                    )}
                     <span className="book-cover-title">{stripEmoji(cb.name)}</span>
+                    {cb.blurb && (
+                      <span className="book-cover-blurb">{cb.blurb}</span>
+                    )}
                   </span>
                 </button>
               ) : (

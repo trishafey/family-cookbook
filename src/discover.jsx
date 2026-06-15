@@ -15,6 +15,15 @@ const FLAG_SRC = {
   pt: "/images/flags/pt.png",
 };
 
+const LANG_NATIONALITY = {
+  en: "Canadian",
+  enUS: "American",
+  pl: "Polish",
+  es: "Mexican",
+  el: "Greek",
+  pt: "Portuguese",
+};
+
 function coverInitials(name) {
   // Drop emoji + symbols before initialising so the spine of a
   // cookbook like "Wojcik 🌶️🥑🥬" only carries letters.
@@ -98,50 +107,37 @@ export function Discover({ onOpenCookbook, onClose }) {
       ) : (
         <div className="discover-grid">
           {cookbooks.map(cb => {
-            const initials = coverInitials(cb.name);
             const languages = cb.languages || ["en"];
+            const langLine = languages.map(c => LANG_NATIONALITY[c] || c).join(" · ");
             return (
-              <button
-                key={cb.id}
-                type="button"
-                className="discover-card"
-                onClick={() => onOpenCookbook?.(cb)}
-              >
-                <div
-                  className={`discover-cover ${cb.coverPhoto ? "has-photo" : ""}`}
-                  style={{
-                    backgroundColor: cb.coverColor || undefined,
-                    backgroundImage: cb.coverPhoto ? `url(${cb.coverPhoto})` : undefined,
-                  }}
+              <div key={cb.id} className="discover-tile">
+                <button
+                  type="button"
+                  className={`discover-book ${cb.coverPhoto ? "has-photo" : ""}`}
+                  style={cb.coverColor ? { "--book-color": cb.coverColor } : undefined}
+                  onClick={() => onOpenCookbook?.(cb)}
+                  title={cb.name}
                 >
-                  {!cb.coverPhoto && <span className="initials">{initials || "·"}</span>}
-                </div>
-                <div className="discover-card-body">
-                  <h3 className="discover-card-name">{cb.name}</h3>
-                  {cb.blurb && <p className="discover-card-blurb">{cb.blurb}</p>}
-                  <div className="discover-card-meta">
+                  {cb.coverPhoto && (
+                    <img className="book-cover-photo" src={cb.coverPhoto} alt="" />
+                  )}
+                  <span className="book-bookmark role-viewer">PUBLIC</span>
+                  <span className="book-cover-content">
+                    {langLine && <span className="book-cover-langs">{langLine}</span>}
+                    <span className="book-cover-title">{cb.name}</span>
+                  </span>
+                </button>
+                <div className="discover-tile-meta">
+                  <div className="discover-tile-stats">
                     <span>{cb.recipeCount} {cb.recipeCount === 1 ? "recipe" : "recipes"}</span>
                     <span>·</span>
                     <span>{cb.memberCount} {cb.memberCount === 1 ? "cook" : "cooks"}</span>
-                    <span className="lang-row">
-                      {languages.map(code => (
-                        <img
-                          key={code}
-                          src={FLAG_SRC[code] || FLAG_SRC.en}
-                          alt={LANG_META[code]?.label || code}
-                          title={LANG_META[code]?.label || code}
-                          className="discover-flag"
-                        />
-                      ))}
-                    </span>
                   </div>
                   {cb.ownerName && (
-                    <div className="discover-card-owner">
-                      by {cb.ownerName}
-                    </div>
+                    <div className="discover-tile-owner">by {cb.ownerName}</div>
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
