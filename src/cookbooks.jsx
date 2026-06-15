@@ -1493,9 +1493,6 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
 
   return (
     <div className="cookbooks-page" data-screen-label="08 My Cookbooks">
-      <button className="btn ghost" onClick={onClose} style={{ marginBottom: 16 }}>
-        <Icon name="chevL" /> Back to cookbook
-      </button>
 
       <div className="cookbooks-header">
         <div className="lhs">

@@ -235,16 +235,6 @@ export function CookbookPage({
               role pill + language pills. The count pills hide on
               mobile so the header stays tight. */}
           <div className="cookbook-pill-row">
-            <span className="info-pill count-pill desktop-only">
-              <Icon name="build" size={12} />
-              <strong>{cookbook.recipeCount || 0}</strong>
-              {(cookbook.recipeCount || 0) === 1 ? "recipe" : "recipes"}
-            </span>
-            <span className="info-pill count-pill desktop-only">
-              <Icon name="chef" size={12} />
-              <strong>{cookbook.memberCount || 0}</strong>
-              {(cookbook.memberCount || 0) === 1 ? "cook" : "cooks"}
-            </span>
             <span className={`info-pill role-pill role-${role || "viewer"}`}>{roleLabel}</span>
             {languages.map(code => (
               <span key={code} className="info-pill lang-pill">
@@ -257,6 +247,16 @@ export function CookbookPage({
                 {LANG_NATIONALITY[code] || LANG_META[code]?.label || code}
               </span>
             ))}
+            <span className="info-pill count-pill desktop-only">
+              <Icon name="build" size={12} />
+              <strong>{cookbook.recipeCount || 0}</strong>
+              {(cookbook.recipeCount || 0) === 1 ? "recipe" : "recipes"}
+            </span>
+            <span className="info-pill count-pill desktop-only">
+              <Icon name="chef" size={12} />
+              <strong>{cookbook.memberCount || 0}</strong>
+              {(cookbook.memberCount || 0) === 1 ? "cook" : "cooks"}
+            </span>
           </div>
 
           <h1 className="cookbook-h1">{renderCookbookTitle(cookbook.name)}</h1>

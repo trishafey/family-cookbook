@@ -860,7 +860,12 @@ app.get("/api/admin/cookbooks/:cookbookId/recipes", async (c) => {
 // by most recipes first. Used by the Discover page; authenticated
 // so we can later layer in a "follow" relationship + filter out
 // cookbooks the caller already owns / is a member of.
-app.get("/api/admin/cookbooks/public", async (c) => {
+//
+// Path is /api/admin/discover (not /cookbooks/public) because
+// Hono matches routes top-down and the parameterised
+// /api/admin/cookbooks/:id route earlier in the file would
+// otherwise eat "public" as an id.
+app.get("/api/admin/discover", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   await c.env.DB.prepare(

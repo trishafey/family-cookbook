@@ -35,7 +35,7 @@ export function Discover({ onOpenCookbook, onClose }) {
     (async () => {
       setError(null);
       try {
-        const res = await fetch(`/api/admin/cookbooks/public${query ? `?q=${encodeURIComponent(query)}` : ""}`, { credentials: "include" });
+        const res = await fetch(`/api/admin/discover${query ? `?q=${encodeURIComponent(query)}` : ""}`, { credentials: "include" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (cancelled) return;
