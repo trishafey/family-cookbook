@@ -177,7 +177,7 @@ function MakeDropdown({ currentView, selectionCount, onOpenLab, onOpenMeal, show
     </div>
   );
 }
-function NavSearch({ query, setQuery, placeholder, mobilePlaceholder, simpleMode, onOpenFilters, filtersLabel, recipes, onOpenRecipe }) {
+function NavSearch({ query, setQuery, placeholder, mobilePlaceholder, simpleMode, onOpenFilters, filtersLabel, recipes, onOpenRecipe, cookbooks = [], onOpenCookbook }) {
   const isTabletUp = useIsTabletUp();
   // Bar starts collapsed on every viewport — the pill icon next to
   // the brand. Tapping expands; blur or click-away with an empty
@@ -209,7 +209,23 @@ function NavSearch({ query, setQuery, placeholder, mobilePlaceholder, simpleMode
   // on the wrapper lets CSS transitions animate width AND opacity
   // symmetrically (the open animation is the reverse of close).
   const collapsed = !expanded;
-  const suggestions = focused && !collapsed ? recipeSuggestions(query, recipes) : [];
+  // What the dropdown is showing: "all" (default), "cookbooks",
+  // or "recipes". Toggled by chips at the top of the dropdown.
+  const [navScope, setNavScope] = useState("all");
+  const recipeSuggs = focused && !collapsed && navScope !== "cookbooks"
+    ? recipeSuggestions(query, recipes)
+    : [];
+  const q = (query || "").trim().toLowerCase();
+  const cookbookSuggs = focused && !collapsed && navScope !== "recipes" && q
+    ? (cookbooks || [])
+        .filter(c => {
+          const name = (c.name || "").toLowerCase();
+          const blurb = (c.blurb || "").toLowerCase();
+          return name.includes(q) || blurb.includes(q);
+        })
+        .slice(0, 5)
+    : [];
+  const hasSuggs = recipeSuggs.length > 0 || cookbookSuggs.length > 0;
   // Pick the right placeholder for the viewport — the long
   // "Search by recipe, cook, cuisine, or ingredient…" gets
   // truncated mid-word on narrow phones.
@@ -247,36 +263,95 @@ function NavSearch({ query, setQuery, placeholder, mobilePlaceholder, simpleMode
           </button>
         )}
       </div>
-      {suggestions.length > 0 && (
+      {focused && !collapsed && (hasSuggs || (cookbooks?.length > 0 && q)) && (
         <div className="search-suggestions" role="listbox">
-          {suggestions.map(r => (
-            <button
-              key={r.id}
-              type="button"
-              role="option"
-              className="search-suggestion"
-              onMouseDown={(e) => {
-                // mousedown so we fire BEFORE the input's blur
-                // tears down the suggestions list.
-                e.preventDefault();
-                onOpenRecipe?.(r);
-                setFocused(false);
-                setQuery("");
-              }}
-            >
-              {r.photoCard || r.photo ? (
-                <span
-                  className="thumb"
-                  style={{ backgroundImage: `url(${r.photoCard || r.photo})` }}
-                  aria-hidden
-                />
-              ) : null}
-              <span className="text">
-                <span className="title">{r.title}</span>
-                <span className="sub">{r.author ? `by ${r.author}` : r.cuisine}</span>
-              </span>
-            </button>
-          ))}
+          {/* Scope chips — toggle which list of results the
+              dropdown shows. Hidden when there's nothing to
+              search across (cookbooks list isn't loaded yet). */}
+          {cookbooks?.length > 0 && (
+            <div className="search-scope">
+              <button
+                type="button"
+                className={`scope-chip ${navScope === "all" ? "active" : ""}`}
+                onMouseDown={(e) => { e.preventDefault(); setNavScope("all"); }}
+              >All</button>
+              <button
+                type="button"
+                className={`scope-chip ${navScope === "cookbooks" ? "active" : ""}`}
+                onMouseDown={(e) => { e.preventDefault(); setNavScope("cookbooks"); }}
+              >Cookbooks</button>
+              <button
+                type="button"
+                className={`scope-chip ${navScope === "recipes" ? "active" : ""}`}
+                onMouseDown={(e) => { e.preventDefault(); setNavScope("recipes"); }}
+              >Recipes</button>
+            </div>
+          )}
+          {cookbookSuggs.length > 0 && (
+            <>
+              <div className="search-section-label">Cookbooks</div>
+              {cookbookSuggs.map(cb => (
+                <button
+                  key={cb.id}
+                  type="button"
+                  role="option"
+                  className="search-suggestion cb"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onOpenCookbook?.(cb);
+                    setFocused(false);
+                    setQuery("");
+                  }}
+                >
+                  <span className="thumb cb-thumb" aria-hidden>
+                    <Icon name="book" size={16} />
+                  </span>
+                  <span className="text">
+                    <span className="title">{cb.name}</span>
+                    {cb.blurb && <span className="sub">{cb.blurb}</span>}
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
+          {recipeSuggs.length > 0 && (
+            <>
+              {cookbookSuggs.length > 0 && <div className="search-section-label">Recipes</div>}
+              {recipeSuggs.map(r => (
+                <button
+                  key={r.id}
+                  type="button"
+                  role="option"
+                  className="search-suggestion"
+                  onMouseDown={(e) => {
+                    // mousedown so we fire BEFORE the input's blur
+                    // tears down the suggestions list.
+                    e.preventDefault();
+                    onOpenRecipe?.(r);
+                    setFocused(false);
+                    setQuery("");
+                  }}
+                >
+                  {r.photoCard || r.photo ? (
+                    <span
+                      className="thumb"
+                      style={{ backgroundImage: `url(${r.photoCard || r.photo})` }}
+                      aria-hidden
+                    />
+                  ) : null}
+                  <span className="text">
+                    <span className="title">{r.title}</span>
+                    <span className="sub">{r.author ? `by ${r.author}` : r.cuisine}</span>
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
+          {!hasSuggs && q && (
+            <div className="search-empty">
+              No {navScope === "all" ? "matches" : navScope} for "{query}"
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -803,7 +878,7 @@ function App() {
           </div>
           <NavSearch
             query={query}
-            setQuery={(v) => { setQuery(v); if (view !== "browse") setView("browse"); }}
+            setQuery={(v) => { setQuery(v); if (view !== "browse" && view !== "cookbook") setView("browse"); }}
             placeholder={t("searchPlaceholder")}
             mobilePlaceholder={t("searchPlaceholderShort")}
             simpleMode={simpleMode}
@@ -811,6 +886,8 @@ function App() {
             filtersLabel={t("filters")}
             recipes={recipes}
             onOpenRecipe={openRecipe}
+            cookbooks={effectiveUserCookbooks}
+            onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); goToCookbook(cb.slug || cb.id); }}
           />
           <div className="nav-actions">
             {FLAGS.cookbooks && authEmail && (
