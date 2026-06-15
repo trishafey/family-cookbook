@@ -123,10 +123,6 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
         {selectionMode && selected &&
         <div className="select-mark">{selectIdx + 1}</div>
         }
-        <div className="meta-overlay">
-          <span>{fmtDuration(recipe.total)}</span>
-          <span>{tDifficulty(recipe.difficulty)}</span>
-        </div>
       </div>
       <div className="body">
         <div className="author">{t("by")} {recipe.author}</div>
@@ -146,17 +142,21 @@ export function RecipeCard({ recipe, onOpen, selected, selectIdx, onToggleSelect
           <Pill kind="slate">{recipe.cuisine}</Pill>
         </div>
         <div className="footer">
+          <span className="cook-time">
+            <Icon name="clock" size={12} /> {fmtDuration(recipe.total)}
+          </span>
           <span>
             {(() => {
               // Average rating from family-posted notes (ignore notes
-              // without a rating). Shows nothing when there are none.
+              // without a rating). Shows occasion alone when there are
+              // no rated notes yet.
               const rated = (recipe.liveComments || []).filter(c => c.rating > 0);
-              if (rated.length === 0) return null;
+              const occasion = tOccasion(recipe.occasion);
+              if (rated.length === 0) return occasion;
               const avg = rated.reduce((s, c) => s + c.rating, 0) / rated.length;
-              return <><Icon name="starFill" size={12} /> {avg.toFixed(1)}</>;
+              return <><Icon name="starFill" size={12} /> {avg.toFixed(1)} · {occasion}</>;
             })()}
           </span>
-          <span>{tOccasion(recipe.occasion)}</span>
         </div>
       </div>
     </div>);
