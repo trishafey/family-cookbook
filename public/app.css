@@ -2005,18 +2005,20 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .discover-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
 }
 .discover-card {
-  display: flex; flex-direction: column;
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 16px;
+  align-items: stretch;
   text-align: left;
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: var(--radius-lg);
   cursor: pointer;
-  overflow: hidden;
-  padding: 0;
+  padding: 14px;
   font: inherit; color: inherit;
   transition: border-color .14s, box-shadow .14s, transform .14s;
 }
@@ -2027,31 +2029,52 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .discover-cover {
   position: relative;
-  aspect-ratio: 16 / 9;
+  /* Small book-shape cover on the left. Spine band runs down
+     the bound edge so the silhouette reads as a book even at
+     this size. */
+  width: 88px;
   background-color: var(--accent-cool, #6e7a3a);
   background-size: cover;
   background-position: center;
   color: #fff;
   display: grid; place-items: center;
+  border-radius: 2px 6px 6px 2px;
+  overflow: hidden;
+  align-self: stretch;
+  min-height: 110px;
+  box-shadow: 0 6px 16px -10px rgba(0,0,0,.35);
+}
+.discover-cover::before {
+  content: "";
+  position: absolute; inset: 0 auto 0 0;
+  width: 6px;
+  background: linear-gradient(to right, rgba(0,0,0,.35), rgba(0,0,0,.05));
+  z-index: 2;
 }
 .discover-cover.has-photo::after {
   content: "";
   position: absolute; inset: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,.05) 0%, rgba(0,0,0,.35) 100%);
+  background: linear-gradient(to bottom, rgba(0,0,0,.05) 0%, rgba(0,0,0,.4) 100%);
 }
 .discover-cover .initials {
   position: relative; z-index: 1;
-  font-family: var(--serif); font-size: 36px; font-weight: 300;
+  font-family: var(--serif); font-size: 22px; font-weight: 300;
   letter-spacing: 0.04em;
+  padding-left: 6px;
 }
-.discover-card-body { padding: 16px 18px 18px; }
+.discover-card-body {
+  padding: 0;
+  display: flex; flex-direction: column;
+  min-width: 0;
+}
 .discover-card-name {
   margin: 0 0 4px;
-  font-family: var(--serif); font-size: 20px; font-weight: 500;
+  font-family: var(--serif); font-size: 18px; font-weight: 500;
+  line-height: 1.2;
 }
 .discover-card-blurb {
-  margin: 0 0 10px;
-  font-family: var(--serif); font-style: italic; font-size: 14px;
+  margin: 0 0 8px;
+  font-family: var(--serif); font-style: italic; font-size: 13px;
   color: var(--ink-2);
   line-height: 1.4;
   display: -webkit-box; -webkit-line-clamp: 2;
@@ -2061,18 +2084,19 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   font-family: var(--mono); font-size: 11px;
   color: var(--ink-3);
+  margin-top: auto;
 }
 .discover-card-meta .lang-row {
   display: inline-flex; gap: 3px; margin-left: 6px;
 }
 .discover-flag {
-  width: 18px; height: 12px;
+  width: 16px; height: 11px;
   border-radius: 2px;
   border: 1px solid var(--rule);
   object-fit: cover;
 }
 .discover-card-owner {
-  margin-top: 8px;
+  margin-top: 6px;
   font-family: var(--mono); font-size: 11px;
   color: var(--ink-3);
 }
