@@ -1364,29 +1364,33 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .cookbook-search-close:hover { background: var(--paper-2); color: var(--ink); }
 
-/* Filters button — sits to the right of the search on desktop,
-   wraps to the next row alongside the search on mobile. */
-.cookbook-filters-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 14px;
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  font-family: var(--sans); font-size: 14px; font-weight: 500;
-  color: var(--ink);
+/* Inline Filters trigger that lives inside the search pill —
+   same pattern as the nav search. Sits flush with the close
+   button on the right edge of the pill. */
+.cookbook-search-filter {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--rule);
+  margin-left: 4px;
+  padding-left: 8px;
+  color: var(--ink-2);
   cursor: pointer;
+  position: relative;
 }
-.cookbook-filters-btn:hover { background: var(--paper-2); }
-.cookbook-filters-btn .count {
+.cookbook-search-filter:hover { color: var(--ink); }
+.cookbook-search-filter .count {
+  position: absolute;
+  top: -2px; right: -4px;
   display: inline-grid; place-items: center;
-  min-width: 18px; height: 18px;
-  padding: 0 5px;
+  min-width: 16px; height: 16px;
+  padding: 0 4px;
   background: var(--accent);
   color: #fff;
   border-radius: 999px;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0;
+  font-size: 9px;
   font-weight: 600;
 }
 
@@ -1456,19 +1460,17 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .cb-invited-pill .cb-invited-text { display: none; }
   /* Mobile: segmented Recipes / Members / Settings toggle
      stretches edge-to-edge so each segment is a comfortable
-     tap target. Cookbook-scoped search + filters drop to their
-     own row below, search filling the remaining width. */
+     tap target. Cookbook-scoped search (with the inline filter
+     trigger) drops to its own row at full width. */
   .cookbook-tabs-row { flex-wrap: wrap; gap: 10px; }
   .cookbook-segmented { display: flex; width: 100%; flex-basis: 100%; }
   .cookbook-segmented .seg { flex: 1; justify-content: center; }
   .cookbook-search {
     margin-left: 0;
-    flex: 1 1 auto;
+    flex: 1 1 100%;
     min-width: 0;
     max-width: none;
   }
-  .cookbook-filters-btn { flex-shrink: 0; }
-  .cookbook-filters-btn .label { display: none; }
 }
 
 /* ─── Cookbook page: shared card chrome ─── */

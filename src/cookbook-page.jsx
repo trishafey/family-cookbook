@@ -305,21 +305,19 @@ export function CookbookPage({
                 <Icon name="x" size={14} />
               </button>
             )}
+            {openFilters && (
+              <button
+                type="button"
+                className="cookbook-search-filter"
+                onClick={openFilters}
+                aria-label="Filters"
+                title="Filters"
+              >
+                <Icon name="filter" size={15} />
+                {filterCount > 0 && <span className="count">{filterCount}</span>}
+              </button>
+            )}
           </div>
-        )}
-
-        {openFilters && activeTab === "recipes" && (
-          <button
-            type="button"
-            className="cookbook-filters-btn"
-            onClick={openFilters}
-            aria-label="Filters"
-            title="Filters"
-          >
-            <Icon name="filter" size={15} />
-            <span className="label">Filters</span>
-            {filterCount > 0 && <span className="count">{filterCount}</span>}
-          </button>
         )}
       </div>
 
