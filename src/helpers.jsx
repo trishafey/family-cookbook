@@ -899,6 +899,10 @@ export const Icon = ({ name, size = 18 }) => {
     save:      <><path d="M7 4 H17 V20 L12 16 L7 20 Z" /><path d="M12 8 C10.6 8 9.6 9 9.6 10.4 C11 10.4 12 9.4 12 8 Z" /></>,
     favourite: <><path d="M12 20 C5 15.5 3 12 3 8.6 A4.4 4.4 0 0 1 12 7 A4.4 4.4 0 0 1 21 8.6 C21 12 19 15.5 12 20 Z" /><path d="M12 20.5 V10.5" /><path d="M12 14 L8.6 11.2 M12 14 L15.4 11.2 M12 17 L9.6 14.8 M12 17 L14.4 14.8" /></>,
     simpleView: <path d="M8 18v-6a4 4 0 0 1 8 0c0 2.4-1.8 3.8-3.4 3.2C11 14.6 11 12.4 12.6 12" />,
+    // Discover — open archway / open book silhouette. Lives in
+    // the top nav as the entry point to the public cookbook
+    // directory.
+    discover:  <path d="M6.5 19v-5a5.5 5.5 0 0 1 11 0v5" />,
     favouriteFill: <><path d="M12 20 C5 15.5 3 12 3 8.6 A4.4 4.4 0 0 1 12 7 A4.4 4.4 0 0 1 21 8.6 C21 12 19 15.5 12 20 Z" fill="currentColor" /></>,
     chef:      <path d="M7 21h10M6.5 17h11v-1.8c2 0 3.5-1.6 3.5-3.6a3.6 3.6 0 0 0-4.7-3.4 4.6 4.6 0 0 0-8.6 0A3.6 3.6 0 0 0 3 12c0 2 1.5 3.4 3.5 3.4V17Z" />,
     print:     <path d="M7 9V4h10v5M7 18H4.5v-7h15v7H17M7 14h10v6H7v-6Z" />,

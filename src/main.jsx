@@ -901,6 +901,16 @@ function App() {
                 <Icon name="book" size={15} /> <span className="btn-label">My cookbooks</span>
               </button>
             )}
+            {authEmail && (
+              <button
+                type="button"
+                className={`btn ghost sm nav-discover ${view === "discover" ? "active" : ""}`}
+                onClick={() => setView("discover")}
+                title="Discover"
+              >
+                <Icon name="discover" size={15} /> <span className="btn-label">Discover</span>
+              </button>
+            )}
             {!simpleMode && (
               <MakeDropdown
                 currentView={view}
@@ -923,7 +933,6 @@ function App() {
                 notificationCount={notificationCount}
                 onToggleSimpleMode={() => setSimpleMode(m => !m)}
                 onMyCookbooks={() => setView("cookbooks")}
-                onDiscover={() => setView("discover")}
                 onNotifications={() => setView("notifications")}
                 onSettings={() => setView("settings")}
                 onAdmin={() => setView("admin")}
@@ -1579,7 +1588,7 @@ function MobileMenuDrawer({
   );
 }
 
-function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 0, notificationCount = 0, onToggleSimpleMode, onMyCookbooks, onDiscover, onNotifications, onSettings, onAdmin }) {
+function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 0, notificationCount = 0, onToggleSimpleMode, onMyCookbooks, onNotifications, onSettings, onAdmin }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const initial = (email[0] || "?").toUpperCase();
@@ -1630,16 +1639,6 @@ function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 
               style={itemBtnStyle}
             >
               Cookbooks
-            </button>
-          )}
-          {onDiscover && (
-            <button
-              type="button"
-              className="item"
-              onClick={() => { setOpen(false); onDiscover(); }}
-              style={itemBtnStyle}
-            >
-              Discover
             </button>
           )}
           {onNotifications && (
