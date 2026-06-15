@@ -60,7 +60,6 @@ export function PendingApprovalGate({ authEmail, refreshProfile }) {
 // Phone is optional today (MFA verification is a later state).
 // An "Account settings" page will let cooks edit these later.
 
-import { useState } from "react";
 import { Icon } from "./helpers.jsx";
 
 export function ProfileSetupGate({ authEmail, onSaved, onSignOut, save }) {
