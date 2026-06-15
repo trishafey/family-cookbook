@@ -1694,118 +1694,158 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
         //   - adminAccess: cookbooks they see only via admin
         // Source order is the server's display_order; sectioning
         // preserves that order within each section.
-        const owned = cookbooks.filter(c => c.yourRole === "owner");
-        const shared = cookbooks.filter(c => c.yourRole === "editor" || c.yourRole === "viewer");
-        const adminAccess = cookbooks.filter(c => c.adminAccess || (c.yourRole === "admin" && !c.adminAccess));
+        // Top shelf = cookbooks the cook owns or edits (book-spine
+        // cookbooks). Bottom shelf = cookbooks they only view or
+        // follow. Admin-access cookbooks live in the admin panel,
+        // not on the cook's personal shelf.
+        const topShelf = cookbooks.filter(c => c.yourRole === "owner" || c.yourRole === "editor");
+        const bottomShelf = cookbooks.filter(c => c.yourRole === "viewer");
         // The default cookbook = whichever sits at position 0 in
-        // the cook's flat order. Drives the "Default" badge.
+        // the cook's flat order. Renders cover-facing at the
+        // front of the top shelf.
         const defaultId = cookbooks[0]?.id;
-        const renderCard = (cb) => {
-          const isOwner = cb.yourRole === "owner";
-          // Editors get the gear too — it opens the Members tab
-          // so they can invite people. Settings tab + danger zone
-          // are hidden for them inside the modal.
+        // Strip emoji + symbols from a name when computing spine
+        // labels so the spine reads as letters, not flame emoji.
+        const stripEmoji = (s) =>
+          (s || "")
+            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F900}-\u{1F9FF}\u{2700}-\u{27BF}️]/gu, "")
+            .replace(/\s+/g, " ")
+            .trim();
+        const coverInitials = (name) => stripEmoji(name)
+          .split(/\s+/)
+          .filter(w => w && !/^(the|a|an|of|&|and)$/i.test(w))
+          .map(w => w.replace(/['']s$/i, "")[0] || "")
+          .filter(c => /[A-Za-z]/.test(c))
+          .join("")
+          .slice(0, 4)
+          .toUpperCase();
+
+        const renderBook = (cb, { coverFacing = false } = {}) => {
           const canManage =
-            isOwner ||
+            cb.yourRole === "owner" ||
             cb.yourRole === "editor" ||
             cb.yourRole === "admin";
-          // Admin-access cookbooks aren't in cookbook_members for
-          // this cook, so the reorder endpoint has nothing to write
-          // — disable drag + set-as-default on them.
           const canReorder = !cb.adminAccess;
           const isDefault = cb.id === defaultId;
+          const role = cb.yourRole || "viewer";
+          const isActive = cb.id === activeCookbookId;
+          const cssColor = cb.coverColor ? { "--book-color": cb.coverColor } : undefined;
+          const cardClass = [
+            "book",
+            coverFacing ? "book-cover" : "book-spine",
+            isActive ? "active" : "",
+            isDefault ? "is-default" : "",
+            draggedId === cb.id ? "dragging" : "",
+            dragOverId === cb.id ? "drag-over" : "",
+          ].filter(Boolean).join(" ");
+          const dragHandlers = canReorder ? {
+            draggable: true,
+            onDragStart: (e) => {
+              setDraggedId(cb.id);
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", cb.id);
+            },
+            onDragEnd: () => { setDraggedId(null); setDragOverId(null); },
+            onDragOver: (e) => {
+              if (!draggedId || draggedId === cb.id) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              if (dragOverId !== cb.id) setDragOverId(cb.id);
+            },
+            onDragLeave: () => { if (dragOverId === cb.id) setDragOverId(null); },
+            onDrop: (e) => {
+              e.preventDefault();
+              reorder(draggedId, cb.id);
+              setDraggedId(null);
+              setDragOverId(null);
+            },
+          } : {};
           return (
-            <div
-              key={cb.id}
-              className={`cookbook-card ${cb.id === activeCookbookId ? "active" : ""} ${draggedId === cb.id ? "dragging" : ""} ${dragOverId === cb.id ? "drag-over" : ""}`}
-              draggable={canReorder}
-              onDragStart={canReorder ? (e) => {
-                setDraggedId(cb.id);
-                e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData("text/plain", cb.id);
-              } : undefined}
-              onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
-              onDragOver={canReorder ? (e) => {
-                if (!draggedId || draggedId === cb.id) return;
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-                if (dragOverId !== cb.id) setDragOverId(cb.id);
-              } : undefined}
-              onDragLeave={() => { if (dragOverId === cb.id) setDragOverId(null); }}
-              onDrop={canReorder ? (e) => {
-                e.preventDefault();
-                reorder(draggedId, cb.id);
-                setDraggedId(null);
-                setDragOverId(null);
-              } : undefined}
-            >
-              <div className="cookbook-card-head">
-                <div className={`role-badge role-${cb.yourRole}`}>
-                  {cb.adminAccess ? "admin access" : cb.yourRole}
-                </div>
-                {isDefault && (
-                  <div className="role-badge default-badge" title="Your default cookbook">Default</div>
-                )}
-                {cb.id === activeCookbookId && (
-                  <div className="role-badge active-badge">Active</div>
-                )}
-                {canManage && (
-                  <button
-                    type="button"
-                    className="cookbook-card-edit"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onEditCookbook) onEditCookbook(cb);
-                      else setEditing({ cookbook: cb });
-                    }}
-                    title="Cookbook settings"
-                    aria-label="Cookbook settings"
-                  >
-                    <Icon name="edit" size={14} />
-                  </button>
-                )}
-              </div>
-              <button
-                type="button"
-                className="cookbook-card-body"
-                onClick={() => onOpenCookbook?.(cb)}
-              >
-                <h3 className="cookbook-name">{cb.name}</h3>
-                <div className="cookbook-blurb">{cb.blurb}</div>
-                <div className="cookbook-meta">
-                  <span>{cb.ownerEmail === authEmail ? "You own this" : `owned by ${cb.ownerEmail}`}</span>
-                </div>
-              </button>
-              {canReorder && !isDefault && (
+            <div key={cb.id} className={cardClass} style={cssColor} {...dragHandlers}>
+              {coverFacing ? (
                 <button
                   type="button"
-                  className="cookbook-card-default-action"
-                  onClick={(e) => { e.stopPropagation(); setAsDefault(cb.id); }}
-                  title="Show this cookbook first"
+                  className="book-cover-body"
+                  onClick={() => onOpenCookbook?.(cb)}
+                  title={cb.name}
                 >
-                  Set as default
+                  {cb.coverPhoto && <img className="book-cover-photo" src={cb.coverPhoto} alt="" />}
+                  <span className={`book-bookmark role-${role}`}>{cb.adminAccess ? "admin" : role}</span>
+                  <span className="book-cover-stack">
+                    <span className="book-cover-initials">{coverInitials(cb.name) || "·"}</span>
+                    <span className="book-cover-title">{stripEmoji(cb.name)}</span>
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="book-spine-body"
+                  onClick={() => onOpenCookbook?.(cb)}
+                  title={cb.name}
+                >
+                  {cb.coverPhoto && <img className="book-spine-photo" src={cb.coverPhoto} alt="" />}
+                  <span className="book-spine-label">{stripEmoji(cb.name)}</span>
+                </button>
+              )}
+              {canManage && (
+                <button
+                  type="button"
+                  className="book-edit"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onEditCookbook) onEditCookbook(cb);
+                    else setEditing({ cookbook: cb });
+                  }}
+                  title="Cookbook settings"
+                  aria-label="Cookbook settings"
+                >
+                  <Icon name="edit" size={12} />
+                </button>
+              )}
+              {canReorder && !isDefault && !coverFacing && (
+                <button
+                  type="button"
+                  className="book-default-action"
+                  onClick={(e) => { e.stopPropagation(); setAsDefault(cb.id); }}
+                  title="Set as default"
+                  aria-label="Set as default"
+                >
+                  <Icon name="star" size={10} />
                 </button>
               )}
             </div>
           );
         };
+
+        const defaultCookbook = topShelf.find(c => c.id === defaultId);
+        const restOfTop = topShelf.filter(c => c.id !== defaultId);
         return (
           <>
-            {owned.length > 0 && (
-              <section className="cookbook-section">
-                <div className="section-head">Your cookbooks</div>
-                <div className="cookbooks-grid">{owned.map(renderCard)}</div>
+            <section className="shelf-section">
+              <div className="shelf-section-head">Your cookbooks</div>
+              <div className="shelf">
+                {defaultCookbook && renderBook(defaultCookbook, { coverFacing: true })}
+                {restOfTop.map(cb => renderBook(cb))}
+                <button
+                  type="button"
+                  className="book book-new"
+                  onClick={() => onOpenCreateCookbook ? onOpenCreateCookbook() : setCreateOpen(true)}
+                  title="Add a new cookbook"
+                >
+                  <span className="book-new-icon"><Icon name="plus" size={18} /></span>
+                  <span className="book-new-label">Add new cookbook</span>
+                </button>
+              </div>
+            </section>
+
+            {bottomShelf.length > 0 && (
+              <section className="shelf-section">
+                <div className="shelf-section-head">Following</div>
+                <div className="shelf">
+                  {bottomShelf.map(cb => renderBook(cb))}
+                </div>
               </section>
             )}
-            {shared.length > 0 && (
-              <section className="cookbook-section">
-                <div className="section-head">Shared with you</div>
-                <div className="cookbooks-grid">{shared.map(renderCard)}</div>
-              </section>
-            )}
-            {/* Admin · all cookbooks moved to /admin → "Cookbooks"
-                tab so the cookbooks index stays focused on the
-                cook's own library. */}
           </>
         );
       })()}
