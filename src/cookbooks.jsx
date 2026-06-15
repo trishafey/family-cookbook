@@ -1123,24 +1123,30 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
           the full card width on mobile. */}
       <div className="cb-card">
         <div className="cb-field-stack">
-          <label className="cb-field-label" htmlFor="cb-name">Cookbook name</label>
+          <label className="cb-field-label" htmlFor="cb-name">
+            Cookbook name
+            <span className="cb-field-count">{name.length}/50</span>
+          </label>
           <input
             id="cb-name"
             type="text"
             className="cb-field-input"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            maxLength={80}
+            maxLength={50}
           />
         </div>
         <div className="cb-field-stack">
-          <label className="cb-field-label" htmlFor="cb-blurb">Description</label>
+          <label className="cb-field-label" htmlFor="cb-blurb">
+            Description
+            <span className="cb-field-count">{blurb.length}/150</span>
+          </label>
           <textarea
             id="cb-blurb"
             className="cb-field-input cb-field-textarea"
             value={blurb}
             onChange={(e) => setBlurb(e.target.value)}
-            maxLength={280}
+            maxLength={150}
             rows={3}
           />
         </div>

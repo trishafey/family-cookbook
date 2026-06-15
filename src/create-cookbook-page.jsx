@@ -116,7 +116,10 @@ export function CreateCookbookPage({ onClose, onCreated }) {
         {/* Card 1: identity */}
         <div className="cb-card">
           <div className="cb-field-stack">
-            <label className="cb-field-label" htmlFor="cb-new-name">Cookbook name</label>
+            <label className="cb-field-label" htmlFor="cb-new-name">
+              Cookbook name
+              <span className="cb-field-count">{name.length}/50</span>
+            </label>
             <input
               id="cb-new-name"
               type="text"
@@ -125,18 +128,21 @@ export function CreateCookbookPage({ onClose, onCreated }) {
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Smith Family Cookbook, Healthy recipes…"
               autoFocus
-              maxLength={80}
+              maxLength={50}
             />
           </div>
           <div className="cb-field-stack">
-            <label className="cb-field-label" htmlFor="cb-new-blurb">Description</label>
+            <label className="cb-field-label" htmlFor="cb-new-blurb">
+              Description
+              <span className="cb-field-count">{blurb.length}/150</span>
+            </label>
             <textarea
               id="cb-new-blurb"
               className="cb-field-input cb-field-textarea"
               value={blurb}
               onChange={(e) => setBlurb(e.target.value)}
               placeholder="What's this cookbook about?"
-              maxLength={280}
+              maxLength={150}
               rows={3}
             />
           </div>

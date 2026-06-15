@@ -1790,6 +1790,13 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .cb-field-label {
   font-family: var(--sans); font-size: 13px; color: var(--ink-2);
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px;
+}
+.cb-field-count {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
 }
 .cb-field-input {
   padding: 10px 12px;
@@ -2300,7 +2307,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   /* Same corner treatment as the cookbook detail-page cover:
      spine side (left) tight, open side (right) softer. */
   border-radius: 2px 8px 8px 2px;
-  padding: 18px 22px 24px 30px;
+  /* Tight internal padding (left clears the 10px spine band)
+     so the title + langs + blurb stack uses most of the cover
+     width instead of stacking in a narrow centre column. */
+  padding: 18px 14px 22px 20px;
   display: flex; flex-direction: column;
   align-items: stretch;
   cursor: pointer;
@@ -2377,7 +2387,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   text-transform: uppercase;
   color: rgba(255,255,255,.72);
   line-height: 1.7;
-  max-width: 18ch;
+  /* Use the full inner width of the cover instead of forcing a
+     narrow centre column — keeps the blurb from wrapping
+     every two words. */
+  max-width: 100%;
 }
 
 /* ── New book — dashed placeholder at the end of the top
