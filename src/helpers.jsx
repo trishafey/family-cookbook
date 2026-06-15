@@ -908,6 +908,15 @@ export const Icon = ({ name, size = 18 }) => {
     // the top nav as the entry point to the public cookbook
     // directory.
     discover:  <path d="M6.5 19v-5a5.5 5.5 0 0 1 11 0v5" />,
+    // Invite-cook glyph — chef hat with a plus mark. Used on
+    // the "Invite cook" button so it reads as "add a cook"
+    // rather than just "cook".
+    chefAdd:   <>
+                 <path d="M5.5 16.5h6.5" />
+                 <path d="M5 14h7.4v-2.3a3.1 3.1 0 0 0 .8-6A3.7 3.7 0 0 0 7.5 4 3.7 3.7 0 0 0 4.3 5.8a3.1 3.1 0 0 0 .7 6V14Z" />
+                 <path d="M18 14.5v5" />
+                 <path d="M15.5 17h5" />
+               </>,
     favouriteFill: <><path d="M12 20 C5 15.5 3 12 3 8.6 A4.4 4.4 0 0 1 12 7 A4.4 4.4 0 0 1 21 8.6 C21 12 19 15.5 12 20 Z" fill="currentColor" /></>,
     chef:      <path d="M7 21h10M6.5 17h11v-1.8c2 0 3.5-1.6 3.5-3.6a3.6 3.6 0 0 0-4.7-3.4 4.6 4.6 0 0 0-8.6 0A3.6 3.6 0 0 0 3 12c0 2 1.5 3.4 3.5 3.4V17Z" />,
     print:     <path d="M7 9V4h10v5M7 18H4.5v-7h15v7H17M7 14h10v6H7v-6Z" />,

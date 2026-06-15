@@ -316,7 +316,7 @@ export function CookbookPage({
             )}
             {canSeeMembers && (
               <button className="btn cookbook-action-btn" onClick={() => setInviteOpen(true)} title="Invite cook">
-                <Icon name="chef" /> <span className="btn-label">Invite cook</span>
+                <Icon name="chefAdd" /> <span className="btn-label">Invite cook</span>
               </button>
             )}
             {canSeeSettings && (
