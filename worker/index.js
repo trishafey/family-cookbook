@@ -67,11 +67,17 @@ function normaliseLanguages(arr) {
   const out = [];
   for (const code of arr) {
     if (typeof code !== "string") continue;
-    const c = code.toLowerCase();
-    if (!SUPPORTED_LANGS.includes(c)) continue;
+    // Preserve the camelCase code for enUS — lower-casing it
+    // breaks the SUPPORTED_LANGS membership check + breaks the
+    // i18n lookup downstream. Other codes are already lowercase.
+    const c = SUPPORTED_LANGS.find(s => s.toLowerCase() === code.toLowerCase());
+    if (!c) continue;
     if (!out.includes(c)) out.push(c);
   }
-  if (!out.includes("en")) out.unshift("en");
+  // At least one English variant (Canadian or American) is
+  // required. Default to Canadian if the cook stripped both.
+  const ENGLISH = ["en", "enUS"];
+  if (!out.some(c => ENGLISH.includes(c))) out.unshift("en");
   return out.slice(0, MAX_COOKBOOK_LANGS);
 }
 

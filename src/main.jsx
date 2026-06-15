@@ -1173,6 +1173,14 @@ function App() {
           activeCookbookId={activeCookbookId}
           onClose={backToBrowse}
           onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); goToCookbook(cb.slug || cb.id); }}
+          onEditCookbook={(cb) => {
+            // Same pattern as the admin Edit pencil: flag the
+            // entry point so the manage view's back button reads
+            // "Back to library" and lands on /cookbooks.
+            try { sessionStorage.setItem("cookbook-manage:from", "library"); } catch {}
+            setActiveCookbookId(cb.id);
+            goToCookbook(cb.slug || cb.id, "settings");
+          }}
           onOpenCreateCookbook={() => setView("cookbook-new")}
         />
       )}

@@ -16,10 +16,17 @@ const FLAG_SRC = {
 };
 
 function coverInitials(name) {
-  return (name || "")
+  // Drop emoji + symbols before initialising so the spine of a
+  // cookbook like "Wojcik 🌶️🥑🥬" only carries letters.
+  const cleaned = (name || "")
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F900}-\u{1F9FF}\u{2700}-\u{27BF}️]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned
     .split(/\s+/)
     .filter(w => w && !/^(the|a|an|of|&|and)$/i.test(w))
     .map(w => w.replace(/['']s$/i, "")[0] || "")
+    .filter(c => /[A-Za-z]/.test(c))
     .join("")
     .slice(0, 4)
     .toUpperCase();

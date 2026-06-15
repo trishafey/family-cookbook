@@ -15,12 +15,20 @@ const MAX_COOKBOOK_LANGS = 3;
 // Multi-select language picker shared by Create + Edit cookbook
 // modals. English is always present and locked; up to two
 // additional languages can be toggled on as pills.
+// Both en (Canadian) and enUS (American) satisfy the "must have
+// English" requirement — a cookbook needs at least one of the
+// two, but not both. Toggling between them is allowed.
+const ENGLISH_CODES = ["en", "enUS"];
+const hasAnyEnglish = (langs) => langs.some(c => ENGLISH_CODES.includes(c));
+
 export function LanguagePicker({ value, onChange }) {
   const selected = Array.isArray(value) && value.length ? value : ["en"];
   const toggle = (code) => {
-    if (code === "en") return; // English is the base; can't remove
     if (selected.includes(code)) {
-      onChange(selected.filter(c => c !== code));
+      // Removing — guard against stripping the last English.
+      const next = selected.filter(c => c !== code);
+      if (ENGLISH_CODES.includes(code) && !hasAnyEnglish(next)) return;
+      onChange(next);
     } else {
       if (selected.length >= MAX_COOKBOOK_LANGS) return;
       onChange([...selected, code]);
@@ -32,7 +40,13 @@ export function LanguagePicker({ value, onChange }) {
         {SUPPORTED_LANGS.map(code => {
           const on = selected.includes(code);
           const meta = LANG_META[code];
-          const locked = code === "en";
+          // An English variant is "locked" only when it's the
+          // last English in the list — i.e. removing it would
+          // leave the cookbook with no English. Either Canadian
+          // or American satisfies the requirement; flipping
+          // between them is fine.
+          const isEnglish = ENGLISH_CODES.includes(code);
+          const locked = on && isEnglish && !hasAnyEnglish(selected.filter(c => c !== code));
           const disabled = !on && !locked && selected.length >= MAX_COOKBOOK_LANGS;
           return (
             <button
@@ -41,7 +55,13 @@ export function LanguagePicker({ value, onChange }) {
               className={`lang-picker-pill ${on ? "on" : ""} ${locked ? "locked" : ""}`}
               onClick={() => toggle(code)}
               disabled={disabled}
-              title={locked ? "English is always included" : disabled ? `Up to ${MAX_COOKBOOK_LANGS} languages` : meta?.label}
+              title={
+                locked
+                  ? "At least one English variant is required"
+                  : disabled
+                    ? `Up to ${MAX_COOKBOOK_LANGS} languages`
+                    : meta?.label
+              }
             >
               {meta?.label || code}
             </button>
@@ -49,7 +69,7 @@ export function LanguagePicker({ value, onChange }) {
         })}
       </div>
       <div className="lang-picker-hint">
-        Up to {MAX_COOKBOOK_LANGS} languages. English is always included; pick the others your cookbook needs.
+        Up to {MAX_COOKBOOK_LANGS} languages. At least one English variant (Canadian or American) is required.
       </div>
     </div>
   );
@@ -514,6 +534,18 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
   const [inviteRole, setInviteRole] = useState("editor");
   const [inviting, setInviting] = useState(false);
   const [copiedToken, setCopiedToken] = useState(null);
+  // Deferred role changes — staged in this map until the cook
+  // clicks the "Save changes" button. Email → new role.
+  const [pendingRoles, setPendingRoles] = useState({});
+  const [savingRoles, setSavingRoles] = useState(false);
+  // Inline confirmation that auto-dismisses, mimics the global
+  // snackbar pattern but locally scoped to this surface so the
+  // confirmation lands next to the action.
+  const [toast, setToast] = useState(null);
+  const flashToast = (message) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  };
   // Network = everyone the cook already shares a cookbook with,
   // used as inline pill suggestions. Filtered against the current
   // members + pending invitations so we don't suggest someone
@@ -607,22 +639,63 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
     } catch {}
   };
 
-  const changeRole = async (email, role) => {
-    try {
-      const res = await fetch(`/api/admin/cookbooks/${cookbook.id}/members/${encodeURIComponent(email)}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
-      });
-      if (!res.ok) {
-        const { error: msg } = await res.json().catch(() => ({}));
-        throw new Error(msg || `Could not change role`);
+  // Stage a role change. Persists into pendingRoles until the
+  // cook clicks "Save changes".
+  const stageRole = (email, role) => {
+    setPendingRoles(prev => {
+      const next = { ...prev };
+      const original = members.find(m => m.email === email)?.role;
+      if (original === role) {
+        delete next[email];
+      } else {
+        next[email] = role;
       }
-      setMembers(prev => prev.map(m => m.email === email ? { ...m, role } : m));
+      return next;
+    });
+  };
+
+  // Commit every staged role change in one go. Errors keep the
+  // pending map intact so the cook can retry; successful saves
+  // clear it and surface an inline confirmation.
+  const saveRoles = async () => {
+    const entries = Object.entries(pendingRoles);
+    if (entries.length === 0) return;
+    setSavingRoles(true);
+    setError(null);
+    const failed = [];
+    for (const [email, role] of entries) {
+      try {
+        const res = await fetch(`/api/admin/cookbooks/${cookbook.id}/members/${encodeURIComponent(email)}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role }),
+        });
+        if (!res.ok) {
+          const { error: msg } = await res.json().catch(() => ({}));
+          failed.push({ email, msg: msg || `HTTP ${res.status}` });
+          continue;
+        }
+        setMembers(prev => prev.map(m => m.email === email ? { ...m, role } : m));
+      } catch (err) {
+        failed.push({ email, msg: err.message });
+      }
+    }
+    setSavingRoles(false);
+    if (failed.length) {
+      setError(`Couldn't update ${failed.map(f => `${f.email} (${f.msg})`).join(", ")}.`);
+      // Drop only the successful ones from pendingRoles.
+      setPendingRoles(prev => {
+        const next = {};
+        for (const { email } of failed) {
+          if (prev[email] != null) next[email] = prev[email];
+        }
+        return next;
+      });
+    } else {
+      setPendingRoles({});
+      flashToast(entries.length === 1 ? "Role updated" : `${entries.length} roles updated`);
       onMembersChanged?.();
-    } catch (err) {
-      setError(err.message);
     }
   };
 
@@ -689,14 +762,14 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
           {members.map(m => {
             const isYou = m.email === authEmail;
             const isSelfOwner = isYou && m.role === "owner";
+            const currentRole = pendingRoles[m.email] ?? m.role;
+            const hasPending = pendingRoles[m.email] != null;
             const onMemberSelect = (e) => {
               const v = e.target.value;
               if (v === "__remove__") {
-                e.target.value = m.role; // revert dropdown visually
+                e.target.value = currentRole;
                 const name = displayNameFor(m);
                 if (window.confirm(`Are you sure you want to remove ${name} from this cookbook?`)) {
-                  // confirm() already happened — call removeMember
-                  // directly without the redundant prompt inside it.
                   fetch(`/api/admin/cookbooks/${cookbook.id}/members/${encodeURIComponent(m.email)}`, {
                     method: "DELETE", credentials: "include",
                   }).then(async r => {
@@ -706,27 +779,30 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
                       return;
                     }
                     setMembers(prev => prev.filter(x => x.email !== m.email));
+                    setPendingRoles(prev => { const next = { ...prev }; delete next[m.email]; return next; });
+                    flashToast(`${displayNameFor(m)} removed`);
                     onMembersChanged?.();
                   }).catch(err => setError(err.message));
                 }
                 return;
               }
-              if (v !== m.role) changeRole(m.email, v);
+              stageRole(m.email, v);
             };
             return (
-              <li key={m.email} className="cb-member-row">
+              <li key={m.email} className={`cb-member-row ${hasPending ? "pending" : ""}`}>
                 <div className="avatar">{initialsFor(m)}</div>
                 <div className="who">
                   <div className="name">
                     {displayNameFor(m)}
                     {isYou && <span className="you-tag">· YOU</span>}
+                    {hasPending && <span className="pending-tag">· UNSAVED</span>}
                   </div>
                   <div className="email">{isAdmin ? m.email : maskEmail(m.email)}</div>
                 </div>
                 {canRemoveMembers ? (
                   <select
                     className="cb-role-select"
-                    value={m.role}
+                    value={currentRole}
                     onChange={onMemberSelect}
                     disabled={isSelfOwner}
                     title={isSelfOwner ? "Promote someone else first to demote yourself" : "Change role"}
@@ -737,7 +813,7 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
                     <option value="__remove__" disabled={isSelfOwner}>Remove…</option>
                   </select>
                 ) : (
-                  <span className="role-fixed">{m.role.charAt(0).toUpperCase() + m.role.slice(1)}</span>
+                  <span className="role-fixed">{currentRole.charAt(0).toUpperCase() + currentRole.slice(1)}</span>
                 )}
               </li>
             );
@@ -779,6 +855,24 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
             </li>
           ))}
         </ul>
+        {(Object.keys(pendingRoles).length > 0 || toast) && (
+          <div className="cb-members-actions">
+            {toast && <div className="cb-members-toast"><Icon name="check" size={13} /> {toast}</div>}
+            {Object.keys(pendingRoles).length > 0 && (
+              <button
+                type="button"
+                className="btn primary"
+                onClick={saveRoles}
+                disabled={savingRoles}
+              >
+                <Icon name="check" size={14} />
+                {savingRoles
+                  ? "Saving…"
+                  : `Save ${Object.keys(pendingRoles).length} ${Object.keys(pendingRoles).length === 1 ? "change" : "changes"}`}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Role explainer */}
@@ -1659,7 +1753,11 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
                   <button
                     type="button"
                     className="cookbook-card-edit"
-                    onClick={(e) => { e.stopPropagation(); setEditing({ cookbook: cb }); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onEditCookbook) onEditCookbook(cb);
+                      else setEditing({ cookbook: cb });
+                    }}
                     title="Cookbook settings"
                     aria-label="Cookbook settings"
                   >

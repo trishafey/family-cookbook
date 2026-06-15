@@ -1213,8 +1213,11 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   /* No fixed aspect ratio — the grid's align-items:stretch makes
      the cover match the info column height (cover bottom aligns
      with the bottom of the Add recipe / Invite cooks /
-     Share cookbook row). */
+     Share cookbook row). min-height stops the cover from
+     collapsing when a cookbook has no tagline (info column was
+     short → cover row shrank → cover looked squished). */
   height: 100%;
+  min-height: 220px;
   background: var(--cookbook-cover-color, var(--accent-cool, #6e7a3a));
   color: #fff;
   /* Spine is on the left — tight corners along that edge, softer
@@ -2117,6 +2120,29 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   border-radius: var(--radius);
   color: var(--accent-cool, #6e7a3a);
   font-family: var(--sans); font-size: 13px;
+}
+
+/* Members card → action row that surfaces when role changes
+   are pending. Sits below the member list. */
+.cb-members-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0 4px;
+  flex-wrap: wrap;
+}
+.cb-members-toast {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--sans); font-size: 13px;
+  color: var(--accent-cool, #6e7a3a);
+  font-weight: 500;
+}
+.cb-member-row.pending {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+.cb-member-row .pending-tag {
+  margin-left: 8px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+  color: var(--accent); font-weight: 500;
 }
 
 /* Bottom-of-screen snackbar. One message + optional inline link. */

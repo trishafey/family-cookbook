@@ -52,17 +52,19 @@ export function CookbookPage({
   filters,
   openFilters,
 }) {
-  // Track whether the cook landed here from /admin so the back
-  // button knows where to send them. Captured once on mount and
-  // cleared so a subsequent navigation away & back doesn't
-  // pick up the stale flag.
-  const [fromAdmin] = useState(() => {
+  // Track where the cook landed here from (admin / library /
+  // null) so the back button knows where to return them.
+  // Captured once on mount and cleared so a subsequent
+  // navigation away & back doesn't pick up the stale flag.
+  const [fromSource] = useState(() => {
     try {
-      const v = sessionStorage.getItem("cookbook-manage:from") === "admin";
+      const v = sessionStorage.getItem("cookbook-manage:from");
       if (v) sessionStorage.removeItem("cookbook-manage:from");
-      return v;
-    } catch { return false; }
+      return v || null;
+    } catch { return null; }
   });
+  const fromAdmin = fromSource === "admin";
+  const fromLibrary = fromSource === "library";
   const [cookbook, setCookbook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -139,7 +141,7 @@ export function CookbookPage({
           onClick={fromAdmin && goToAdmin ? goToAdmin : goToLibrary}
           style={{ marginBottom: 16 }}
         >
-          <Icon name="chevL" /> {fromAdmin && goToAdmin ? "Back to admin page" : "Back to library"}
+          <Icon name="chevL" /> {fromAdmin && goToAdmin ? "Back to admin page" : (fromLibrary ? "Back to my cookbooks" : "Back to library")}
         </button>
         <div style={{ color: "var(--ink-3)" }}>Loading cookbook…</div>
       </div>
@@ -153,7 +155,7 @@ export function CookbookPage({
           onClick={fromAdmin && goToAdmin ? goToAdmin : goToLibrary}
           style={{ marginBottom: 16 }}
         >
-          <Icon name="chevL" /> {fromAdmin && goToAdmin ? "Back to admin page" : "Back to library"}
+          <Icon name="chevL" /> {fromAdmin && goToAdmin ? "Back to admin page" : (fromLibrary ? "Back to my cookbooks" : "Back to library")}
         </button>
         <div className="cookbooks-empty" style={{ color: "#933" }}>{error || "Not found."}</div>
       </div>
@@ -163,10 +165,20 @@ export function CookbookPage({
   const languages = (cookbook.languages && cookbook.languages.length ? cookbook.languages : ["en"]);
   const roleLabel = cookbook.adminAccess ? "admin access" : (role || "viewer");
   const nationalityLine = languages.map(c => LANG_NATIONALITY[c] || LANG_META[c]?.label || c).join(" · ");
-  const coverInitials = (cookbook.name || "")
+  // Strip emoji + symbols from the name before pulling cover
+  // initials so a cookbook like "Wojcik 🌶️🥑🥬" doesn't try
+  // to render flame emoji on the book spine. Emoji stay on the
+  // text label everywhere else.
+  const stripEmoji = (s) =>
+    (s || "")
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F900}-\u{1F9FF}\u{2700}-\u{27BF}️]/gu, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  const coverInitials = stripEmoji(cookbook.name)
     .split(/\s+/)
     .filter(w => w && !/^(the|a|an|of|&|and)$/i.test(w))
     .map(w => w.replace(/['']s$/i, "")[0] || "")
+    .filter(c => /[A-Za-z]/.test(c))
     .join("")
     .slice(0, 4)
     .toUpperCase();
@@ -177,10 +189,18 @@ export function CookbookPage({
       <div className="cookbook-page cookbook-manage" data-screen-label={`Manage: ${cookbook.name}`}>
         <button
           className="btn ghost"
-          onClick={fromAdmin && goToAdmin ? goToAdmin : exitManage}
+          onClick={
+            fromAdmin && goToAdmin
+              ? goToAdmin
+              : (fromLibrary && goToLibrary ? goToLibrary : exitManage)
+          }
           style={{ marginBottom: 16 }}
         >
-          <Icon name="chevL" /> {fromAdmin && goToAdmin ? "Back to admin page" : `Back to ${cookbook.name}`}
+          <Icon name="chevL" /> {
+            fromAdmin && goToAdmin
+              ? "Back to admin page"
+              : (fromLibrary && goToLibrary ? "Back to my cookbooks" : `Back to ${cookbook.name}`)
+          }
         </button>
 
         <div className="cookbook-segmented" role="tablist">
