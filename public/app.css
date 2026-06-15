@@ -2198,16 +2198,8 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   overflow-y: visible;
   scrollbar-width: thin;
 }
-.shelf::after {
-  /* The wooden shelf board the books sit on. */
-  content: "";
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 10px;
-  background: linear-gradient(to bottom, #6b4f33 0%, #4d3724 100%);
-  border-radius: 2px;
-  box-shadow: 0 4px 8px -2px rgba(0,0,0,.25);
-}
+/* Wooden shelf board removed per Trisha's note — the books just
+   sit on the row's baseline with no painted shelf underneath. */
 
 /* Default book color when the cookbook hasn't picked one. */
 .book {
