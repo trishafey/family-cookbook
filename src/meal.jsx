@@ -68,7 +68,7 @@ export function BuildAMeal({ recipes, selection, clearSelection, toggleSelect, o
 
       <div className="page-header">
         <div className="eyebrow">Multi-select mode</div>
-        <h1><em>Build a meal</em></h1>
+        <h1>Build a <em>meal</em></h1>
         <div className="intro">
           Pick the courses, we'll merge the shopping lists and stagger the cook times.
         </div>
