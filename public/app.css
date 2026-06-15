@@ -2223,15 +2223,26 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .book.drag-over .book-cover-body { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ── Spine ── narrow vertical book with the title running
-   bottom-to-top. */
-.book-spine { width: 56px; height: 300px; }
+   bottom-to-top. Width + height vary per-book based on recipe
+   count so a busy cookbook reads as fatter and a bit taller —
+   the JSX passes width/height as inline style. The shelf
+   align-items:flex-end means the books all sit on the same
+   baseline regardless of height. */
+.book-spine {
+  /* Fallback values for cookbooks that haven't computed a size
+     yet (loading state, etc.). The JSX overrides these. */
+  width: 52px;
+  height: 280px;
+}
 .book-spine-body {
   position: relative;
   width: 100%; height: 100%;
   background: var(--book-color);
   color: #fff;
   border: 0;
-  border-radius: 2px 4px 4px 2px;
+  /* Same corner treatment as the cover-facing book: tight on
+     the spine (left) side, softer on the open (right) side. */
+  border-radius: 2px 8px 8px 2px;
   padding: 14px 4px 18px;
   display: flex;
   align-items: center; justify-content: center;

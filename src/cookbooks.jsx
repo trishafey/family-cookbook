@@ -1741,6 +1741,19 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
           const role = cb.yourRole || "viewer";
           const isActive = cb.id === activeCookbookId;
           const cssColor = cb.coverColor ? { "--book-color": cb.coverColor } : undefined;
+          // Spine thickness scales with recipe count (busy cookbook
+          // reads as fatter); height is a stable pseudo-random
+          // value derived from the cookbook id so each spine on
+          // the shelf has a slightly different stature — like a
+          // real shelf where books vary in height — but a given
+          // cookbook always renders the same height.
+          const recipeCount = cb.recipeCount || 0;
+          const thickness = Math.round(42 + Math.min(recipeCount, 120) * 0.4); // 42 – 90px
+          const idHash = (cb.id || "").split("").reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+          const spineHeight = 250 + (idHash % 72); // 250 – 321px, deterministic
+          const bookStyle = coverFacing
+            ? cssColor
+            : { ...(cssColor || {}), width: `${thickness}px`, height: `${spineHeight}px` };
           const cardClass = [
             "book",
             coverFacing ? "book-cover" : "book-spine",
@@ -1772,7 +1785,7 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
             },
           } : {};
           return (
-            <div key={cb.id} className={cardClass} style={cssColor} {...dragHandlers}>
+            <div key={cb.id} className={cardClass} style={bookStyle} {...dragHandlers}>
               {coverFacing ? (
                 <button
                   type="button"
