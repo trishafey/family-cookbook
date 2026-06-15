@@ -1495,12 +1495,13 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   padding: 0;
 }
 /* Browse's first section-head ("Family favorites") has an inline
-   marginTop: 48 — that's right when Browse is the whole page,
-   but inside the cookbook's Recipes tab it stacks on top of the
-   24px tab-body margin and pushes the eyebrow way down. Reset it
-   so Recipes / Members / Settings all start at the same offset
-   below the segmented toggle. */
-.cookbook-recipes-tab .section-head { margin-top: 0 !important; }
+   marginTop: 48 — fine on its own, but inside the cookbook page
+   it stacks on top of the search-bar margin and pushes the
+   eyebrow way down. Zero the *first* section's top margin only;
+   subsequent sections still get their inline marginTop: 64 so
+   there's clear breathing room between "Family favorites" and
+   "The deeper shelves". */
+.cookbook-recipes-tab .section-head:first-of-type { margin-top: 0 !important; }
 
 @media (max-width: 720px) {
   /* Mobile drops the book entirely — the info column has the
@@ -1526,8 +1527,12 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   .cookbook-recipes-tab .section-head .rhs { display: none; }
   /* Recipe grid collapses to one column on mobile so a section
      with an odd recipe count doesn't leave an obvious empty
-     cell on the right of the last row. */
+     cell on the right of the last row. Single-column cards get
+     a bigger title since they have the full width to stretch
+     into — keeps the type feeling editorial instead of a tiny
+     2-up label. */
   .cookbook-recipes-tab .grid { grid-template-columns: 1fr; }
+  .cookbook-recipes-tab .card .title { font-size: 26px; line-height: 1.18; }
   /* Mobile: segmented Recipes / Members / Settings toggle
      stretches edge-to-edge so each segment is a comfortable
      tap target. Cookbook-scoped search (with the inline filter
