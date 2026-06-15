@@ -855,6 +855,52 @@ app.get("/api/admin/cookbooks/:cookbookId/recipes", async (c) => {
   return c.json(recipes);
 });
 
+// Public-cookbook directory. Returns every cookbook with
+// visibility = 'public', plus its owner + recipe count, ordered
+// by most recipes first. Used by the Discover page; authenticated
+// so we can later layer in a "follow" relationship + filter out
+// cookbooks the caller already owns / is a member of.
+app.get("/api/admin/cookbooks/public", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  await c.env.DB.prepare(
+    "ALTER TABLE cookbooks ADD COLUMN cover_color TEXT"
+  ).run().catch(() => {});
+  const q = (c.req.query("q") || "").trim().toLowerCase();
+  const rows = await c.env.DB.prepare(
+    `SELECT c.id, c.owner_email, c.name, c.slug, c.blurb,
+            c.cover_photo, c.cover_color, c.languages,
+            (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
+            (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count,
+            u.display_name AS owner_name
+     FROM cookbooks c
+     LEFT JOIN users u ON u.email = c.owner_email
+     WHERE c.visibility = 'public'
+     ORDER BY recipe_count DESC, c.name ASC`
+  ).all();
+  const all = (rows.results || []).map(r => ({
+    id: r.id,
+    name: r.name,
+    slug: r.slug,
+    blurb: r.blurb || "",
+    coverPhoto: r.cover_photo || null,
+    coverColor: r.cover_color || null,
+    languages: r.languages ? JSON.parse(r.languages) : ["en"],
+    ownerEmail: r.owner_email,
+    ownerName: r.owner_name || null,
+    memberCount: r.member_count || 0,
+    recipeCount: r.recipe_count || 0,
+  }));
+  const filtered = q
+    ? all.filter(cb =>
+        cb.name?.toLowerCase().includes(q) ||
+        cb.blurb?.toLowerCase().includes(q) ||
+        cb.ownerName?.toLowerCase().includes(q)
+      )
+    : all;
+  return c.json({ cookbooks: filtered });
+});
+
 // Aggregate read across every cookbook the caller is a member
 // of (plus any they have admin access to). Used by the
 // cross-cookbook "Build a meal" flow so the cook can pick

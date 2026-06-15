@@ -15,6 +15,7 @@ import { ExperimentationLab } from "./experiment.jsx";
 import { CookbooksIndex } from "./cookbooks.jsx";
 import { InviteAccept } from "./invite.jsx";
 import { Notifications } from "./notifications.jsx";
+import { Discover } from "./discover.jsx";
 import { ProfileSetupGate, PendingApprovalGate } from "./profile.jsx";
 import { AccountSettings, AdminPage } from "./settings.jsx";
 import { SignedOutLanding } from "./landing.jsx";
@@ -922,6 +923,7 @@ function App() {
                 notificationCount={notificationCount}
                 onToggleSimpleMode={() => setSimpleMode(m => !m)}
                 onMyCookbooks={() => setView("cookbooks")}
+                onDiscover={() => setView("discover")}
                 onNotifications={() => setView("notifications")}
                 onSettings={() => setView("settings")}
                 onAdmin={() => setView("admin")}
@@ -1192,6 +1194,12 @@ function App() {
           onOpenCookbook={(cookbookId) => { setActiveCookbookId(cookbookId); setView("cookbooks"); window.scrollTo(0, 0); }}
         />
       )}
+      {view === "discover" && (
+        <Discover
+          onClose={backToBrowse}
+          onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); goToCookbook(cb.slug || cb.id); }}
+        />
+      )}
       {view === "settings" && (
         <AccountSettings
           profile={profile}
@@ -1281,6 +1289,7 @@ function App() {
         onOpenMeal={() => setView("meal")}
         onOpenLab={() => setView("lab")}
         onOpenMyCookbooks={FLAGS.cookbooks ? () => setView("cookbooks") : undefined}
+        onOpenDiscover={() => setView("discover")}
         onOpenNotifications={() => setView("notifications")}
         onOpenSettings={() => setView("settings")}
         onOpenAdmin={effectiveIsAdmin ? () => setView("admin") : undefined}
@@ -1437,7 +1446,7 @@ function MobileMenuDrawer({
   open, onClose,
   authEmail, simpleMode, onToggleSimpleMode,
   onOpenAdd, onOpenMeal, onOpenLab,
-  onOpenMyCookbooks, onOpenNotifications, onOpenSettings, onOpenAdmin,
+  onOpenMyCookbooks, onOpenDiscover, onOpenNotifications, onOpenSettings, onOpenAdmin,
   isSystemAdmin, pendingCount = 0, notificationCount = 0,
   cookbooks = [], activeCookbookId, onSwitchCookbook,
   currentView,
@@ -1519,6 +1528,12 @@ function MobileMenuDrawer({
                 <span>Cookbooks</span>
               </button>
             )}
+            {onOpenDiscover && (
+              <button className={`mobile-menu-item ${currentView === "discover" ? "active" : ""}`} onClick={() => go(onOpenDiscover)}>
+                <Icon name="search" size={18} />
+                <span>Discover</span>
+              </button>
+            )}
             {onOpenNotifications && (
               <button className={`mobile-menu-item ${currentView === "notifications" ? "active" : ""}`} onClick={() => go(onOpenNotifications)}>
                 <Icon name="comment" size={18} />
@@ -1564,7 +1579,7 @@ function MobileMenuDrawer({
   );
 }
 
-function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 0, notificationCount = 0, onToggleSimpleMode, onMyCookbooks, onNotifications, onSettings, onAdmin }) {
+function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 0, notificationCount = 0, onToggleSimpleMode, onMyCookbooks, onDiscover, onNotifications, onSettings, onAdmin }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const initial = (email[0] || "?").toUpperCase();
@@ -1615,6 +1630,16 @@ function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 
               style={itemBtnStyle}
             >
               Cookbooks
+            </button>
+          )}
+          {onDiscover && (
+            <button
+              type="button"
+              className="item"
+              onClick={() => { setOpen(false); onDiscover(); }}
+              style={itemBtnStyle}
+            >
+              Discover
             </button>
           )}
           {onNotifications && (

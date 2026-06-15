@@ -712,6 +712,7 @@ function parsePath(p) {
   if (p === "/meal-plan" || p === "/meal-plan/") return { view: "meal-plan", recipeId: null, editingId: null };
   if (p === "/lab" || p === "/lab/") return { view: "lab", recipeId: null, editingId: null };
   if (p === "/cookbooks" || p === "/cookbooks/") return { view: "cookbooks", recipeId: null, editingId: null };
+  if (p === "/discover" || p === "/discover/") return { view: "discover", recipeId: null, editingId: null };
   const cookbookPage = p.match(/^\/cookbook\/([^\/]+)(?:\/([^\/]+))?\/?$/);
   if (cookbookPage) {
     return {
@@ -747,6 +748,7 @@ function buildPath({ view, recipeId, editingId, inviteToken, cookbookSlug, cookb
     case "meal-plan":       return "/meal-plan";
     case "lab":             return "/lab";
     case "cookbooks":       return "/cookbooks";
+    case "discover":        return "/discover";
     case "notifications":   return "/notifications";
     case "settings":        return "/settings";
     case "admin":           return "/admin";
