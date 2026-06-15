@@ -300,8 +300,10 @@ function LabChat({
   cookPrefs,
   onClose,
   onPersist,              // (draftToSave, chatToSave, status?) → Promise<id>
-  onPromote,              // (recipe) → void  — adds to cookbook
+  onPromote,              // (recipe, cookbookId?) → void  — adds to cookbook
   onCookThis,             // (draft) → void  — open cook mode
+  userCookbooks = [],
+  activeCookbookId,
 }) {
   const [chat, setChat] = useState(experiment?.chat || []);
   const [text, setText] = useState("");
@@ -466,9 +468,24 @@ function LabChat({
     "Vegetarian Sunday dinner the kids will eat",
   ];
 
+  // Writable destinations for the "Promote to cookbook" picker.
+  // Defaults to the cookbook the cook came in from (activeCookbookId)
+  // when it's one they can write to; falls back to the first
+  // writable cookbook otherwise.
+  const writableCookbooks = (userCookbooks || []).filter(
+    c => c.yourRole === "owner" || c.yourRole === "editor" || c.yourRole === "admin" || c.adminAccess
+  );
+  const defaultTarget = writableCookbooks.find(c => c.id === activeCookbookId) || writableCookbooks[0] || null;
+  const [promoteTarget, setPromoteTarget] = useState(defaultTarget?.id || null);
+  // Keep the picker in sync when the writable list resolves
+  // after first render.
+  useEffect(() => {
+    if (!promoteTarget && defaultTarget) setPromoteTarget(defaultTarget.id);
+  }, [defaultTarget, promoteTarget]);
+
   const promote = () => {
     if (!latestDraft) return;
-    onPromote(draftToRecipe(latestDraft, "promoted"));
+    onPromote(draftToRecipe(latestDraft, "promoted"), promoteTarget || undefined);
   };
 
   return (
@@ -495,10 +512,27 @@ function LabChat({
               >
                 <Icon name="sparkle" size={13} /> {suggesting ? "Thinking…" : "What to try next"}
               </button>
-              {experiment?.status !== "promoted" && (
-                <button className="btn accent sm" onClick={promote}>
-                  <Icon name="check" size={14} /> Promote to cookbook
-                </button>
+              {experiment?.status !== "promoted" && writableCookbooks.length > 0 && (
+                <div className="lab-promote-row">
+                  {writableCookbooks.length > 1 && (
+                    <select
+                      className="lab-promote-target"
+                      value={promoteTarget || ""}
+                      onChange={(e) => setPromoteTarget(e.target.value)}
+                      title="Pick which cookbook to promote into"
+                    >
+                      {writableCookbooks.map(cb => (
+                        <option key={cb.id} value={cb.id}>{cb.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  <button className="btn accent sm" onClick={promote}>
+                    <Icon name="check" size={14} />
+                    {writableCookbooks.length > 1
+                      ? "Promote"
+                      : `Promote to ${writableCookbooks[0]?.name || "cookbook"}`}
+                  </button>
+                </div>
               )}
             </>
           )}
@@ -689,7 +723,7 @@ function LabChat({
 // ─────────────────────────────────────────────────────────────
 // ExperimentationLab — the index page
 // ─────────────────────────────────────────────────────────────
-export function ExperimentationLab({ onClose, onPromote, openCook, allRecipes, authEmail }) {
+export function ExperimentationLab({ onClose, onPromote, openCook, allRecipes, authEmail, userCookbooks = [], activeCookbookId }) {
   const [experiments, setExperiments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(null); // null | "__new__" | { ...experiment }
@@ -769,8 +803,8 @@ export function ExperimentationLab({ onClose, onPromote, openCook, allRecipes, a
     } catch {}
   };
 
-  const promoteActive = async (recipe) => {
-    onPromote(recipe);
+  const promoteActive = async (recipe, cookbookId) => {
+    onPromote(recipe, cookbookId);
     if (active && active !== "__new__") {
       try {
         await fetch(`/api/admin/lab/experiments/${active.id}`, {
@@ -816,6 +850,8 @@ export function ExperimentationLab({ onClose, onPromote, openCook, allRecipes, a
         onPersist={persistActive}
         onPromote={promoteActive}
         onCookThis={cookThis}
+        userCookbooks={userCookbooks}
+        activeCookbookId={activeCookbookId}
       />
     );
   }

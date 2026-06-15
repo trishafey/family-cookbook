@@ -596,7 +596,7 @@ function App() {
   // /api/admin/recipes/:id. Refreshes the cached list so the change
   // shows up everywhere immediately. Throws on failure so the form
   // can render the error inline.
-  const onSaveRecipe = async (draft) => {
+  const onSaveRecipe = async (draft, cookbookIdOverride) => {
     // A "legacy" entry exists only in extraRecipes localStorage. Saving
     // such an entry POSTs it as new (effectively migrating to D1) then
     // strips it from localStorage. Server-stored entries update via PATCH.
@@ -607,8 +607,11 @@ function App() {
     // Phase 4b-3: stamp the active cookbook on new drafts so the
     // server scopes the write correctly. Updates keep their
     // existing cookbook_id — the recipe doesn't move between
-    // cookbooks on edit.
-    const body = isUpdate ? draft : { ...draft, cookbookId: activeCookbookId };
+    // cookbooks on edit. Callers (e.g. the lab's "Promote to
+    // cookbook" dropdown) can override the destination cookbook
+    // by passing a second argument.
+    const destCookbookId = cookbookIdOverride || activeCookbookId;
+    const body = isUpdate ? draft : { ...draft, cookbookId: destCookbookId };
     const res = await fetch(url, {
       method,
       credentials: "include",
@@ -1049,6 +1052,8 @@ function App() {
           openCook={openCook}
           allRecipes={recipes}
           authEmail={authEmail}
+          userCookbooks={effectiveUserCookbooks}
+          activeCookbookId={activeCookbookId}
         />
       )}
       {FLAGS.cookbooks && view === "cookbooks" && (
