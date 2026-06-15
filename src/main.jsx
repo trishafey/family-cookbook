@@ -885,7 +885,7 @@ function App() {
             <Icon name="menu" size={22} />
             {selection.length > 0 && <span className="hamburger-badge">{selection.length}</span>}
           </button>
-          <div className="brand" onClick={backToBrowse}>
+          <div className="brand" onClick={() => { setView("cookbooks"); window.scrollTo(0, 0); }}>
             <img className="brand-logo" src="/images/heirloom-tomato-long.png" alt="Heirloom" />
             <img className="brand-mark" src="/images/heirloom-tomato-h.PNG" alt="Heirloom" />
           </div>
