@@ -768,6 +768,16 @@ function AuthorPicker({ members, selected, onChange, authEmail }) {
     || (m?.displayName ? m.displayName.split(" ")[0] : null)
     || (m?.email ? m.email.split("@")[0] : null)
     || "(unknown)";
+  // Full "First Last" — shown in the dropdown menu so emails
+  // don't leak into the cookbook UI. Falls back to display name
+  // / first name when last name is missing.
+  const fullName = (m) => {
+    const first = m?.firstName;
+    const last = m?.lastName;
+    if (first && last) return `${first} ${last}`;
+    if (m?.displayName) return m.displayName;
+    return firstName(m);
+  };
 
   // Sort: current cook first, then alpha by first name.
   const sorted = useMemo(() => {
@@ -827,10 +837,9 @@ function AuthorPicker({ members, selected, onChange, authEmail }) {
                 onChange={() => toggle(m.email)}
               />
               <span className="name">
-                {firstName(m)}
+                {fullName(m)}
                 {m.email === authEmail && <span className="self">you</span>}
               </span>
-              <span className="email">{m.email}</span>
             </label>
           ))}
         </div>

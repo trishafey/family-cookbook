@@ -2933,6 +2933,16 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   padding: 36px 32px;
   box-shadow: 0 24px 64px -32px rgba(28,24,19,.18);
 }
+.pending-still-waiting {
+  margin-top: 18px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--accent-cool, #6e7a3a) 10%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--accent-cool, #6e7a3a) 28%, transparent);
+  border-radius: var(--radius);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
 .profile-card .eyebrow {
   font-family: var(--mono); font-size: 11px;
   letter-spacing: 0.14em; text-transform: uppercase;

@@ -2,7 +2,26 @@
 // Hit after sign-up if Patricia hasn't approved them. Shows the
 // pending state, lets them sign out, and refreshes itself so an
 // approved user doesn't have to manually reload.
+import { useState } from "react";
 export function PendingApprovalGate({ authEmail, refreshProfile }) {
+  // Tracks whether the cook has tapped "Check status" at least
+  // once. If they have AND the gate is still rendering (i.e.
+  // status is still pending), we surface a soft "still waiting"
+  // message with a nudge to ping their inviter rather than
+  // tapping forever in silence.
+  const [checked, setChecked] = useState(false);
+  const [checking, setChecking] = useState(false);
+
+  const check = async () => {
+    setChecking(true);
+    try {
+      await refreshProfile();
+    } finally {
+      setChecking(false);
+      setChecked(true);
+    }
+  };
+
   return (
     <div className="profile-gate" data-screen-label="10b Pending approval">
       <div className="profile-card">
@@ -14,9 +33,14 @@ export function PendingApprovalGate({ authEmail, refreshProfile }) {
         <p className="sub" style={{ marginTop: 12, fontSize: 14, color: "var(--ink-3)" }}>
           Signed in as <strong>{authEmail}</strong>.
         </p>
+        {checked && (
+          <div className="pending-still-waiting">
+            Still pending — Patricia hasn't approved your account yet. Try again in a little while, or give whoever invited you a nudge to remind them.
+          </div>
+        )}
         <div className="actions" style={{ justifyContent: "flex-start", gap: 8 }}>
-          <button type="button" className="btn primary" onClick={refreshProfile}>
-            Check status
+          <button type="button" className="btn primary" onClick={check} disabled={checking}>
+            {checking ? "Checking…" : "Check status"}
           </button>
           <a className="btn ghost" href="/cdn-cgi/access/logout">Sign out</a>
         </div>
