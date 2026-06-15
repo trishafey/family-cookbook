@@ -1540,23 +1540,10 @@ function MobileMenuDrawer({
           </button>
         </header>
 
-        {/* Cookbook switcher — replaces the top-nav inline dropdown
-            on mobile (hidden via CSS at this breakpoint). Collapsible:
-            the trigger always shows the active cookbook name; tap
-            to expand and pick another. Renders only when the cook
-            is a member of 2+ cookbooks. */}
-        {authEmail && cookbooks && cookbooks.length >= 1 && onSwitchCookbook && (
-          <section className="mobile-menu-section">
-            <div className="mobile-menu-section-title">Cookbook</div>
-            <CookbookSubmenu
-              cookbooks={cookbooks}
-              activeCookbookId={activeCookbookId}
-              onSwitchCookbook={onSwitchCookbook}
-              onOpenMyCookbooks={onOpenMyCookbooks}
-              go={go}
-            />
-          </section>
-        )}
+        {/* Cookbook switcher removed from the mobile drawer — the
+            shelf on /cookbooks is the canonical surface for
+            switching between books now, and the top-nav
+            "My cookbooks" entry below takes the cook there. */}
 
         {!simpleMode && (
           <section className="mobile-menu-section">
