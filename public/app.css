@@ -1478,6 +1478,14 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   box-shadow: 0 1px 3px rgba(0,0,0,.06), inset 0 0 0 1px var(--rule);
 }
 .cookbook-tab-body { margin-top: 24px; }
+/* Manage view (/cookbook/<slug>/settings|members): force the
+   segmented toggle onto its own line under the back-to-cookbook
+   button instead of sharing the row with it. */
+.cookbook-manage .cookbook-segmented {
+  display: flex;
+  width: fit-content;
+  margin-top: 4px;
+}
 .cookbook-recipes-tab { margin-top: 24px; }
 /* Browse's own .app wrapper adds an extra 32/28 padding band that
    pushes the recipe cards inward from the cookbook page's own
