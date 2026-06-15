@@ -904,10 +904,14 @@ export const Icon = ({ name, size = 18 }) => {
     save:      <><path d="M7 4 H17 V20 L12 16 L7 20 Z" /><path d="M12 8 C10.6 8 9.6 9 9.6 10.4 C11 10.4 12 9.4 12 8 Z" /></>,
     favourite: <><path d="M12 20 C5 15.5 3 12 3 8.6 A4.4 4.4 0 0 1 12 7 A4.4 4.4 0 0 1 21 8.6 C21 12 19 15.5 12 20 Z" /><path d="M12 20.5 V10.5" /><path d="M12 14 L8.6 11.2 M12 14 L15.4 11.2 M12 17 L9.6 14.8 M12 17 L14.4 14.8" /></>,
     simpleView: <path d="M8 18v-6a4 4 0 0 1 8 0c0 2.4-1.8 3.8-3.4 3.2C11 14.6 11 12.4 12.6 12" />,
-    // Discover — open archway / open book silhouette. Lives in
-    // the top nav as the entry point to the public cookbook
+    // Discover — compass face. Circle with a diamond needle
+    // pointing NE→SW; reads as "find your way" / directory. Lives
+    // in the top nav as the entry point to the public cookbook
     // directory.
-    discover:  <path d="M6.5 19v-5a5.5 5.5 0 0 1 11 0v5" />,
+    discover:  <>
+                 <circle cx="12" cy="12" r="8.5" />
+                 <path d="M15.5 8.5 13.2 13.2 8.5 15.5 10.8 10.8 15.5 8.5Z" />
+               </>,
     // Invite-cook glyph — chef hat with a plus mark. Used on
     // the "Invite cook" button so it reads as "add a cook"
     // rather than just "cook".
