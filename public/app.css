@@ -1183,9 +1183,11 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
    colour, radii. Only the new bookmark ribbon, pill row, and
    segmented toggle get fresh styling rules. */
 .cookbook-page {
-  max-width: 1120px;
+  /* Match the cookbook library's container so every top-level
+     page settles on the same left + right margins. */
+  max-width: var(--content-max);
   margin: 0 auto;
-  padding: 24px 24px 80px;
+  padding: 32px 28px 100px;
 }
 .cookbook-header {
   display: grid;
@@ -1962,9 +1964,9 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 
 /* Discover — public cookbook directory. */
 .discover-page {
-  max-width: 1120px;
+  max-width: var(--content-max);
   margin: 0 auto;
-  padding: 24px 24px 80px;
+  padding: 32px 28px 100px;
 }
 .discover-header { margin-bottom: 18px; }
 .discover-header h1 {
@@ -3783,9 +3785,9 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 
 /* ─── Notifications page (/notifications) ─── */
 .notifications-page {
-  max-width: 720px;
-  margin: 40px auto 80px;
-  padding: 0 20px;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 32px 28px 100px;
 }
 .notifications-header { margin-bottom: 24px; }
 .notifications-header .page-title {
@@ -4457,7 +4459,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 
 /* ─── Account settings + Admin users ─── */
 .settings-page {
-  max-width: 720px;
+  max-width: var(--content-max);
   margin: 0 auto;
   padding: 32px 28px 100px;
 }
