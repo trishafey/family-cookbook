@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { Icon, SIGN_OUT_URL } from "./helpers.jsx";
 import { AdminAIUsage } from "./admin-ai-usage.jsx";
+import { AdminCookbooksTab } from "./cookbooks.jsx";
 
 export function AccountSettings({ profile, refreshProfile, onClose, saveProfile }) {
   const [firstName, setFirstName] = useState(profile?.firstName || "");
@@ -594,7 +595,7 @@ function ViewAsTab({ viewAsRole, onSetViewAs }) {
 }
 
 // Admin page — tabbed. Lives at /admin. Users · View as · AI usage.
-export function AdminPage({ authEmail, onClose, viewAsRole, onSetViewAs, initialTab = "users" }) {
+export function AdminPage({ authEmail, onClose, viewAsRole, onSetViewAs, activeCookbookId, onOpenCookbook, initialTab = "users" }) {
   const [tab, setTab] = useState(initialTab);
   return (
     <div className="settings-page" data-screen-label="12 Admin">
@@ -609,11 +610,19 @@ export function AdminPage({ authEmail, onClose, viewAsRole, onSetViewAs, initial
 
       <div className="tabbed-nav admin-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === "users"} className={`tab ${tab === "users" ? "active" : ""}`} onClick={() => setTab("users")}>Users</button>
+        <button type="button" role="tab" aria-selected={tab === "cookbooks"} className={`tab ${tab === "cookbooks" ? "active" : ""}`} onClick={() => setTab("cookbooks")}>Cookbooks</button>
         <button type="button" role="tab" aria-selected={tab === "view-as"} className={`tab ${tab === "view-as" ? "active" : ""}`} onClick={() => setTab("view-as")}>View as</button>
         <button type="button" role="tab" aria-selected={tab === "ai-usage"} className={`tab ${tab === "ai-usage" ? "active" : ""}`} onClick={() => setTab("ai-usage")}>AI usage</button>
       </div>
 
       {tab === "users" && <AdminUsersTab authEmail={authEmail} />}
+      {tab === "cookbooks" && (
+        <AdminCookbooksTab
+          authEmail={authEmail}
+          activeCookbookId={activeCookbookId}
+          onOpenCookbook={onOpenCookbook}
+        />
+      )}
       {tab === "view-as" && (
         <ViewAsTab viewAsRole={viewAsRole} onSetViewAs={onSetViewAs} />
       )}

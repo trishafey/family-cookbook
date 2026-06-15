@@ -1076,6 +1076,8 @@ function App() {
           authEmail={authEmail}
           viewAsRole={viewAsRole}
           onSetViewAs={setViewAsRole}
+          activeCookbookId={activeCookbookId}
+          onOpenCookbook={(cb) => { setActiveCookbookId(cb.id); backToBrowse(); }}
           onClose={backToBrowse}
         />
       )}

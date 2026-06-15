@@ -74,7 +74,7 @@ function buildInviteMessage(cookbookName, inviteEmail, link) {
 // Admin · all cookbooks — searchable table covering every
 // cookbook in the system. Used in the "My cookbooks" view for
 // admins; for non-admins the underlying section just hides.
-function AdminCookbookTable({ cookbooks, activeCookbookId, authEmail, onOpenCookbook, onEdit }) {
+export function AdminCookbookTable({ cookbooks, activeCookbookId, authEmail, onOpenCookbook, onEdit }) {
   const [q, setQ] = useState("");
   const filtered = cookbooks.filter(c => {
     if (!q.trim()) return true;
@@ -759,7 +759,7 @@ function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers, onMemb
   );
 }
 
-function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, onSaved, onDeleted, onMembersChanged }) {
+export function EditCookbookModal({ cookbook, initialTab, authEmail, isAdmin, onClose, onSaved, onDeleted, onMembersChanged }) {
   // Settings tab + danger zone are owner / admin only — editors
   // see Members tab only (they can invite, can't rename, can't
   // delete). canSettings drives both the tab visibility and the
@@ -1250,23 +1250,9 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
                 <div className="cookbooks-grid">{shared.map(renderCard)}</div>
               </section>
             )}
-            {/* Admin · all cookbooks — table view of every
-                cookbook in the system. Replaces the previous
-                card-grid "Admin access" section so we can scan
-                + search a long list. Only renders when there's
-                at least one cookbook the cook is touching via
-                admin access (i.e. they're an admin). */}
-            {adminAccess.length > 0 && (
-              <section className="cookbook-section">
-                <AdminCookbookTable
-                  cookbooks={cookbooks}
-                  activeCookbookId={activeCookbookId}
-                  authEmail={authEmail}
-                  onOpenCookbook={onOpenCookbook}
-                  onEdit={(cb) => setEditing({ cookbook: cb })}
-                />
-              </section>
-            )}
+            {/* Admin · all cookbooks moved to /admin → "Cookbooks"
+                tab so the cookbooks index stays focused on the
+                cook's own library. */}
           </>
         );
       })()}
@@ -1299,5 +1285,65 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
         />
       )}
     </div>
+  );
+}
+
+// Admin tab — fetches every cookbook in the system and shows
+// them via the searchable AdminCookbookTable. Owners get the
+// edit-modal dialog wired in too so admins can rename, manage
+// members, or delete from one place.
+export function AdminCookbooksTab({ authEmail, activeCookbookId, onOpenCookbook }) {
+  const [cookbooks, setCookbooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [editing, setEditing] = useState(null);
+
+  const load = async () => {
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/cookbooks", { credentials: "include" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { cookbooks: list } = await res.json();
+      setCookbooks(list || []);
+    } catch (err) {
+      setError("Could not load cookbooks.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  if (loading) return <div style={{ marginTop: 24, color: "var(--ink-3)" }}>Loading cookbooks…</div>;
+  if (error) return <div className="cookbooks-empty" style={{ color: "#933" }}>{error}</div>;
+
+  return (
+    <>
+      <AdminCookbookTable
+        cookbooks={cookbooks}
+        activeCookbookId={activeCookbookId}
+        authEmail={authEmail}
+        onOpenCookbook={onOpenCookbook}
+        onEdit={(cb) => setEditing({ cookbook: cb })}
+      />
+      {editing && (
+        <EditCookbookModal
+          cookbook={editing.cookbook}
+          initialTab={editing.tab || "settings"}
+          authEmail={authEmail}
+          isAdmin={true}
+          onClose={() => setEditing(null)}
+          onSaved={(updated) => {
+            setEditing(null);
+            setCookbooks(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
+          }}
+          onDeleted={(id) => {
+            setEditing(null);
+            setCookbooks(prev => prev.filter(c => c.id !== id));
+          }}
+          onMembersChanged={load}
+        />
+      )}
+    </>
   );
 }
