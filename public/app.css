@@ -1880,6 +1880,23 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   color: var(--ink-3);
   display: grid; place-items: center;
 }
+/* Custom-colour picker — looks like a swatch but houses a
+   hidden native <input type="color"> so the cook gets the OS
+   colour grid. A conic rainbow ring hints at "any colour" when
+   no custom value is set yet. */
+.cb-color-swatch.custom {
+  display: grid; place-items: center;
+  background: conic-gradient(from 180deg, #b04a2a, #8a6b35, #6e7a3a, #2c5e4f, #3f5a6e, #5e3a52, #a8456b, #b04a2a);
+  color: var(--paper);
+  overflow: hidden;
+}
+.cb-color-swatch.custom input[type="color"] {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  border: 0; padding: 0; margin: 0;
+  cursor: pointer;
+}
 .cb-settings-actions {
   display: flex; gap: 8px;
   margin-top: 12px;

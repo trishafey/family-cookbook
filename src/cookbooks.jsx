@@ -970,6 +970,7 @@ export const COVER_COLORS = [
   { value: "#2c5e4f", label: "Pine" },
   { value: "#8a6b35", label: "Mustard" },
   { value: "#3a3a3a", label: "Graphite" },
+  { value: "#a8456b", label: "Rose" },
 ];
 
 export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, onCancel }) {
@@ -1201,6 +1202,18 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
                   title={c.label}
                 />
               ))}
+              <label
+                className={`cb-color-swatch custom ${coverColor && !COVER_COLORS.some(c => c.value === coverColor) ? "active" : ""}`}
+                title="Pick a custom colour"
+                style={coverColor && !COVER_COLORS.some(c => c.value === coverColor) ? { background: coverColor } : undefined}
+              >
+                <Icon name="plus" size={11} />
+                <input
+                  type="color"
+                  value={coverColor && !COVER_COLORS.some(c => c.value === coverColor) ? coverColor : "#7a3a52"}
+                  onChange={(e) => setCoverColor(e.target.value)}
+                />
+              </label>
               {coverColor && (
                 <button
                   type="button"
