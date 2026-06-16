@@ -506,6 +506,7 @@ export const LANG_META = {
   es:   { label: "Español (México)",   locale: "es-MX" },
   el:   { label: "Ελληνικά",           locale: "el-GR" },
   pt:   { label: "Português",          locale: "pt-PT" },
+  fil:  { label: "Filipino",           locale: "fil-PH" },
 };
 export const SUPPORTED_LANGS = Object.keys(LANG_META);
 

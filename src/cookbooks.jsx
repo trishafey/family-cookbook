@@ -21,6 +21,7 @@ const LANG_NATIONALITY = {
   es: "Mexican",
   el: "Greek",
   pt: "Portuguese",
+  fil: "Filipino",
 };
 
 // Multi-select language picker shared by Create + Edit cookbook

@@ -318,6 +318,7 @@ function EditUserModal({ user, onClose, onSaved, onDeleted }) {
               <option value="es">Español de México (Mexican Spanish)</option>
               <option value="el">Ελληνικά (Greek)</option>
               <option value="pt">Português (Portuguese)</option>
+              <option value="fil">Filipino</option>
             </select>
           </label>
           <label className="modal-field admin-toggle">

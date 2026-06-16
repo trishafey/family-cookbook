@@ -1801,6 +1801,7 @@ const FLAG_SRC = {
   es: "/images/flags/es.png",
   el: "/images/flags/el.jpg",
   pt: "/images/flags/pt.png",
+  fil: "/images/flags/fil.svg",
 };
 const FlagImg = ({ code }) => (
   <img

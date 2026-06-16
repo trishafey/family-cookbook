@@ -25,6 +25,7 @@ const FLAG_SRC = {
   es: "/images/flags/es.png",
   el: "/images/flags/el.jpg",
   pt: "/images/flags/pt.png",
+  fil: "/images/flags/fil.svg",
 };
 
 const LANG_NATIONALITY = {
@@ -34,6 +35,7 @@ const LANG_NATIONALITY = {
   es: "Mexican",
   el: "Greek",
   pt: "Portuguese",
+  fil: "Filipino",
 };
 
 export function CookbookPage({
