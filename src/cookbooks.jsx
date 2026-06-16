@@ -1850,21 +1850,31 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
             },
             onTouchStart: (e) => {
               if (e.touches.length !== 1) return;
+              const tch = e.touches[0];
               touchDragRef.current.suppressClick = false;
+              touchDragRef.current.startX = tch.clientX;
+              touchDragRef.current.startY = tch.clientY;
+              // 600ms long-press threshold — short enough to feel
+              // intentional, long enough that a regular tap that
+              // lingers a beat still resolves as a click.
               touchDragRef.current.longPressTimer = setTimeout(() => {
                 touchDragRef.current.id = cb.id;
                 touchDragRef.current.suppressClick = true;
                 setDraggedId(cb.id);
                 if (navigator.vibrate) try { navigator.vibrate(15); } catch {}
-              }, 260);
+              }, 600);
             },
             onTouchMove: (e) => {
               const t = touchDragRef.current;
               if (!t.id) {
-                // Finger moved before the long-press fired —
-                // assume the cook is just scrolling and abort
-                // the pending drag.
-                if (t.longPressTimer) { clearTimeout(t.longPressTimer); t.longPressTimer = null; }
+                // Cancel the pending drag if the finger moves
+                // more than 12px — that's a scroll, not a press.
+                const tch = e.touches[0];
+                const dx = Math.abs(tch.clientX - (t.startX || 0));
+                const dy = Math.abs(tch.clientY - (t.startY || 0));
+                if (dx > 12 || dy > 12) {
+                  if (t.longPressTimer) { clearTimeout(t.longPressTimer); t.longPressTimer = null; }
+                }
                 return;
               }
               e.preventDefault();
