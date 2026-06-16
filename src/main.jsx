@@ -1163,15 +1163,32 @@ function App() {
         );
       })()}
       {FLAGS.lab && view === "lab" && (
-        <ExperimentationLab
-          onClose={backToBrowse}
-          onPromote={onSaveRecipe}
-          openCook={openCook}
-          allRecipes={recipes}
-          authEmail={authEmail}
-          userCookbooks={effectiveUserCookbooks}
-          activeCookbookId={activeCookbookId}
-        />
+        profile?.isAdmin ? (
+          <ExperimentationLab
+            onClose={backToBrowse}
+            onPromote={onSaveRecipe}
+            openCook={openCook}
+            allRecipes={recipes}
+            authEmail={authEmail}
+            userCookbooks={effectiveUserCookbooks}
+            activeCookbookId={activeCookbookId}
+          />
+        ) : (
+          <div className="lab-page" data-screen-label="07 Lab (coming soon)">
+            <button className="btn ghost" onClick={backToBrowse} style={{ marginBottom: 16 }}>
+              <Icon name="chevL" /> Back to cookbook
+            </button>
+            <div className="lab-header">
+              <div className="lhs">
+                <div className="eyebrow">Kitchen experimentation</div>
+                <h1>The <em>Lab</em></h1>
+                <div className="intro">
+                  Kitchen Experimentation Lab is coming soon. We're still tuning the AI so it gives you recipes worth cooking — check back in a bit.
+                </div>
+              </div>
+            </div>
+          </div>
+        )
       )}
       {FLAGS.cookbooks && view === "cookbooks" && (
         <CookbooksIndex
