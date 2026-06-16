@@ -435,6 +435,29 @@ function App() {
   }, [recipes]);
   const recipe = recipes.find(r => r.id === recipeId);
 
+  // When a cook lands on /recipe/<id> for a recipe that isn't
+  // in their currently-active cookbook (typically a shared
+  // URL), ask the worker which cookbook owns it and switch.
+  // The recipe load re-runs against the new cookbook + the page
+  // re-renders normally. A ref keeps us from looping on a
+  // genuinely missing recipe.
+  const recipeSwitchAttemptedRef = useRef(new Set());
+  useEffect(() => {
+    if (view !== "recipe" || !recipeId || recipe) return;
+    if (recipeSwitchAttemptedRef.current.has(recipeId)) return;
+    recipeSwitchAttemptedRef.current.add(recipeId);
+    (async () => {
+      try {
+        const res = await fetch(`/api/admin/recipes/${encodeURIComponent(recipeId)}/cookbook`, { credentials: "include" });
+        if (!res.ok) return;
+        const { cookbookId: targetId } = await res.json();
+        if (targetId && targetId !== activeCookbookId) {
+          setActiveCookbookId(targetId);
+        }
+      } catch {}
+    })();
+  }, [view, recipeId, recipe, activeCookbookId]);
+
   // On-demand translation: when the cook lands on a recipe in a
   // language that doesn't have a stored translation yet, fire the
   // ensure-translation endpoint in the background and refetch when

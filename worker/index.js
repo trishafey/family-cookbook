@@ -1203,6 +1203,30 @@ app.get("/api/recipes/:id", async (c) => {
   return c.json(JSON.parse(row.blob));
 });
 
+// Locate which cookbook a recipe lives in. Used by the recipe
+// page when a cook lands on a shared URL whose recipe doesn't
+// belong to their currently-active cookbook — the client uses
+// this to switch into the right cookbook before rendering.
+// Requires the caller to either be a member of that cookbook or
+// for the cookbook to be public; otherwise 403.
+app.get("/api/admin/recipes/:id/cookbook", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const recipeId = c.req.param("id");
+  const row = await c.env.DB.prepare(
+    "SELECT cookbook_id FROM recipes WHERE id = ?"
+  ).bind(recipeId).first();
+  if (!row?.cookbook_id) return c.json({ error: "not found" }, 404);
+  const role = await cookbookRole(c, row.cookbook_id);
+  if (!role) {
+    const vis = await c.env.DB.prepare(
+      "SELECT visibility FROM cookbooks WHERE id = ?"
+    ).bind(row.cookbook_id).first();
+    if (vis?.visibility !== "public") return c.json({ error: "not a member" }, 403);
+  }
+  return c.json({ cookbookId: row.cookbook_id });
+});
+
 app.get("/api/setup", async (c) => {
   if (c.req.query("key") !== SETUP_KEY) {
     return c.json({ error: "forbidden" }, 403);
