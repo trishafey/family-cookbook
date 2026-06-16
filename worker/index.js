@@ -725,9 +725,13 @@ app.get("/api/admin/notifications", async (c) => {
   const now = new Date().toISOString();
   const rows = await c.env.DB.prepare(
     `SELECT i.token, i.cookbook_id, i.role, i.invited_by, i.created_at, i.expires_at,
-            cb.name AS cookbook_name, cb.blurb AS cookbook_blurb
+            cb.name AS cookbook_name, cb.blurb AS cookbook_blurb,
+            u.display_name AS invited_by_name,
+            u.first_name AS invited_by_first,
+            u.last_name AS invited_by_last
      FROM invitations i
      LEFT JOIN cookbooks cb ON cb.id = i.cookbook_id
+     LEFT JOIN users u ON LOWER(u.email) = LOWER(i.invited_by)
      WHERE LOWER(i.email) = LOWER(?)
        AND i.accepted_at IS NULL
        AND i.expires_at > ?
@@ -769,6 +773,9 @@ app.get("/api/admin/notifications", async (c) => {
       cookbookBlurb: r.cookbook_blurb,
       role: r.role,
       invitedBy: r.invited_by,
+      invitedByName: r.invited_by_name
+        || [r.invited_by_first, r.invited_by_last].filter(Boolean).join(" ")
+        || null,
       createdAt: r.created_at,
       expiresAt: r.expires_at,
     })),

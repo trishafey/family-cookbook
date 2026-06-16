@@ -149,7 +149,7 @@ export function Notifications({ authEmail, onOpenCookbook }) {
             <li key={inv.token} className="notification-card">
               <div className="notification-eyebrow">Cookbook invitation</div>
               <h3 className="notification-title">
-                <span className="from">{inv.invitedBy}</span> invited you to{" "}
+                <span className="from">{inv.invitedByName || inv.invitedBy}</span> invited you to{" "}
                 <strong>{inv.cookbookName || "a cookbook"}</strong>
               </h3>
               {inv.cookbookBlurb && (
