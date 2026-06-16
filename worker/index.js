@@ -1397,8 +1397,12 @@ const BOOTSTRAP_COOKBOOK_ID = "family-cookbook";
 async function cookbookRole(c, cookbookId) {
   const email = authedEmail(c);
   if (!email || !cookbookId) return null;
+  // Case-insensitive on the email — Cloudflare Access can return
+  // mixed case for the same identity across sessions, and older
+  // invite-accept paths wrote whatever case CF supplied. Compare
+  // with LOWER() so the lookup is robust to that drift.
   const memberRow = await c.env.DB.prepare(
-    "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
+    "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND LOWER(user_email) = LOWER(?)"
   ).bind(cookbookId, email).first();
   if (memberRow?.role) return memberRow.role;
   // Self-heal: if the caller is the cookbook's owner_email but
@@ -1409,7 +1413,7 @@ async function cookbookRole(c, cookbookId) {
   const ownerRow = await c.env.DB.prepare(
     "SELECT owner_email FROM cookbooks WHERE id = ?"
   ).bind(cookbookId).first();
-  if (ownerRow?.owner_email && ownerRow.owner_email === email) {
+  if (ownerRow?.owner_email && ownerRow.owner_email.toLowerCase() === email.toLowerCase()) {
     const now = new Date().toISOString();
     await c.env.DB.prepare(
       "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
@@ -1417,7 +1421,7 @@ async function cookbookRole(c, cookbookId) {
     return "owner";
   }
   const adminRow = await c.env.DB.prepare(
-    "SELECT is_admin FROM users WHERE email = ?"
+    "SELECT is_admin FROM users WHERE LOWER(email) = LOWER(?)"
   ).bind(email).first();
   return adminRow?.is_admin ? "admin" : null;
 }
