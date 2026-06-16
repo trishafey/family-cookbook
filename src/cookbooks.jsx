@@ -1615,7 +1615,7 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
       <div className="cookbooks-header">
         <div className="lhs">
           <div className="eyebrow">Your library</div>
-          <h1>My <em>cookbooks</em> on the shelf</h1>
+          <h1><em>Cookbooks</em> on the shelf</h1>
           <div className="intro">
             The cookbooks you own and the ones you've been invited to.
           </div>
