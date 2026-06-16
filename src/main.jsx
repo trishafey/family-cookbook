@@ -882,17 +882,6 @@ function App() {
       {/* ───── Top nav ───── */}
       <nav className="nav">
         <div className="nav-inner">
-          {/* Hamburger — DOM position is FIRST so it lands on
-              the left of the logo on mobile. Hidden via CSS on
-              tablet/desktop. */}
-          <button
-            className="nav-hamburger"
-            onClick={() => setMobileMenuOpen(true)}
-            aria-label="Menu"
-          >
-            <Icon name="menu" size={22} />
-            {selection.length > 0 && <span className="hamburger-badge">{selection.length}</span>}
-          </button>
           <div className="brand" onClick={() => { setView("cookbooks"); window.scrollTo(0, 0); }}>
             <img className="brand-logo" src="/images/heirloom-tomato-long.png" alt="Heirloom" />
             <img className="brand-mark" src="/images/heirloom-tomato-h.PNG" alt="Heirloom" />
@@ -973,6 +962,16 @@ function App() {
               </a>
             )}
           </div>
+          {/* Hamburger sits at the END so it lands on the right
+              of the nav on mobile. Hidden via CSS on desktop. */}
+          <button
+            className="nav-hamburger"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Menu"
+          >
+            <Icon name="menu" size={22} />
+            {selection.length > 0 && <span className="hamburger-badge">{selection.length}</span>}
+          </button>
         </div>
       </nav>
 
