@@ -172,25 +172,17 @@ app.get("/api/admin/cookbooks", async (c) => {
   });
 });
 
-// Cookbook details + members. Members get full data; signed-in
-// non-members get the same read-only data when the cookbook is
-// public (so the Discover-page click drops them straight onto a
-// follower-style view). Private cookbooks still 403.
+// Cookbook details + members. Members get their explicit role;
+// signed-in non-members get read-only "guest" access. The
+// platform treats any cookbook URL as a share token — private
+// just means it's not listed in Discover, not that the URL
+// is unreachable.
 app.get("/api/admin/cookbooks/:id", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const id = c.req.param("id");
   let role = await cookbookRole(c, id);
-  if (!role) {
-    const vis = await c.env.DB.prepare(
-      "SELECT visibility FROM cookbooks WHERE id = ?"
-    ).bind(id).first();
-    if (vis?.visibility === "public") {
-      role = "guest";
-    } else {
-      return c.json({ error: "not a member" }, 403);
-    }
-  }
+  if (!role) role = "guest";
   // Self-heal in case migration 0018 lags the deploy.
   await c.env.DB.prepare(
     "ALTER TABLE cookbooks ADD COLUMN languages TEXT"
@@ -254,11 +246,9 @@ app.get("/api/admin/cookbooks/by-slug/:slug", async (c) => {
   if (!email) return c.json({ error: "not signed in" }, 401);
   const slug = c.req.param("slug");
   const row = await c.env.DB.prepare(
-    "SELECT id, visibility FROM cookbooks WHERE slug = ?"
+    "SELECT id FROM cookbooks WHERE slug = ?"
   ).bind(slug).first();
   if (!row) return c.json({ error: "not found" }, 404);
-  const role = await cookbookRole(c, row.id);
-  if (!role && row.visibility !== "public") return c.json({ error: "not a member" }, 403);
   return c.json({ id: row.id });
 });
 
@@ -878,15 +868,10 @@ app.get("/api/recipes", async (c) => {
   // cookbook (it's the public landing) but require membership for
   // any other cookbook — this also future-proofs against someone
   // probing private cookbooks via the query string.
-  if (cookbookId !== BOOTSTRAP_COOKBOOK_ID) {
-    const role = await cookbookRole(c, cookbookId);
-    if (!role) {
-      const vis = await c.env.DB.prepare(
-        "SELECT visibility FROM cookbooks WHERE id = ?"
-      ).bind(cookbookId).first();
-      if (vis?.visibility !== "public") return c.json({ error: "not a member" }, 403);
-    }
-  }
+  // Read access via this legacy query-string route used to be
+  // membership-gated. Now any signed-in cook can read — the
+  // cookbook ID itself functions as a share token. Writes still
+  // gate per-endpoint.
   // Fetch recipes and their D1 comments in one query. SQLite's
   // json_group_array lets us build the per-recipe comment list inline
   // so the React app doesn't need a second fetch when opening a
@@ -950,15 +935,9 @@ app.get("/api/admin/cookbooks/:cookbookId/recipes", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const cookbookId = c.req.param("cookbookId");
-  let role = await cookbookRole(c, cookbookId);
-  if (!role) {
-    // Public cookbooks are readable by any signed-in cook.
-    const vis = await c.env.DB.prepare(
-      "SELECT visibility FROM cookbooks WHERE id = ?"
-    ).bind(cookbookId).first();
-    if (vis?.visibility !== "public") return c.json({ error: "not a member" }, 403);
-    role = "guest";
-  }
+  // Any signed-in cook gets read access — the URL is the share
+  // token. Writes still go through cookbookRole() checks at
+  // their respective endpoints.
   const recipes = await fetchCookbookRecipes(c, cookbookId);
   c.header("Cache-Control", "no-store, must-revalidate");
   return c.json(recipes);
@@ -1207,8 +1186,8 @@ app.get("/api/recipes/:id", async (c) => {
 // page when a cook lands on a shared URL whose recipe doesn't
 // belong to their currently-active cookbook — the client uses
 // this to switch into the right cookbook before rendering.
-// Requires the caller to either be a member of that cookbook or
-// for the cookbook to be public; otherwise 403.
+// Any signed-in cook with the recipe ID can resolve the
+// cookbook (the URL itself is the share token).
 app.get("/api/admin/recipes/:id/cookbook", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
@@ -1217,13 +1196,6 @@ app.get("/api/admin/recipes/:id/cookbook", async (c) => {
     "SELECT cookbook_id FROM recipes WHERE id = ?"
   ).bind(recipeId).first();
   if (!row?.cookbook_id) return c.json({ error: "not found" }, 404);
-  const role = await cookbookRole(c, row.cookbook_id);
-  if (!role) {
-    const vis = await c.env.DB.prepare(
-      "SELECT visibility FROM cookbooks WHERE id = ?"
-    ).bind(row.cookbook_id).first();
-    if (vis?.visibility !== "public") return c.json({ error: "not a member" }, 403);
-  }
   return c.json({ cookbookId: row.cookbook_id });
 });
 
