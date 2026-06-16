@@ -2001,17 +2001,19 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
             <section className="shelf-section">
               <div className="shelf-section-head">Your cookbooks</div>
               <div className="shelf">
-                {defaultCookbook && renderBook(defaultCookbook, { coverFacing: true })}
-                {restOfTop.map(cb => renderBook(cb))}
-                <button
-                  type="button"
-                  className="book book-new"
-                  onClick={() => onOpenCreateCookbook ? onOpenCreateCookbook() : setCreateOpen(true)}
-                  title="Add a new cookbook"
-                >
-                  <span className="book-new-icon"><Icon name="plus" size={18} /></span>
-                  <span className="book-new-label">Add new cookbook</span>
-                </button>
+                <div className="shelf-content">
+                  {defaultCookbook && renderBook(defaultCookbook, { coverFacing: true })}
+                  {restOfTop.map(cb => renderBook(cb))}
+                  <button
+                    type="button"
+                    className="book book-new"
+                    onClick={() => onOpenCreateCookbook ? onOpenCreateCookbook() : setCreateOpen(true)}
+                    title="Add a new cookbook"
+                  >
+                    <span className="book-new-icon"><Icon name="plus" size={18} /></span>
+                    <span className="book-new-label">Add new cookbook</span>
+                  </button>
+                </div>
               </div>
             </section>
 
@@ -2019,7 +2021,9 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
               <section className="shelf-section">
                 <div className="shelf-section-head">Following</div>
                 <div className="shelf">
-                  {bottomShelf.map(cb => renderBook(cb))}
+                  <div className="shelf-content">
+                    {bottomShelf.map(cb => renderBook(cb))}
+                  </div>
                 </div>
               </section>
             )}
@@ -2028,8 +2032,10 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
               <section className="shelf-section">
                 <div className="shelf-section-head">Pending</div>
                 <div className="shelf">
-                  {pendingInvites.map(inv => renderPendingBook(inv.cookbook, "invite"))}
-                  {pendingRequests.map(req => renderPendingBook(req.cookbook, "request"))}
+                  <div className="shelf-content">
+                    {pendingInvites.map(inv => renderPendingBook(inv.cookbook, "invite"))}
+                    {pendingRequests.map(req => renderPendingBook(req.cookbook, "request"))}
+                  </div>
                 </div>
               </section>
             )}

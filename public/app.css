@@ -2382,19 +2382,25 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   margin-bottom: 4px;
 }
 .shelf {
+  /* Horizontal scroll container — books inside scroll
+     horizontally when the row is wider than the viewport. */
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: thin;
+}
+.shelf-content {
   position: relative;
   display: flex;
   align-items: flex-end;
   gap: 10px;
   padding: 24px 4px 12px;
-  /* Single horizontal row that scrolls horizontally when the
-     shelf is wider than the viewport — no wrap to the next
-     line, books stand shoulder-to-shoulder like a real shelf. */
-  overflow-x: auto;
-  overflow-y: visible;
-  scrollbar-width: thin;
+  /* Grow to the full width of the books inside so the wooden
+     shelf board (::after, positioned against this element)
+     extends under every book even when the row scrolls. */
+  width: max-content;
+  min-width: 100%;
 }
-.shelf::after {
+.shelf-content::after {
   /* The wooden shelf board the books sit on. */
   content: "";
   position: absolute;
