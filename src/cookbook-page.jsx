@@ -13,7 +13,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "./helpers.jsx";
-import { LANG_META } from "./i18n.js";
+import { LANG_META, useLang } from "./i18n.js";
 import { MembersSection, CookbookSettingsForm } from "./cookbooks.jsx";
 import { renderCookbookTitle } from "./browse.jsx";
 import { InviteCookModal } from "./invite-cook-modal.jsx";
@@ -40,6 +40,7 @@ const LANG_NATIONALITY = {
 
 function RequestToJoinButton({ cookbookId }) {
   const [state, setState] = useState("idle"); // idle | sending | sent | error
+  const { t } = useLang();
   const send = async () => {
     setState("sending");
     try {
@@ -55,11 +56,11 @@ function RequestToJoinButton({ cookbookId }) {
     }
   };
   if (state === "sent") {
-    return <span className="join-requested"><Icon name="check" size={14} /> Request sent</span>;
+    return <span className="join-requested"><Icon name="check" size={14} /> {t("requested")}</span>;
   }
   return (
     <button className="btn primary" onClick={send} disabled={state === "sending"}>
-      <Icon name="chefAdd" /> {state === "sending" ? "Sending…" : "Request to join"}
+      <Icon name="chefAdd" /> {state === "sending" ? "Sending…" : t("requestToJoin")}
     </button>
   );
 }
@@ -92,6 +93,15 @@ export function CookbookPage({
     } catch { return null; }
   });
   const fromAdmin = fromSource === "admin";
+  const { t } = useLang();
+  const backLabel = fromAdmin && goToAdmin ? t("backToAdminPage") : (fromLibrary ? t("backToMyCookbooks") : t("backToLibrary"));
+  const roleI18n = (r) => {
+    if (r === "owner") return t("roleOwner");
+    if (r === "editor") return t("roleEditor");
+    if (r === "viewer") return t("roleFollower");
+    if (r === "admin") return t("roleAdmin");
+    return r;
+  };
   const fromLibrary = fromSource === "library";
   const [cookbook, setCookbook] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -190,7 +200,7 @@ export function CookbookPage({
           onClick={fromAdmin && goToAdmin ? goToAdmin : goToLibrary}
           style={{ marginBottom: 16 }}
         >
-          <Icon name="chevL" /> {fromAdmin && goToAdmin ? "Back to admin page" : (fromLibrary ? "Back to my cookbooks" : "Back to library")}
+          <Icon name="chevL" /> {backLabel}
         </button>
         <div style={{ color: "var(--ink-3)" }}>Loading cookbook…</div>
       </div>
@@ -204,7 +214,7 @@ export function CookbookPage({
           onClick={fromAdmin && goToAdmin ? goToAdmin : goToLibrary}
           style={{ marginBottom: 16 }}
         >
-          <Icon name="chevL" /> {fromAdmin && goToAdmin ? "Back to admin page" : (fromLibrary ? "Back to my cookbooks" : "Back to library")}
+          <Icon name="chevL" /> {backLabel}
         </button>
         <div className="cookbooks-empty" style={{ color: "#933" }}>{error || "Not found."}</div>
       </div>
@@ -212,7 +222,7 @@ export function CookbookPage({
   }
 
   const languages = (cookbook.languages && cookbook.languages.length ? cookbook.languages : ["en"]);
-  const roleLabel = cookbook.adminAccess ? "admin access" : (role === "viewer" ? "follower" : (role || "follower"));
+  const roleLabel = cookbook.adminAccess ? t("roleAdmin") : roleI18n(role || "viewer");
   const nationalityLine = languages.map(c => LANG_NATIONALITY[c] || LANG_META[c]?.label || c).join(" · ");
   // Strip emoji + symbols from the name before pulling cover
   // initials so a cookbook like "Wojcik 🌶️🥑🥬" doesn't try
@@ -306,7 +316,7 @@ export function CookbookPage({
   return (
     <div className="cookbook-page" data-screen-label={`Cookbook: ${cookbook.name}`}>
       <button className="btn ghost" onClick={goToLibrary} style={{ marginBottom: 16 }}>
-        <Icon name="chevL" /> Back to library
+        <Icon name="chevL" /> {backLabel}
       </button>
 
       <div className="cookbook-header">
@@ -363,17 +373,17 @@ export function CookbookPage({
             )}
             {role !== "viewer" && role !== "guest" && (
               <button className="btn primary" onClick={openAddRecipe}>
-                <Icon name="plus" /> Add a recipe
+                <Icon name="plus" /> {t("addARecipe")}
               </button>
             )}
             {canSeeMembers && (
-              <button className="btn cookbook-action-btn" onClick={() => setInviteOpen(true)} title="Invite cook">
-                <Icon name="chefAdd" /> <span className="btn-label">Invite cook</span>
+              <button className="btn cookbook-action-btn" onClick={() => setInviteOpen(true)} title={t("inviteCook")}>
+                <Icon name="chefAdd" /> <span className="btn-label">{t("inviteCook")}</span>
               </button>
             )}
             {canSeeSettings && (
-              <button className="btn cookbook-action-btn" onClick={() => goToManage("settings")} title="Settings">
-                <Icon name="edit" /> <span className="btn-label">Settings</span>
+              <button className="btn cookbook-action-btn" onClick={() => goToManage("settings")} title={t("settings")}>
+                <Icon name="edit" /> <span className="btn-label">{t("settings")}</span>
               </button>
             )}
           </div>

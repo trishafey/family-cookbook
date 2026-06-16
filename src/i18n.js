@@ -15,6 +15,17 @@ import { useStorage } from "./helpers.jsx";
 const S = {
   // ─── Top nav ───
   addRecipe:    { en: "Add recipe",       pl: "Dodaj przepis",        es: "Agregar receta",        el: "Προσθήκη συνταγής",   pt: "Adicionar receita" },
+  addARecipe:   { en: "Add a recipe",     pl: "Dodaj przepis",        es: "Agregar una receta",    el: "Προσθήκη συνταγής",   pt: "Adicionar uma receita" },
+  inviteCook:   { en: "Invite cook",      pl: "Zaproś kucharza",      es: "Invitar cocinero",      el: "Πρόσκληση μάγειρα",   pt: "Convidar cozinheiro" },
+  requestToJoin:{ en: "Request to join",  pl: "Poproś o dołączenie",  es: "Pedir unirme",          el: "Αίτημα συμμετοχής",   pt: "Pedir para entrar" },
+  requested:    { en: "Request sent",     pl: "Prośba wysłana",       es: "Solicitud enviada",     el: "Στάλθηκε αίτημα",     pt: "Pedido enviado" },
+  backToLibrary:{ en: "Back to library",  pl: "Powrót do biblioteki", es: "Volver a la biblioteca",el: "Πίσω στη βιβλιοθήκη", pt: "Voltar à biblioteca" },
+  backToMyCookbooks:{ en: "Back to my cookbooks", pl: "Powrót do moich książek", es: "Volver a mis recetarios", el: "Πίσω στα βιβλία μου", pt: "Voltar aos meus livros" },
+  backToAdminPage:{ en: "Back to admin page", pl: "Powrót do panelu administracyjnego", es: "Volver al panel de admin", el: "Πίσω στη σελίδα διαχείρισης", pt: "Voltar ao painel de admin" },
+  roleOwner:    { en: "owner",            pl: "właściciel",           es: "propietario",           el: "ιδιοκτήτης",          pt: "proprietário" },
+  roleEditor:   { en: "editor",           pl: "redaktor",             es: "editor",                el: "συντάκτης",           pt: "editor" },
+  roleFollower: { en: "follower",         pl: "obserwujący",          es: "seguidor",              el: "ακόλουθος",           pt: "seguidor" },
+  roleAdmin:    { en: "admin access",     pl: "dostęp administratora",es: "acceso de admin",       el: "πρόσβαση διαχειριστή",pt: "acesso de admin" },
   buildMeal:    { en: "Build a meal",     pl: "Złóż posiłek",         es: "Armar una comida",      el: "Φτιάξε ένα γεύμα",    pt: "Montar refeição" },
   signIn:       { en: "Sign in",          pl: "Zaloguj się",          es: "Iniciar sesión",        el: "Σύνδεση",             pt: "Entrar" },
   signOut:      { en: "Sign out",         pl: "Wyloguj się",          es: "Cerrar sesión",         el: "Αποσύνδεση",          pt: "Sair" },

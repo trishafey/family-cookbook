@@ -2366,9 +2366,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   background: var(--book-color);
   color: #fff;
   border: 0;
-  /* Same corner treatment as the cover-facing book: tight on
-     the spine (left) side, softer on the open (right) side. */
-  border-radius: 2px 8px 8px 2px;
+  /* All four corners share the same radius — what the viewer
+     sees is the spine face, so every visible corner should
+     match. */
+  border-radius: 4px;
   padding: 14px 4px 18px;
   display: flex;
   align-items: center; justify-content: center;
