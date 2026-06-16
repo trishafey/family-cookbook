@@ -209,7 +209,26 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
   const countRow = await c.env.DB.prepare(
     "SELECT COUNT(*) AS n FROM recipes WHERE cookbook_id = ?"
   ).bind(id).first();
+  // Surface the caller's outstanding invite + outgoing join
+  // request for this cookbook so the cookbook page can show an
+  // "Accept invitation" button or "Request pending" status
+  // instead of the default "Request to join".
+  const nowIso = new Date().toISOString();
+  const yourInvitation = await c.env.DB.prepare(
+    `SELECT token, role FROM invitations
+     WHERE cookbook_id = ? AND LOWER(email) = LOWER(?)
+       AND accepted_at IS NULL AND expires_at > ?`
+  ).bind(id, email, nowIso).first().catch(() => null);
+  const yourPendingRequest = await c.env.DB.prepare(
+    "SELECT created_at FROM join_requests WHERE cookbook_id = ? AND user_email = ? AND status = 'pending'"
+  ).bind(id, email).first().catch(() => null);
   return c.json({
+    yourInvitation: yourInvitation
+      ? { token: yourInvitation.token, role: yourInvitation.role }
+      : null,
+    yourPendingRequest: yourPendingRequest
+      ? { createdAt: yourPendingRequest.created_at }
+      : null,
     cookbook: {
       id: cb.id,
       ownerEmail: cb.owner_email,
@@ -1180,6 +1199,82 @@ app.get("/api/recipes/:id", async (c) => {
   ).bind(c.req.param("id")).first();
   if (!row) return c.json({ error: "not found" }, 404);
   return c.json(JSON.parse(row.blob));
+});
+
+// Pending invitations + the cook's own outgoing join requests,
+// each enriched with enough cookbook detail to render as a book
+// on the library "Pending" shelf.
+app.get("/api/admin/me/pending", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  // Self-heal: join_requests may not exist on older deploys.
+  await c.env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS join_requests (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       cookbook_id TEXT NOT NULL,
+       user_email TEXT NOT NULL,
+       message TEXT,
+       status TEXT NOT NULL DEFAULT 'pending',
+       created_at TEXT NOT NULL,
+       decided_at TEXT,
+       decided_by TEXT,
+       decided_role TEXT,
+       UNIQUE(cookbook_id, user_email)
+     )`
+  ).run().catch(() => {});
+  const nowIso = new Date().toISOString();
+  const invRows = await c.env.DB.prepare(
+    `SELECT i.token, i.role, i.invited_by, i.created_at, i.expires_at,
+            c.id AS cookbook_id, c.name, c.slug, c.blurb,
+            c.cover_photo, c.cover_color, c.languages
+     FROM invitations i
+     LEFT JOIN cookbooks c ON c.id = i.cookbook_id
+     WHERE LOWER(i.email) = LOWER(?)
+       AND i.accepted_at IS NULL
+       AND i.expires_at > ?
+     ORDER BY i.created_at DESC`
+  ).bind(email, nowIso).all();
+  const joinRows = await c.env.DB.prepare(
+    `SELECT j.id, j.created_at, j.message,
+            c.id AS cookbook_id, c.name, c.slug, c.blurb,
+            c.cover_photo, c.cover_color, c.languages
+     FROM join_requests j
+     LEFT JOIN cookbooks c ON c.id = j.cookbook_id
+     WHERE j.user_email = ? AND j.status = 'pending'
+     ORDER BY j.created_at DESC`
+  ).bind(email).all().catch(() => ({ results: [] }));
+  return c.json({
+    invitations: (invRows.results || []).map(r => ({
+      token: r.token,
+      role: r.role,
+      invitedBy: r.invited_by,
+      createdAt: r.created_at,
+      expiresAt: r.expires_at,
+      cookbook: {
+        id: r.cookbook_id,
+        name: r.name,
+        slug: r.slug,
+        blurb: r.blurb || "",
+        coverPhoto: r.cover_photo || null,
+        coverColor: r.cover_color || null,
+        languages: r.languages ? JSON.parse(r.languages) : ["en"],
+      },
+    })),
+    joinRequests: (joinRows.results || []).map(r => ({
+      id: r.id,
+      message: r.message || "",
+      createdAt: r.created_at,
+      cookbook: {
+        id: r.cookbook_id,
+        name: r.name,
+        slug: r.slug,
+        blurb: r.blurb || "",
+        coverPhoto: r.cover_photo || null,
+        coverColor: r.cover_color || null,
+        languages: r.languages ? JSON.parse(r.languages) : ["en"],
+      },
+    })),
+  });
 });
 
 // Locate which cookbook a recipe lives in. Used by the recipe

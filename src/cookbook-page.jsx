@@ -38,6 +38,34 @@ const LANG_NATIONALITY = {
   fil: "Filipino",
 };
 
+function AcceptInvitationButton({ token, invitedRole, onAccepted }) {
+  const [state, setState] = useState("idle");
+  const { t } = useLang();
+  const roleLabel = invitedRole === "viewer" ? t("roleFollower") : invitedRole;
+  const accept = async () => {
+    setState("accepting");
+    try {
+      const res = await fetch(`/api/admin/invitations/${encodeURIComponent(token)}/accept`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (res.ok) {
+        setState("accepted");
+        onAccepted?.();
+      } else {
+        setState("error");
+      }
+    } catch {
+      setState("error");
+    }
+  };
+  return (
+    <button className="btn primary" onClick={accept} disabled={state === "accepting" || state === "accepted"}>
+      <Icon name="check" /> {state === "accepting" ? "Accepting…" : state === "accepted" ? `Joined as ${roleLabel}` : `Accept invitation`}
+    </button>
+  );
+}
+
 function RequestToJoinButton({ cookbookId }) {
   const [state, setState] = useState("idle"); // idle | sending | sent | error
   const { t } = useLang();
@@ -142,6 +170,8 @@ export function CookbookPage({
         yourRole: data.yourRole,
         recipeCount: data.recipeCount,
         memberCount: (data.members || []).length,
+        yourInvitation: data.yourInvitation || null,
+        yourPendingRequest: data.yourPendingRequest || null,
       });
       setActiveCookbookId?.(data.cookbook.id);
     } catch (err) {
@@ -368,7 +398,17 @@ export function CookbookPage({
           {cookbook.blurb && <p className="cookbook-tagline">{cookbook.blurb}</p>}
 
           <div className="cookbook-actions">
-            {role === "guest" && (
+            {role === "guest" && cookbook.yourInvitation && (
+              <AcceptInvitationButton
+                token={cookbook.yourInvitation.token}
+                invitedRole={cookbook.yourInvitation.role}
+                onAccepted={load}
+              />
+            )}
+            {role === "guest" && cookbook.yourPendingRequest && (
+              <span className="join-requested"><Icon name="clock" size={14} /> Request pending</span>
+            )}
+            {role === "guest" && !cookbook.yourInvitation && !cookbook.yourPendingRequest && (
               <RequestToJoinButton cookbookId={cookbook.id} />
             )}
             {role !== "viewer" && role !== "guest" && (

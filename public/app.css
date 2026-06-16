@@ -2356,6 +2356,36 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   cursor: grab;
 }
 .book:active { cursor: grabbing; }
+/* Pending shelf — invitations + outgoing join requests render
+   as spines with a small marker on top so the cook can tell at
+   a glance which are waiting on them vs waiting on someone else. */
+.pending-marker {
+  position: absolute;
+  top: -10px; right: -8px;
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-2);
+  z-index: 4;
+}
+.pending-book.pending-invite .pending-marker {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: var(--paper);
+}
+.pending-book.pending-request .pending-marker {
+  background: var(--paper);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  color: var(--accent);
+}
+.pending-book .book-spine-body {
+  opacity: .85;
+}
+.pending-book:hover .book-spine-body {
+  opacity: 1;
+}
 .book.dragging {
   opacity: .55;
   /* Stop the browser from interpreting the active touch as a

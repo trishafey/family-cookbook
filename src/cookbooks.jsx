@@ -1602,14 +1602,28 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
     try { localStorage.setItem("onboarding:familyPromptDismissed", "1"); } catch {}
   };
 
+  // Pending invitations + outgoing join requests — surfaced as
+  // a third shelf at the bottom of the library so the cook sees
+  // everything that's awaiting their action or someone else's.
+  const [pendingInvites, setPendingInvites] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
+
   const load = async () => {
     if (!authEmail) { setLoading(false); return; }
     setError(null);
     try {
-      const res = await fetch("/api/admin/cookbooks", { credentials: "include" });
+      const [res, pendingRes] = await Promise.all([
+        fetch("/api/admin/cookbooks", { credentials: "include" }),
+        fetch("/api/admin/me/pending", { credentials: "include" }),
+      ]);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const { cookbooks: list } = await res.json();
       setCookbooks(list || []);
+      if (pendingRes.ok) {
+        const p = await pendingRes.json();
+        setPendingInvites(p.invitations || []);
+        setPendingRequests(p.joinRequests || []);
+      }
     } catch (err) {
       setError("Could not load your cookbooks.");
     } finally {
@@ -1951,6 +1965,36 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
           );
         };
 
+        // Render a pending invitation or pending join request as
+        // a spine on the "Pending" shelf. kind = "invite" (cook
+        // can accept) or "request" (cook is waiting). Clicking
+        // navigates to the cookbook page in guest mode so they
+        // can preview before accepting / waiting.
+        const renderPendingBook = (cb, kind) => {
+          if (!cb || !cb.id) return null;
+          const cssColor = cb.coverColor ? { "--book-color": cb.coverColor } : undefined;
+          const idHash = (cb.id || "").split("").reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+          const spineHeight = 250 + (idHash % 72);
+          const thickness = 58;
+          const bookStyle = { ...(cssColor || {}), width: `${thickness}px`, height: `${spineHeight}px` };
+          return (
+            <div key={`${kind}-${cb.id}`} className={`book book-spine pending-book pending-${kind}`} style={bookStyle}>
+              <button
+                type="button"
+                className="book-spine-body"
+                onClick={() => onOpenCookbook?.(cb)}
+                title={`${cb.name} — ${kind === "invite" ? "Pending invite" : "Request pending"}`}
+              >
+                {cb.coverPhoto && <img className="book-spine-photo" src={cb.coverPhoto} alt="" />}
+                <span className="book-spine-label">{stripEmoji(cb.name)}</span>
+                <span className="pending-marker" aria-hidden>
+                  <Icon name={kind === "invite" ? "send" : "clock"} size={11} />
+                </span>
+              </button>
+            </div>
+          );
+        };
+
         const defaultCookbook = topShelf.find(c => c.id === defaultId);
         const restOfTop = topShelf.filter(c => c.id !== defaultId);
         return (
@@ -1977,6 +2021,16 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
                 <div className="shelf-section-head">Following</div>
                 <div className="shelf">
                   {bottomShelf.map(cb => renderBook(cb))}
+                </div>
+              </section>
+            )}
+
+            {(pendingInvites.length > 0 || pendingRequests.length > 0) && (
+              <section className="shelf-section">
+                <div className="shelf-section-head">Pending</div>
+                <div className="shelf">
+                  {pendingInvites.map(inv => renderPendingBook(inv.cookbook, "invite"))}
+                  {pendingRequests.map(req => renderPendingBook(req.cookbook, "request"))}
                 </div>
               </section>
             )}
