@@ -837,16 +837,17 @@ app.post("/api/admin/invitations/:token/accept", async (c) => {
   // join-request approval or a manual seed) stuck on whatever
   // role they had before — accepting an editor invite as an
   // existing viewer wouldn't actually promote them.
+  const emailLower = email.toLowerCase();
   await c.env.DB.prepare(
     "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, invited_by, joined_at) VALUES (?, ?, ?, (SELECT invited_by FROM invitations WHERE token = ?), ?)"
-  ).bind(row.cookbook_id, email, row.role, token, now).run();
+  ).bind(row.cookbook_id, emailLower, row.role, token, now).run();
   await c.env.DB.prepare(
-    "UPDATE cookbook_members SET role = ? WHERE cookbook_id = ? AND user_email = ?"
-  ).bind(row.role, row.cookbook_id, email).run();
+    "UPDATE cookbook_members SET role = ? WHERE cookbook_id = ? AND LOWER(user_email) = ?"
+  ).bind(row.role, row.cookbook_id, emailLower).run();
   // Mark accepted.
   await c.env.DB.prepare(
     "UPDATE invitations SET accepted_at = ?, accepted_by = ? WHERE token = ?"
-  ).bind(now, email, token).run();
+  ).bind(now, emailLower, token).run();
   return c.json({ ok: true, cookbookId: row.cookbook_id });
 });
 
@@ -1077,12 +1078,13 @@ app.post("/api/admin/cookbooks/:id/join-requests/:reqId/approve", async (c) => {
   if (!reqRow) return c.json({ error: "request not found" }, 404);
   if (reqRow.status !== "pending") return c.json({ error: "already decided" }, 400);
   const now = new Date().toISOString();
+  const userEmailLower = (reqRow.user_email || "").toLowerCase();
   await c.env.DB.prepare(
     "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, invited_by, joined_at) VALUES (?, ?, ?, ?, ?)"
-  ).bind(cookbookId, reqRow.user_email, requestedRole, email, now).run();
+  ).bind(cookbookId, userEmailLower, requestedRole, email, now).run();
   await c.env.DB.prepare(
-    "UPDATE cookbook_members SET role = ? WHERE cookbook_id = ? AND user_email = ?"
-  ).bind(requestedRole, cookbookId, reqRow.user_email).run();
+    "UPDATE cookbook_members SET role = ? WHERE cookbook_id = ? AND LOWER(user_email) = ?"
+  ).bind(requestedRole, cookbookId, userEmailLower).run();
   await c.env.DB.prepare(
     "UPDATE join_requests SET status = 'approved', decided_at = ?, decided_by = ?, decided_role = ? WHERE id = ?"
   ).bind(now, email, requestedRole, reqId).run();
