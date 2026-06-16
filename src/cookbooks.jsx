@@ -1531,6 +1531,29 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
   // cook is dragging; dragOverId paints the drop-target outline.
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  // Touch reorder shim — HTML5 drag events don't fire on touch.
+  // A long-press (260ms without movement) flips into drag mode;
+  // touchmove then walks the page with elementFromPoint, and
+  // touchend drops onto whichever book is under the finger. The
+  // ref-based bookkeeping (not state) keeps the timer + last
+  // target stable across re-renders inside the handlers.
+  const touchDragRef = useRef({ id: null, longPressTimer: null, suppressClick: false });
+  // While a book is mid-drag, lock the body so the page can't
+  // scroll out from under the finger. React's onTouchMove is
+  // passive so preventDefault() inside the handler is a no-op.
+  useEffect(() => {
+    if (!draggedId) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [draggedId]);
+  const cancelTouchDrag = () => {
+    const t = touchDragRef.current;
+    if (t.longPressTimer) { clearTimeout(t.longPressTimer); t.longPressTimer = null; }
+    t.id = null;
+    setDraggedId(null);
+    setDragOverId(null);
+  };
   // Local one-time dismiss for the "invite your family" prompt
   // so it doesn't keep nagging cooks who've decided to skip.
   const [familyPromptDismissed, setFamilyPromptDismissed] = useState(() => {
@@ -1796,9 +1819,52 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
               setDraggedId(null);
               setDragOverId(null);
             },
+            onTouchStart: (e) => {
+              if (e.touches.length !== 1) return;
+              touchDragRef.current.suppressClick = false;
+              touchDragRef.current.longPressTimer = setTimeout(() => {
+                touchDragRef.current.id = cb.id;
+                touchDragRef.current.suppressClick = true;
+                setDraggedId(cb.id);
+                if (navigator.vibrate) try { navigator.vibrate(15); } catch {}
+              }, 260);
+            },
+            onTouchMove: (e) => {
+              const t = touchDragRef.current;
+              if (!t.id) {
+                // Finger moved before the long-press fired —
+                // assume the cook is just scrolling and abort
+                // the pending drag.
+                if (t.longPressTimer) { clearTimeout(t.longPressTimer); t.longPressTimer = null; }
+                return;
+              }
+              e.preventDefault();
+              const touch = e.touches[0];
+              const el = document.elementFromPoint(touch.clientX, touch.clientY);
+              const bookEl = el?.closest?.(".book");
+              const overId = bookEl?.getAttribute("data-book-id");
+              if (overId && overId !== t.id && overId !== dragOverId) setDragOverId(overId);
+              else if (!overId && dragOverId) setDragOverId(null);
+            },
+            onTouchEnd: () => {
+              const t = touchDragRef.current;
+              if (t.longPressTimer) { clearTimeout(t.longPressTimer); t.longPressTimer = null; }
+              if (t.id && dragOverId && dragOverId !== t.id) reorder(t.id, dragOverId);
+              t.id = null;
+              setDraggedId(null);
+              setDragOverId(null);
+            },
+            onTouchCancel: cancelTouchDrag,
+            onClickCapture: (e) => {
+              if (touchDragRef.current.suppressClick) {
+                e.stopPropagation();
+                e.preventDefault();
+                touchDragRef.current.suppressClick = false;
+              }
+            },
           } : {};
           return (
-            <div key={cb.id} className={cardClass} style={bookStyle} {...dragHandlers}>
+            <div key={cb.id} data-book-id={cb.id} className={cardClass} style={bookStyle} {...dragHandlers}>
               {coverFacing ? (
                 <button
                   type="button"

@@ -2268,7 +2268,14 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   cursor: grab;
 }
 .book:active { cursor: grabbing; }
-.book.dragging { opacity: .55; }
+.book.dragging {
+  opacity: .55;
+  /* Stop the browser from interpreting the active touch as a
+     scroll once drag mode has fired. */
+  touch-action: none;
+  transform: translateY(-4px) scale(1.04);
+  z-index: 6;
+}
 .book.drag-over .book-spine-body,
 .book.drag-over .book-cover-body { outline: 2px solid var(--accent); outline-offset: 2px; }
 
