@@ -990,8 +990,14 @@ app.post("/api/admin/cookbooks/:id/join-request", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const cookbookId = c.req.param("id");
-  const existingRole = await cookbookRole(c, cookbookId);
-  if (existingRole && existingRole !== "guest") {
+  // Only block if the cook has an explicit membership row — the
+  // system-admin fallback in cookbookRole() shouldn't prevent
+  // admins from joining a cookbook as a regular member if they
+  // want to.
+  const membership = await c.env.DB.prepare(
+    "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
+  ).bind(cookbookId, email).first();
+  if (membership?.role) {
     return c.json({ error: "already a member" }, 400);
   }
   const vis = await c.env.DB.prepare(
