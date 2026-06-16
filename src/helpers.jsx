@@ -376,6 +376,17 @@ export function localizeRecipe(r, lang) {
 // Backfill defaults for fields the UI assumes exist. Older user-added
 // recipes can be missing arrays or nested objects; rendering crashes
 // rather than degrading without this.
+// Old seed recipes store photos as "images/foo.png" (no leading
+// slash). Those resolve relative to the current URL — fine on
+// "/", broken on "/recipe/<slug>". Prepend a slash so the static
+// asset path is always absolute. Real uploads come back as
+// "/api/images/<key>" or full URLs and are left alone.
+function absolutePhoto(p) {
+  if (!p) return p;
+  if (/^(https?:|data:|\/)/.test(p)) return p;
+  return `/${p}`;
+}
+
 export function normalizeRecipe(r) {
   const steps = r.steps || [];
   // Recompute total from prep + sum-of-step-durations so every
@@ -387,6 +398,8 @@ export function normalizeRecipe(r) {
   const stepsTotal = steps.reduce((s, x) => s + (x.mins || 0), 0);
   return {
     ...r,
+    photo: absolutePhoto(r.photo),
+    photoCard: absolutePhoto(r.photoCard),
     diet: r.diet || [],
     tips: r.tips || [],
     comments: r.comments || [],
