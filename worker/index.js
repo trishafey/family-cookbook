@@ -4117,15 +4117,35 @@ app.put("/api/admin/me/profile", async (c) => {
     await c.env.DB.prepare(
       "ALTER TABLE cookbook_members ADD COLUMN display_order INTEGER"
     ).run().catch(() => {});
-    await c.env.DB.prepare(
-      "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, languages, created_at, updated_at) VALUES (?, ?, ?, ?, 'public', '', ?, ?, ?)"
-    ).bind(
-      familyId, email, `${lastName} Family Cookbook`, familySlug,
-      JSON.stringify(["en"]), nowIso, nowIso
-    ).run().catch(() => {});
-    await c.env.DB.prepare(
-      "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, display_order, joined_at) VALUES (?, ?, 'owner', 0, ?)"
-    ).bind(familyId, email, nowIso).run().catch(() => {});
+    // The cookbook insert + membership insert are the load-bearing
+    // pair — silently swallowing either left earlier signups
+    // (Amber) with an orphan cookbook they couldn't write to.
+    // Surface failures here, and use a no-display_order fallback
+    // for the membership row if the column add somehow didn't
+    // take (e.g. migration 0017 hasn't been run yet on a fresh
+    // environment).
+    try {
+      await c.env.DB.prepare(
+        "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, languages, created_at, updated_at) VALUES (?, ?, ?, ?, 'public', '', ?, ?, ?)"
+      ).bind(
+        familyId, email, `${lastName} Family Cookbook`, familySlug,
+        JSON.stringify(["en"]), nowIso, nowIso
+      ).run();
+    } catch (err) {
+      console.error("family cookbook bootstrap: cookbook insert failed", err);
+    }
+    try {
+      await c.env.DB.prepare(
+        "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, display_order, joined_at) VALUES (?, ?, 'owner', 0, ?)"
+      ).bind(familyId, email, nowIso).run();
+    } catch (err) {
+      console.error("family cookbook bootstrap: member insert with display_order failed, retrying without", err);
+      await c.env.DB.prepare(
+        "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
+      ).bind(familyId, email, nowIso).run().catch(e => {
+        console.error("family cookbook bootstrap: member insert fallback also failed", e);
+      });
+    }
     // Push the personal cookbook to display_order 1 so the new
     // family book takes position 0.
     await c.env.DB.prepare(
