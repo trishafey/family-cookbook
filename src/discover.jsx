@@ -225,11 +225,13 @@ export function Discover({ onOpenCookbook, onClose }) {
             const languages = cb.languages || ["en"];
             const langLine = languages.map(c => LANG_NATIONALITY[c] || c).join(" · ");
             return (
-              <button
+              <div
                 key={cb.id}
-                type="button"
                 className="discover-card"
+                role="button"
+                tabIndex={0}
                 onClick={() => onOpenCookbook?.(cb)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenCookbook?.(cb); } }}
               >
                 <div
                   className={`discover-cover ${cb.coverPhoto ? "has-photo" : ""}`}
@@ -266,7 +268,7 @@ export function Discover({ onOpenCookbook, onClose }) {
                     <DiscoverJoinButton cookbookId={cb.id} alreadyRequested={cb.pendingJoin} />
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>

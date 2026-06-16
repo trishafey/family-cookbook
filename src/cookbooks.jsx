@@ -1903,13 +1903,14 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
             },
           } : {};
           return (
-            <div key={cb.id} data-book-id={cb.id} className={cardClass} style={bookStyle} {...dragHandlers}>
+            <div key={cb.id} data-book-id={cb.id} className={cardClass} style={bookStyle}>
               {coverFacing ? (
                 <button
                   type="button"
                   className="book-cover-body"
                   onClick={() => onOpenCookbook?.(cb)}
                   title={cb.name}
+                  {...dragHandlers}
                 >
                   {cb.coverPhoto && <img className="book-cover-photo" src={cb.coverPhoto} alt="" />}
                   <span className={`book-bookmark role-${role}`}>{cb.adminAccess ? "admin" : role}</span>
@@ -1931,6 +1932,7 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
                   className="book-spine-body"
                   onClick={() => onOpenCookbook?.(cb)}
                   title={cb.name}
+                  {...dragHandlers}
                 >
                   {cb.coverPhoto && <img className="book-spine-photo" src={cb.coverPhoto} alt="" />}
                   <span className="book-spine-label">{stripEmoji(cb.name)}</span>
