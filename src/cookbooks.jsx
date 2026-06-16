@@ -484,7 +484,7 @@ function CreateCookbookModal({ onClose, onCreated }) {
                       className="role-select"
                     >
                       <option value="editor">editor</option>
-                      <option value="viewer">viewer</option>
+                      <option value="viewer">follower</option>
                     </select>
                     <button
                       type="button"
@@ -821,11 +821,11 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
                   >
                     <option value="owner">Owner</option>
                     <option value="editor">Editor</option>
-                    <option value="viewer">Viewer</option>
+                    <option value="viewer">Follower</option>
                     <option value="__remove__" disabled={isSelfOwner}>Remove…</option>
                   </select>
                 ) : (
-                  <span className="role-fixed">{currentRole.charAt(0).toUpperCase() + currentRole.slice(1)}</span>
+                  <span className="role-fixed">{currentRole === "viewer" ? "Follower" : (currentRole.charAt(0).toUpperCase() + currentRole.slice(1))}</span>
                 )}
               </li>
             );
@@ -859,7 +859,7 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
                   }
                 }}
               >
-                <option value="viewer" disabled>Viewer</option>
+                <option value="viewer" disabled>Follower</option>
                 <option value="editor" disabled>Editor</option>
                 <option value="__copy__">{copiedToken === inv.token ? "Copied!" : "Copy link"}</option>
                 {canRemoveMembers && <option value="__remove__">Remove…</option>}
@@ -900,7 +900,7 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
             <span>Add, edit, and remove recipes, and invite new cooks.</span>
           </li>
           <li>
-            <span className="role-badge role-viewer">viewer</span>
+            <span className="role-badge role-viewer">follower</span>
             <span>Read, cook from, and comment on recipes.</span>
           </li>
         </ul>
@@ -930,7 +930,7 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
           >
             {canRemoveMembers && <option value="owner">As owner</option>}
             <option value="editor">As editor</option>
-            <option value="viewer">As viewer</option>
+            <option value="viewer">As follower</option>
           </select>
           <button type="submit" className="btn primary" disabled={inviting}>
             <Icon name="plus" size={13} /> Send invite
@@ -1710,7 +1710,7 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
               <div className="t">
                 <div className="eyebrow">Get started</div>
                 <h3>Invite people to a cookbook</h3>
-                <p>Cookbooks shine when they're shared. Pick which one and send an invite link — they'll join as viewer or editor.</p>
+                <p>Cookbooks shine when they're shared. Pick which one and send an invite link — they'll join as follower or editor.</p>
               </div>
               <div className="actions">
                 <InvitePicker cookbooks={invitable} onPick={(cb) => setEditing({ cookbook: cb, tab: "members" })} />

@@ -38,6 +38,32 @@ const LANG_NATIONALITY = {
   fil: "Filipino",
 };
 
+function RequestToJoinButton({ cookbookId }) {
+  const [state, setState] = useState("idle"); // idle | sending | sent | error
+  const send = async () => {
+    setState("sending");
+    try {
+      const res = await fetch(`/api/admin/cookbooks/${encodeURIComponent(cookbookId)}/join-request`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      setState(res.ok ? "sent" : "error");
+    } catch {
+      setState("error");
+    }
+  };
+  if (state === "sent") {
+    return <span className="join-requested"><Icon name="check" size={14} /> Request sent</span>;
+  }
+  return (
+    <button className="btn primary" onClick={send} disabled={state === "sending"}>
+      <Icon name="chefAdd" /> {state === "sending" ? "Sending…" : "Request to join"}
+    </button>
+  );
+}
+
 export function CookbookPage({
   cookbookSlug,
   cookbookTab,
@@ -80,13 +106,34 @@ export function CookbookPage({
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const { cookbooks } = await res.json();
       const match = (cookbooks || []).find(c => c.slug === cookbookSlug || c.id === cookbookSlug);
-      if (!match) {
-        setError("That cookbook doesn't exist, or you don't have access to it.");
-        setLoading(false);
+      if (match) {
+        setCookbook(match);
+        setActiveCookbookId?.(match.id);
         return;
       }
-      setCookbook(match);
-      setActiveCookbookId?.(match.id);
+      // Not in their personal list — could be a public cookbook
+      // they're discovering. Try to resolve the slug to an id and
+      // fetch the detail directly; the worker will allow read
+      // when the cookbook is public.
+      const lookup = await fetch(`/api/admin/cookbooks/by-slug/${encodeURIComponent(cookbookSlug)}`, { credentials: "include" });
+      if (!lookup.ok) {
+        setError("That cookbook doesn't exist, or you don't have access to it.");
+        return;
+      }
+      const { id } = await lookup.json();
+      const detail = await fetch(`/api/admin/cookbooks/${encodeURIComponent(id)}`, { credentials: "include" });
+      if (!detail.ok) {
+        setError("That cookbook doesn't exist, or you don't have access to it.");
+        return;
+      }
+      const data = await detail.json();
+      setCookbook({
+        ...data.cookbook,
+        yourRole: data.yourRole,
+        recipeCount: data.recipeCount,
+        memberCount: (data.members || []).length,
+      });
+      setActiveCookbookId?.(data.cookbook.id);
     } catch (err) {
       setError("Could not load this cookbook.");
     } finally {
@@ -165,7 +212,7 @@ export function CookbookPage({
   }
 
   const languages = (cookbook.languages && cookbook.languages.length ? cookbook.languages : ["en"]);
-  const roleLabel = cookbook.adminAccess ? "admin access" : (role || "viewer");
+  const roleLabel = cookbook.adminAccess ? "admin access" : (role === "viewer" ? "follower" : (role || "follower"));
   const nationalityLine = languages.map(c => LANG_NATIONALITY[c] || LANG_META[c]?.label || c).join(" · ");
   // Strip emoji + symbols from the name before pulling cover
   // initials so a cookbook like "Wojcik 🌶️🥑🥬" doesn't try
@@ -311,7 +358,10 @@ export function CookbookPage({
           {cookbook.blurb && <p className="cookbook-tagline">{cookbook.blurb}</p>}
 
           <div className="cookbook-actions">
-            {role !== "viewer" && (
+            {role === "guest" && (
+              <RequestToJoinButton cookbookId={cookbook.id} />
+            )}
+            {role !== "viewer" && role !== "guest" && (
               <button className="btn primary" onClick={openAddRecipe}>
                 <Icon name="plus" /> Add a recipe
               </button>

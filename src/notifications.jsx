@@ -1,15 +1,17 @@
-// Notifications page — surfaces pending invitations addressed to
-// the signed-in cook. Lightweight today (just invites); the same
-// surface will host other notification types later (info requests,
-// big feature announcements).
+// Notifications page — pending invitations addressed to the cook,
+// plus join requests for cookbooks they manage. Owners + editors
+// approve a request by picking a role; declining drops it.
 
 import { useEffect, useState, useCallback } from "react";
 
 export function Notifications({ authEmail, onOpenCookbook }) {
   const [invites, setInvites] = useState([]);
+  const [joinRequests, setJoinRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busyToken, setBusyToken] = useState(null);
+  const [busyJoinId, setBusyJoinId] = useState(null);
+  const [pendingRole, setPendingRole] = useState({}); // joinReqId → role
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -19,6 +21,7 @@ export function Notifications({ authEmail, onOpenCookbook }) {
       if (!res.ok) throw new Error("Could not load notifications");
       const data = await res.json();
       setInvites(data.invitations || []);
+      setJoinRequests(data.joinRequests || []);
     } catch (err) {
       setError(err.message || "Could not load notifications");
     } finally {
@@ -59,19 +62,62 @@ export function Notifications({ authEmail, onOpenCookbook }) {
     }
   };
 
+  const approveJoin = async (req) => {
+    const role = pendingRole[req.id] || "viewer";
+    setBusyJoinId(req.id);
+    try {
+      const res = await fetch(`/api/admin/cookbooks/${encodeURIComponent(req.cookbookId)}/join-requests/${req.id}/approve`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Could not approve");
+      }
+      setJoinRequests(prev => prev.filter(r => r.id !== req.id));
+    } catch (err) {
+      setError(err.message || "Could not approve request");
+    } finally {
+      setBusyJoinId(null);
+    }
+  };
+
+  const declineJoin = async (req) => {
+    setBusyJoinId(req.id);
+    try {
+      const res = await fetch(`/api/admin/cookbooks/${encodeURIComponent(req.cookbookId)}/join-requests/${req.id}/decline`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Could not decline");
+      }
+      setJoinRequests(prev => prev.filter(r => r.id !== req.id));
+    } catch (err) {
+      setError(err.message || "Could not decline request");
+    } finally {
+      setBusyJoinId(null);
+    }
+  };
+
+  const empty = invites.length === 0 && joinRequests.length === 0;
+
   return (
     <div className="notifications-page" data-screen-label="Notifications">
       <div className="page-header">
         <div className="eyebrow">Updates</div>
         <h1><em>Notifications</em></h1>
-        <div className="intro">Cookbook invitations and updates.</div>
+        <div className="intro">Cookbook invitations, join requests, and updates.</div>
       </div>
 
       {loading ? (
         <div className="notifications-loading">Loading…</div>
       ) : error ? (
         <div className="notifications-error">{error}</div>
-      ) : invites.length === 0 ? (
+      ) : empty ? (
         <div className="notifications-empty">
           <p>You're all caught up — no new notifications.</p>
         </div>
@@ -88,7 +134,7 @@ export function Notifications({ authEmail, onOpenCookbook }) {
                 <p className="notification-blurb">{inv.cookbookBlurb}</p>
               )}
               <div className="notification-meta">
-                You'll join as a <strong>{inv.role}</strong>.
+                You'll join as a <strong>{inv.role === "viewer" ? "follower" : inv.role}</strong>.
               </div>
               <div className="notification-actions">
                 <button
@@ -108,6 +154,50 @@ export function Notifications({ authEmail, onOpenCookbook }) {
               </div>
             </li>
           ))}
+          {joinRequests.map(req => {
+            const name = req.displayName || `${req.firstName || ""} ${req.lastName || ""}`.trim() || req.email;
+            const role = pendingRole[req.id] || "viewer";
+            return (
+              <li key={`join-${req.id}`} className="notification-card">
+                <div className="notification-eyebrow">Request to join</div>
+                <h3 className="notification-title">
+                  <span className="from">{name}</span> wants to join{" "}
+                  <strong>{req.cookbookName || "your cookbook"}</strong>
+                </h3>
+                {req.message && (
+                  <p className="notification-blurb">"{req.message}"</p>
+                )}
+                <div className="notification-meta">
+                  Add as{" "}
+                  <select
+                    value={role}
+                    onChange={(e) => setPendingRole(prev => ({ ...prev, [req.id]: e.target.value }))}
+                    className="role-select"
+                  >
+                    <option value="viewer">Follower</option>
+                    <option value="editor">Editor</option>
+                    <option value="owner">Owner</option>
+                  </select>
+                </div>
+                <div className="notification-actions">
+                  <button
+                    className="btn primary"
+                    disabled={busyJoinId === req.id}
+                    onClick={() => approveJoin(req)}
+                  >
+                    {busyJoinId === req.id ? "Approving…" : "Approve"}
+                  </button>
+                  <button
+                    className="btn ghost"
+                    disabled={busyJoinId === req.id}
+                    onClick={() => declineJoin(req)}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

@@ -229,7 +229,7 @@ export function CreateCookbookPage({ onClose, onCreated }) {
                     className="role-select"
                   >
                     <option value="editor">editor</option>
-                    <option value="viewer">viewer</option>
+                    <option value="viewer">follower</option>
                   </select>
                   <button
                     type="button"

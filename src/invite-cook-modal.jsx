@@ -99,7 +99,7 @@ export function InviteCookModal({ cookbook, onClose }) {
             New invites join as
             <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} disabled={inviting}>
               <option value="editor">editor</option>
-              <option value="viewer">viewer</option>
+              <option value="viewer">follower</option>
             </select>
           </label>
         </div>

@@ -43,6 +43,39 @@ function coverInitials(name) {
     .toUpperCase();
 }
 
+function DiscoverJoinButton({ cookbookId, alreadyRequested }) {
+  const [state, setState] = useState(alreadyRequested ? "sent" : "idle");
+  const send = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setState("sending");
+    try {
+      const res = await fetch(`/api/admin/cookbooks/${encodeURIComponent(cookbookId)}/join-request`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      setState(res.ok ? "sent" : "error");
+    } catch {
+      setState("error");
+    }
+  };
+  if (state === "sent") {
+    return <span className="discover-join requested"><Icon name="check" size={12} /> Requested</span>;
+  }
+  return (
+    <button
+      type="button"
+      className="discover-join"
+      onClick={send}
+      disabled={state === "sending"}
+    >
+      <Icon name="chefAdd" size={12} /> {state === "sending" ? "Sending…" : "Request to join"}
+    </button>
+  );
+}
+
 export function Discover({ onOpenCookbook, onClose }) {
   const [cookbooks, setCookbooks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -149,6 +182,9 @@ export function Discover({ onOpenCookbook, onClose }) {
                       ))}
                     </span>
                   </div>
+                  {!cb.yourRole && (
+                    <DiscoverJoinButton cookbookId={cb.id} alreadyRequested={cb.pendingJoin} />
+                  )}
                 </div>
               </button>
             );

@@ -560,8 +560,8 @@ export function useNotificationCount(authEmail) {
       try {
         const res = await fetch("/api/admin/notifications", { credentials: "include" });
         if (!res.ok || cancelled) return;
-        const { invitations } = await res.json();
-        if (!cancelled) setCount((invitations || []).length);
+        const { invitations, joinRequests } = await res.json();
+        if (!cancelled) setCount((invitations || []).length + (joinRequests || []).length);
       } catch {}
     };
     tick();

@@ -565,7 +565,7 @@ function ViewAsTab({ viewAsRole, onSetViewAs }) {
     ["admin", "Admin", "Default. Everything visible: every cookbook, every member's email, full controls."],
     ["owner", "Owner", "Hides system-admin tools. Other people's cookbooks drop out of your library."],
     ["editor", "Editor", "No member management; no rename/delete cookbook. Can still add recipes + invite."],
-    ["viewer", "Viewer", "Read-only. No Add recipe, no settings, no member management."],
+    ["viewer", "Follower", "Read-only. No Add recipe, no settings, no member management."],
   ];
   return (
     <div data-screen-label="View as">

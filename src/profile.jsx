@@ -61,11 +61,13 @@ export function PendingApprovalGate({ authEmail, refreshProfile }) {
 // An "Account settings" page will let cooks edit these later.
 
 import { Icon } from "./helpers.jsx";
+import { LANG_META, SUPPORTED_LANGS } from "./i18n.js";
 
 export function ProfileSetupGate({ authEmail, onSaved, onSignOut, save }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [lang, setLang] = useState("en");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -86,6 +88,7 @@ export function ProfileSetupGate({ authEmail, onSaved, onSignOut, save }) {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim(),
+        lang,
       });
       onSaved?.(profile);
     } catch (err) {
@@ -143,6 +146,15 @@ export function ProfileSetupGate({ authEmail, onSaved, onSignOut, save }) {
               autoComplete="tel"
               placeholder="+1 555 555 5555"
             />
+          </label>
+
+          <label className="field">
+            <span>Default language</span>
+            <select value={lang} onChange={(e) => setLang(e.target.value)} required>
+              {SUPPORTED_LANGS.map(code => (
+                <option key={code} value={code}>{LANG_META[code].label}</option>
+              ))}
+            </select>
           </label>
 
           {error && <div className="profile-error">{error}</div>}

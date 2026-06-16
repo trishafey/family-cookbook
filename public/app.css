@@ -1846,6 +1846,33 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .cb-setting-control { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
 .cb-delete-confirm { display: inline-flex; gap: 8px; }
+.discover-join {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  font-family: var(--sans); font-size: 12px;
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.discover-join:hover { background: var(--accent); border-color: var(--accent); }
+.discover-join.requested {
+  background: color-mix(in srgb, var(--accent-2) 12%, var(--paper));
+  color: var(--accent-2);
+  border-color: color-mix(in srgb, var(--accent-2) 30%, transparent);
+}
+.join-requested {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  font-family: var(--sans); font-size: 13px;
+  color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 10%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--accent-2) 30%, transparent);
+  border-radius: 999px;
+}
 .cb-default-badge {
   font-family: var(--sans);
   font-size: 11px;

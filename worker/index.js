@@ -168,13 +168,25 @@ app.get("/api/admin/cookbooks", async (c) => {
   });
 });
 
-// Cookbook details + members. Membership-gated.
+// Cookbook details + members. Members get full data; signed-in
+// non-members get the same read-only data when the cookbook is
+// public (so the Discover-page click drops them straight onto a
+// follower-style view). Private cookbooks still 403.
 app.get("/api/admin/cookbooks/:id", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const id = c.req.param("id");
-  const role = await cookbookRole(c, id);
-  if (!role) return c.json({ error: "not a member" }, 403);
+  let role = await cookbookRole(c, id);
+  if (!role) {
+    const vis = await c.env.DB.prepare(
+      "SELECT visibility FROM cookbooks WHERE id = ?"
+    ).bind(id).first();
+    if (vis?.visibility === "public") {
+      role = "guest";
+    } else {
+      return c.json({ error: "not a member" }, 403);
+    }
+  }
   // Self-heal in case migration 0018 lags the deploy.
   await c.env.DB.prepare(
     "ALTER TABLE cookbooks ADD COLUMN languages TEXT"
@@ -223,6 +235,23 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
     recipeCount: countRow?.n || 0,
     yourRole: role,
   });
+});
+
+// Lookup a cookbook by slug — convenience for the Discover →
+// cookbook-page transition where the URL carries the slug. Same
+// visibility rules as GET /:id (public cookbooks readable by any
+// signed-in cook).
+app.get("/api/admin/cookbooks/by-slug/:slug", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const slug = c.req.param("slug");
+  const row = await c.env.DB.prepare(
+    "SELECT id, visibility FROM cookbooks WHERE slug = ?"
+  ).bind(slug).first();
+  if (!row) return c.json({ error: "not found" }, 404);
+  const role = await cookbookRole(c, row.id);
+  if (!role && row.visibility !== "public") return c.json({ error: "not a member" }, 403);
+  return c.json({ id: row.id });
 });
 
 // ─── Multi-tenant: create a new cookbook (Phase 4b-1) ───
@@ -675,6 +704,22 @@ app.get("/api/admin/notifications", async (c) => {
        AND i.expires_at > ?
      ORDER BY i.created_at DESC`
   ).bind(email, now).all();
+  // Pending join requests for cookbooks where the caller is an
+  // owner/editor — surfaced in the same notifications payload so
+  // the bell badge counts both invites + requests-to-join.
+  const joinRows = await c.env.DB.prepare(
+    `SELECT j.id, j.cookbook_id, j.user_email, j.message, j.created_at,
+            cb.name AS cookbook_name,
+            u.display_name, u.first_name, u.last_name,
+            m.role AS your_role
+     FROM join_requests j
+     LEFT JOIN cookbooks cb ON cb.id = j.cookbook_id
+     LEFT JOIN users u ON u.email = j.user_email
+     LEFT JOIN cookbook_members m ON m.cookbook_id = j.cookbook_id AND m.user_email = ?
+     WHERE j.status = 'pending'
+       AND m.role IN ('owner', 'editor')
+     ORDER BY j.created_at DESC`
+  ).bind(email).all().catch(() => ({ results: [] }));
   return c.json({
     invitations: (rows.results || []).map(r => ({
       token: r.token,
@@ -685,6 +730,17 @@ app.get("/api/admin/notifications", async (c) => {
       invitedBy: r.invited_by,
       createdAt: r.created_at,
       expiresAt: r.expires_at,
+    })),
+    joinRequests: (joinRows.results || []).map(r => ({
+      id: r.id,
+      cookbookId: r.cookbook_id,
+      cookbookName: r.cookbook_name,
+      email: r.user_email,
+      displayName: r.display_name || null,
+      firstName: r.first_name || null,
+      lastName: r.last_name || null,
+      message: r.message || "",
+      createdAt: r.created_at,
     })),
   });
 });
@@ -804,7 +860,12 @@ app.get("/api/recipes", async (c) => {
   // probing private cookbooks via the query string.
   if (cookbookId !== BOOTSTRAP_COOKBOOK_ID) {
     const role = await cookbookRole(c, cookbookId);
-    if (!role) return c.json({ error: "not a member" }, 403);
+    if (!role) {
+      const vis = await c.env.DB.prepare(
+        "SELECT visibility FROM cookbooks WHERE id = ?"
+      ).bind(cookbookId).first();
+      if (vis?.visibility !== "public") return c.json({ error: "not a member" }, 403);
+    }
   }
   // Fetch recipes and their D1 comments in one query. SQLite's
   // json_group_array lets us build the per-recipe comment list inline
@@ -869,11 +930,120 @@ app.get("/api/admin/cookbooks/:cookbookId/recipes", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const cookbookId = c.req.param("cookbookId");
-  const role = await cookbookRole(c, cookbookId);
-  if (!role) return c.json({ error: "not a member" }, 403);
+  let role = await cookbookRole(c, cookbookId);
+  if (!role) {
+    // Public cookbooks are readable by any signed-in cook.
+    const vis = await c.env.DB.prepare(
+      "SELECT visibility FROM cookbooks WHERE id = ?"
+    ).bind(cookbookId).first();
+    if (vis?.visibility !== "public") return c.json({ error: "not a member" }, 403);
+    role = "guest";
+  }
   const recipes = await fetchCookbookRecipes(c, cookbookId);
   c.header("Cache-Control", "no-store, must-revalidate");
   return c.json(recipes);
+});
+
+// ─── Join requests ───
+// A signed-in cook who discovers a public cookbook can ask its
+// owners + editors for membership. The owner picks the role on
+// approval (follower / editor / owner). Pending requests double
+// as a notification for the cookbook's managers.
+app.post("/api/admin/cookbooks/:id/join-request", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("id");
+  const existingRole = await cookbookRole(c, cookbookId);
+  if (existingRole && existingRole !== "guest") {
+    return c.json({ error: "already a member" }, 400);
+  }
+  const vis = await c.env.DB.prepare(
+    "SELECT visibility FROM cookbooks WHERE id = ?"
+  ).bind(cookbookId).first();
+  if (!vis) return c.json({ error: "not found" }, 404);
+  if (vis.visibility !== "public") return c.json({ error: "cookbook is private" }, 403);
+  const body = await c.req.json().catch(() => ({}));
+  const message = (body?.message || "").toString().trim().slice(0, 280) || null;
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    "INSERT INTO join_requests (cookbook_id, user_email, message, status, created_at) VALUES (?, ?, ?, 'pending', ?) ON CONFLICT(cookbook_id, user_email) DO UPDATE SET status = 'pending', message = excluded.message, created_at = excluded.created_at"
+  ).bind(cookbookId, email, message, now).run();
+  return c.json({ ok: true });
+});
+
+// Pending requests for a cookbook — owners + editors only.
+app.get("/api/admin/cookbooks/:id/join-requests", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("id");
+  const role = await cookbookRole(c, cookbookId);
+  if (!["owner", "editor", "admin"].includes(role)) return c.json({ error: "owner or editor only" }, 403);
+  const rows = await c.env.DB.prepare(
+    `SELECT j.id, j.user_email, j.message, j.created_at,
+            u.display_name, u.first_name, u.last_name
+     FROM join_requests j
+     LEFT JOIN users u ON u.email = j.user_email
+     WHERE j.cookbook_id = ? AND j.status = 'pending'
+     ORDER BY j.created_at ASC`
+  ).bind(cookbookId).all();
+  return c.json({
+    requests: (rows.results || []).map(r => ({
+      id: r.id,
+      email: r.user_email,
+      displayName: r.display_name || null,
+      firstName: r.first_name || null,
+      lastName: r.last_name || null,
+      message: r.message || "",
+      createdAt: r.created_at,
+    })),
+  });
+});
+
+// Approve a join request — pick a role; add to cookbook_members.
+app.post("/api/admin/cookbooks/:id/join-requests/:reqId/approve", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("id");
+  const reqId = c.req.param("reqId");
+  const role = await cookbookRole(c, cookbookId);
+  if (!["owner", "editor", "admin"].includes(role)) return c.json({ error: "owner or editor only" }, 403);
+  const body = await c.req.json().catch(() => ({}));
+  const requestedRole = body?.role;
+  if (!["owner", "editor", "viewer"].includes(requestedRole)) return c.json({ error: "invalid role" }, 400);
+  if (requestedRole === "owner" && role !== "owner" && role !== "admin") {
+    return c.json({ error: "only owners can approve as owner" }, 403);
+  }
+  const reqRow = await c.env.DB.prepare(
+    "SELECT user_email, status FROM join_requests WHERE id = ? AND cookbook_id = ?"
+  ).bind(reqId, cookbookId).first();
+  if (!reqRow) return c.json({ error: "request not found" }, 404);
+  if (reqRow.status !== "pending") return c.json({ error: "already decided" }, 400);
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, invited_by, joined_at) VALUES (?, ?, ?, ?, ?)"
+  ).bind(cookbookId, reqRow.user_email, requestedRole, email, now).run();
+  await c.env.DB.prepare(
+    "UPDATE cookbook_members SET role = ? WHERE cookbook_id = ? AND user_email = ?"
+  ).bind(requestedRole, cookbookId, reqRow.user_email).run();
+  await c.env.DB.prepare(
+    "UPDATE join_requests SET status = 'approved', decided_at = ?, decided_by = ?, decided_role = ? WHERE id = ?"
+  ).bind(now, email, requestedRole, reqId).run();
+  return c.json({ ok: true });
+});
+
+// Decline a join request.
+app.post("/api/admin/cookbooks/:id/join-requests/:reqId/decline", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("id");
+  const reqId = c.req.param("reqId");
+  const role = await cookbookRole(c, cookbookId);
+  if (!["owner", "editor", "admin"].includes(role)) return c.json({ error: "owner or editor only" }, 403);
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    "UPDATE join_requests SET status = 'declined', decided_at = ?, decided_by = ? WHERE id = ? AND cookbook_id = ?"
+  ).bind(now, email, reqId, cookbookId).run();
+  return c.json({ ok: true });
 });
 
 // Public-cookbook directory. Returns every cookbook with
@@ -898,12 +1068,16 @@ app.get("/api/admin/discover", async (c) => {
             c.cover_photo, c.cover_color, c.languages,
             (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
             (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count,
-            u.display_name AS owner_name
+            u.display_name AS owner_name,
+            m.role AS your_role,
+            j.status AS join_status
      FROM cookbooks c
      LEFT JOIN users u ON u.email = c.owner_email
+     LEFT JOIN cookbook_members m ON m.cookbook_id = c.id AND m.user_email = ?
+     LEFT JOIN join_requests j ON j.cookbook_id = c.id AND j.user_email = ? AND j.status = 'pending'
      WHERE c.visibility = 'public'
      ORDER BY recipe_count DESC, c.name ASC`
-  ).all();
+  ).bind(email, email).all();
   const all = (rows.results || []).map(r => ({
     id: r.id,
     name: r.name,
@@ -916,6 +1090,8 @@ app.get("/api/admin/discover", async (c) => {
     ownerName: r.owner_name || null,
     memberCount: r.member_count || 0,
     recipeCount: r.recipe_count || 0,
+    yourRole: r.your_role || null,
+    pendingJoin: r.join_status === "pending",
   }));
   const filtered = q
     ? all.filter(cb =>
@@ -4068,6 +4244,8 @@ app.put("/api/admin/me/profile", async (c) => {
   const firstName = (body?.firstName || "").toString().trim().slice(0, 60);
   const lastName = (body?.lastName || "").toString().trim().slice(0, 60);
   const phone = (body?.phone || "").toString().trim().slice(0, 32);
+  const ALLOWED_LANGS = ["en", "enUS", "pl", "es", "el", "pt", "fil"];
+  const lang = ALLOWED_LANGS.includes(body?.lang) ? body.lang : null;
   if (!firstName || !lastName) return c.json({ error: "first and last name required" }, 400);
   if (!phone) return c.json({ error: "phone number required" }, 400);
   // display_name follows the cook's chosen name so all other
@@ -4083,9 +4261,15 @@ app.put("/api/admin/me/profile", async (c) => {
   const oldDisplayName = oldRow?.display_name || "";
 
   const displayName = `${firstName} ${lastName}`.trim();
-  await c.env.DB.prepare(
-    "UPDATE users SET first_name = ?, last_name = ?, phone = ?, display_name = ? WHERE email = ?"
-  ).bind(firstName, lastName, phone || null, displayName, email).run();
+  if (lang) {
+    await c.env.DB.prepare(
+      "UPDATE users SET first_name = ?, last_name = ?, phone = ?, display_name = ?, lang = ? WHERE email = ?"
+    ).bind(firstName, lastName, phone || null, displayName, lang, email).run();
+  } else {
+    await c.env.DB.prepare(
+      "UPDATE users SET first_name = ?, last_name = ?, phone = ?, display_name = ? WHERE email = ?"
+    ).bind(firstName, lastName, phone || null, displayName, email).run();
+  }
 
   // Rename any auto-bootstrapped personal cookbook the cook owns
   // to the new naming convention ("<First>'s Favourite Recipes").
