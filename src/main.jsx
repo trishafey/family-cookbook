@@ -1437,7 +1437,7 @@ function App() {
           flow. Hide it on the library, discover, settings,
           admin, notifications, and create-cookbook views where
           there's no recipe content to translate. */}
-      {["cookbook", "recipe", "browse", "add", "edit", "meal", "meal-plan", "lab"].includes(view) && (
+      {["cookbook", "recipe", "browse", "add", "edit"].includes(view) && (
         <LanguageFab
           availableLangs={
             effectiveUserCookbooks.find(c => c.id === activeCookbookId)?.languages || ["en"]
