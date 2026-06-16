@@ -93,6 +93,7 @@ export function CookbookPage({
     } catch { return null; }
   });
   const fromAdmin = fromSource === "admin";
+  const fromLibrary = fromSource === "library";
   const { t } = useLang();
   const backLabel = fromAdmin && goToAdmin ? t("backToAdminPage") : (fromLibrary ? t("backToMyCookbooks") : t("backToLibrary"));
   const roleI18n = (r) => {
@@ -102,7 +103,6 @@ export function CookbookPage({
     if (r === "admin") return t("roleAdmin");
     return r;
   };
-  const fromLibrary = fromSource === "library";
   const [cookbook, setCookbook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
