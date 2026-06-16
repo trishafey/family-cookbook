@@ -277,7 +277,22 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
       }
 
       {/* Section: showing-all → favorites then rest. Otherwise: flat. */}
-      {showingAll ?
+      {showingAll && (allRecipes || []).length === 0 ? (
+        <div className="empty-cookbook">
+          <Icon name="book" size={48} />
+          <div className="t">No recipes here yet.</div>
+          <div className="s">
+            {canWriteActive
+              ? "This cookbook is empty. Add the first recipe to get started."
+              : "This cookbook is empty. Only owners and editors can add recipes — ask whoever invited you."}
+          </div>
+          {canWriteActive && (
+            <button className="btn primary" onClick={openAddRecipe}>
+              <Icon name="plus" size={14} /> Add a recipe
+            </button>
+          )}
+        </div>
+      ) : showingAll ?
       <>
           {favs.length > 0 && <>
           <div className="section-head" style={{ marginTop: 48 }}>
@@ -294,6 +309,7 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
           </div>
           </>}
 
+          {rest.length > 0 && <>
           <div className="section-head" style={{ marginTop: 64 }}>
             <div className="lhs">
               <div className="eyebrow">{t("deeperShelves")}</div>
@@ -304,6 +320,7 @@ export function Browse({ recipes, allRecipes, query, setQuery, filters, setFilte
           <div className="grid">
             {rest.map((r) => <RecipeCard {...cardProps(r)} />)}
           </div>
+          </>}
         </> :
 
       <>
