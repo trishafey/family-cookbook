@@ -1,19 +1,19 @@
-// Discover — browse public cookbooks shared by other cooks.
-// Searchable by name / blurb / owner; clicking a card opens
-// the cookbook page like any other.
+// Discover — public-cookbook directory. Lets cooks find other
+// families' cookbooks (when those families have opted to make
+// theirs public), browse them as guests, and request to join.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "./helpers.jsx";
 import { LANG_META } from "./i18n.js";
 
 const FLAG_SRC = {
-  en: "/images/flags/en.png",
-  enUS: "/images/flags/en-us.svg",
-  pl: "/images/flags/pl.jpg",
-  es: "/images/flags/es.png",
-  el: "/images/flags/el.jpg",
-  pt: "/images/flags/pt.png",
-  fil: "/images/flags/fil.svg",
+  en:   "/images/flags/canada.svg",
+  enUS: "/images/flags/us.svg",
+  pl:   "/images/flags/pl.svg",
+  es:   "/images/flags/es.svg",
+  el:   "/images/flags/el.svg",
+  pt:   "/images/flags/pt.svg",
+  fil:  "/images/flags/fil.svg",
 };
 
 const LANG_NATIONALITY = {
@@ -26,22 +26,11 @@ const LANG_NATIONALITY = {
   fil: "Filipino",
 };
 
-function coverInitials(name) {
-  // Drop emoji + symbols before initialising so the spine of a
-  // cookbook like "Wojcik 🌶️🥑🥬" only carries letters.
-  const cleaned = (name || "")
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F900}-\u{1F9FF}\u{2700}-\u{27BF}️]/gu, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  return cleaned
-    .split(/\s+/)
-    .filter(w => w && !/^(the|a|an|of|&|and)$/i.test(w))
-    .map(w => w.replace(/['']s$/i, "")[0] || "")
-    .filter(c => /[A-Za-z]/.test(c))
-    .join("")
-    .slice(0, 4)
-    .toUpperCase();
-}
+const COOKBOOK_TYPE_LABEL = {
+  "family-heirloom": "Family heirloom",
+  "personal": "Personal",
+  "group": "Group",
+};
 
 function DiscoverJoinButton({ cookbookId, alreadyRequested }) {
   const [state, setState] = useState(alreadyRequested ? "sent" : "idle");
@@ -81,6 +70,11 @@ export function Discover({ onOpenCookbook, onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [query, setQuery] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Filter state — empty Set = "show everything"; otherwise the
+  // cookbook must match one of the selected values.
+  const [cuisineFilter, setCuisineFilter] = useState(new Set());
+  const [typeFilter, setTypeFilter] = useState(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +95,37 @@ export function Discover({ onOpenCookbook, onClose }) {
     return () => { cancelled = true; };
   }, [query]);
 
+  // Available cuisine + type values across the loaded set — used
+  // to populate the filter chips so we never show a filter that
+  // would return zero results.
+  const availableCuisines = useMemo(() => {
+    const set = new Set();
+    cookbooks.forEach(cb => (cb.languages || []).forEach(code => set.add(code)));
+    return [...set];
+  }, [cookbooks]);
+
+  const availableTypes = useMemo(() => {
+    const set = new Set();
+    cookbooks.forEach(cb => { if (cb.cookbookType) set.add(cb.cookbookType); });
+    return [...set];
+  }, [cookbooks]);
+
+  const filtered = useMemo(() => cookbooks.filter(cb => {
+    if (cuisineFilter.size && !(cb.languages || []).some(c => cuisineFilter.has(c))) return false;
+    if (typeFilter.size && !typeFilter.has(cb.cookbookType)) return false;
+    return true;
+  }), [cookbooks, cuisineFilter, typeFilter]);
+
+  const totalFilterCount = cuisineFilter.size + typeFilter.size;
+  const toggleSet = (setter) => (val) => setter(prev => {
+    const next = new Set(prev);
+    if (next.has(val)) next.delete(val); else next.add(val);
+    return next;
+  });
+  const toggleCuisine = toggleSet(setCuisineFilter);
+  const toggleType = toggleSet(setTypeFilter);
+  const clearFilters = () => { setCuisineFilter(new Set()); setTypeFilter(new Set()); };
+
   return (
     <div className="discover-page" data-screen-label="Discover">
       <div className="page-header">
@@ -111,37 +136,92 @@ export function Discover({ onOpenCookbook, onClose }) {
         </div>
       </div>
 
-      <div className="discover-search">
+      <div className="cookbook-search discover-search">
         <Icon name="search" size={16} />
         <input
           type="search"
-          className="discover-search-input"
+          className="cookbook-search-input"
           placeholder="Search by cookbook, cook, or blurb…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
         {query && (
-          <button type="button" className="btn ghost icon-only" onClick={() => setQuery("")}>
+          <button
+            type="button"
+            className="cookbook-search-close"
+            onClick={() => setQuery("")}
+            aria-label="Clear search"
+          >
             <Icon name="x" size={14} />
           </button>
         )}
+        <button
+          type="button"
+          className="cookbook-search-filter"
+          onClick={() => setFiltersOpen(o => !o)}
+          aria-label="Filters"
+          title="Filters"
+        >
+          <Icon name="filter" size={15} />
+          {totalFilterCount > 0 && <span className="count">{totalFilterCount}</span>}
+        </button>
       </div>
+
+      {filtersOpen && (
+        <div className="discover-filters">
+          <div className="filter-group">
+            <div className="filter-label">Cuisine</div>
+            <div className="filter-chips">
+              {availableCuisines.length === 0 && <span className="filter-empty">No cuisines yet.</span>}
+              {availableCuisines.map(code => (
+                <button
+                  key={code}
+                  type="button"
+                  className={`filter-pill ${cuisineFilter.has(code) ? "on" : ""}`}
+                  onClick={() => toggleCuisine(code)}
+                >
+                  {LANG_NATIONALITY[code] || LANG_META[code]?.label || code}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="filter-group">
+            <div className="filter-label">Cookbook type</div>
+            <div className="filter-chips">
+              {availableTypes.length === 0 && <span className="filter-empty">Owners haven't set types yet.</span>}
+              {availableTypes.map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`filter-pill ${typeFilter.has(t) ? "on" : ""}`}
+                  onClick={() => toggleType(t)}
+                >
+                  {COOKBOOK_TYPE_LABEL[t] || t}
+                </button>
+              ))}
+            </div>
+          </div>
+          {totalFilterCount > 0 && (
+            <button type="button" className="btn ghost sm" onClick={clearFilters}>Clear filters</button>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div style={{ marginTop: 32, color: "var(--ink-3)" }}>Loading public cookbooks…</div>
       ) : error ? (
         <div className="cookbooks-empty" style={{ color: "#933" }}>{error}</div>
-      ) : cookbooks.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="discover-empty">
           <p>
-            {query
-              ? `No public cookbooks match "${query}".`
+            {query || totalFilterCount > 0
+              ? `No public cookbooks match your filters.`
               : "No public cookbooks yet. When other cooks make their cookbooks public, they'll show up here."}
           </p>
         </div>
       ) : (
         <div className="discover-grid">
-          {cookbooks.map(cb => {
+          {filtered.map(cb => {
             const languages = cb.languages || ["en"];
             const langLine = languages.map(c => LANG_NATIONALITY[c] || c).join(" · ");
             return (

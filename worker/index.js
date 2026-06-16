@@ -109,6 +109,9 @@ app.get("/api/admin/cookbooks", async (c) => {
   await c.env.DB.prepare(
     "ALTER TABLE cookbooks ADD COLUMN cover_color TEXT"
   ).run().catch(() => {});
+  await c.env.DB.prepare(
+    "ALTER TABLE cookbooks ADD COLUMN cookbook_type TEXT"
+  ).run().catch(() => {});
   const admin = await isAdmin(c);
 
   // Admins see every cookbook (member or not). For non-admins,
@@ -119,7 +122,7 @@ app.get("/api/admin/cookbooks", async (c) => {
   const rows = admin
     ? await c.env.DB.prepare(`
         SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
-               c.cover_photo, c.cover_color, c.languages, c.created_at, c.updated_at,
+               c.cover_photo, c.cover_color, c.languages, c.cookbook_type, c.created_at, c.updated_at,
                m.role AS your_role, m.joined_at, m.display_order AS your_order,
                (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
                (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count
@@ -132,7 +135,7 @@ app.get("/api/admin/cookbooks", async (c) => {
       `).bind(email, email).all()
     : await c.env.DB.prepare(`
         SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
-               c.cover_photo, c.cover_color, c.languages, c.created_at, c.updated_at,
+               c.cover_photo, c.cover_color, c.languages, c.cookbook_type, c.created_at, c.updated_at,
                m.role AS your_role, m.joined_at, m.display_order AS your_order,
                (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
                (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count
@@ -153,6 +156,7 @@ app.get("/api/admin/cookbooks", async (c) => {
       coverPhoto: r.cover_photo || null,
       coverColor: r.cover_color || null,
       languages: r.languages ? JSON.parse(r.languages) : ["en"],
+      cookbookType: r.cookbook_type || null,
       // yourRole is the explicit membership role if any, else
       // "admin" (the admin-access fallback) — keeps the client
       // simple ("if role, you can do X").
@@ -194,8 +198,11 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
   await c.env.DB.prepare(
     "ALTER TABLE cookbooks ADD COLUMN cover_color TEXT"
   ).run().catch(() => {});
+  await c.env.DB.prepare(
+    "ALTER TABLE cookbooks ADD COLUMN cookbook_type TEXT"
+  ).run().catch(() => {});
   const cb = await c.env.DB.prepare(
-    "SELECT id, owner_email, name, slug, visibility, blurb, cover_photo, cover_color, languages, created_at, updated_at FROM cookbooks WHERE id = ?"
+    "SELECT id, owner_email, name, slug, visibility, blurb, cover_photo, cover_color, languages, cookbook_type, created_at, updated_at FROM cookbooks WHERE id = ?"
   ).bind(id).first();
   if (!cb) return c.json({ error: "not found" }, 404);
   const members = await c.env.DB.prepare(`
@@ -221,6 +228,7 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
       coverPhoto: cb.cover_photo || null,
       coverColor: cb.cover_color || null,
       languages: cb.languages ? JSON.parse(cb.languages) : ["en"],
+      cookbookType: cb.cookbook_type || null,
       createdAt: cb.created_at,
       updatedAt: cb.updated_at,
     },
@@ -392,6 +400,12 @@ app.patch("/api/admin/cookbooks/:id", async (c) => {
       ).run().catch(() => {});
       sets.push("cover_color = ?"); args.push(cc || null);
     }
+  }
+  if (body?.cookbookType === null || ["family-heirloom", "personal", "group"].includes(body?.cookbookType)) {
+    await c.env.DB.prepare(
+      "ALTER TABLE cookbooks ADD COLUMN cookbook_type TEXT"
+    ).run().catch(() => {});
+    sets.push("cookbook_type = ?"); args.push(body.cookbookType || null);
   }
   if (!sets.length) return c.json({ ok: true });
   const now = new Date().toISOString();
@@ -1062,10 +1076,30 @@ app.get("/api/admin/discover", async (c) => {
   await c.env.DB.prepare(
     "ALTER TABLE cookbooks ADD COLUMN cover_color TEXT"
   ).run().catch(() => {});
+  await c.env.DB.prepare(
+    "ALTER TABLE cookbooks ADD COLUMN cookbook_type TEXT"
+  ).run().catch(() => {});
+  // Self-heal: join_requests is migration 0022 — recreate the
+  // table here so the LEFT JOIN below doesn't blow up the whole
+  // Discover page on a deploy where the migration hasn't run.
+  await c.env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS join_requests (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       cookbook_id TEXT NOT NULL,
+       user_email TEXT NOT NULL,
+       message TEXT,
+       status TEXT NOT NULL DEFAULT 'pending',
+       created_at TEXT NOT NULL,
+       decided_at TEXT,
+       decided_by TEXT,
+       decided_role TEXT,
+       UNIQUE(cookbook_id, user_email)
+     )`
+  ).run().catch(() => {});
   const q = (c.req.query("q") || "").trim().toLowerCase();
   const rows = await c.env.DB.prepare(
     `SELECT c.id, c.owner_email, c.name, c.slug, c.blurb,
-            c.cover_photo, c.cover_color, c.languages,
+            c.cover_photo, c.cover_color, c.languages, c.cookbook_type,
             (SELECT COUNT(*) FROM cookbook_members WHERE cookbook_id = c.id) AS member_count,
             (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count,
             u.display_name AS owner_name,
@@ -1092,6 +1126,7 @@ app.get("/api/admin/discover", async (c) => {
     recipeCount: r.recipe_count || 0,
     yourRole: r.your_role || null,
     pendingJoin: r.join_status === "pending",
+    cookbookType: r.cookbook_type || null,
   }));
   const filtered = q
     ? all.filter(cb =>

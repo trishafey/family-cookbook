@@ -1846,6 +1846,31 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .cb-setting-control { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
 .cb-delete-confirm { display: inline-flex; gap: 8px; }
+.discover-filters {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.discover-filters .filter-group { display: flex; flex-direction: column; gap: 8px; }
+.discover-filters .filter-label {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--ink-3); font-weight: 600;
+}
+.discover-filters .filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.discover-filters .filter-empty { font-family: var(--sans); font-size: 12px; color: var(--ink-3); font-style: italic; }
+.discover-filters .filter-pill {
+  padding: 5px 12px; font-family: var(--sans); font-size: 12px;
+  background: var(--paper); color: var(--ink);
+  border: 1px solid var(--rule); border-radius: 999px; cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.discover-filters .filter-pill:hover { border-color: var(--accent); }
+.discover-filters .filter-pill.on {
+  background: var(--ink); color: var(--paper); border-color: var(--ink);
+}
 .discover-join {
   display: inline-flex; align-items: center; gap: 6px;
   margin-top: 10px;

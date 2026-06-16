@@ -981,6 +981,7 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
   const [visibility, setVisibility] = useState(cookbook.visibility);
   const [coverPhoto, setCoverPhoto] = useState(cookbook.coverPhoto || null);
   const [coverColor, setCoverColor] = useState(cookbook.coverColor || null);
+  const [cookbookType, setCookbookType] = useState(cookbook.cookbookType || "");
   const [allowComments, setAllowComments] = useState(true);
   // Track the language set the cook landed on so we can show
   // "Translate existing recipes" only when they've actually
@@ -1082,7 +1083,7 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), blurb, visibility, languages, coverPhoto, coverColor }),
+        body: JSON.stringify({ name: name.trim(), blurb, visibility, languages, coverPhoto, coverColor, cookbookType: cookbookType || null }),
       });
       if (!res.ok) {
         const { error: msg } = await res.json().catch(() => ({}));
@@ -1161,6 +1162,20 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
             maxLength={150}
             rows={3}
           />
+        </div>
+        <div className="cb-field">
+          <label htmlFor="cb-type">Cookbook type</label>
+          <select
+            id="cb-type"
+            className="cb-field-input"
+            value={cookbookType}
+            onChange={(e) => setCookbookType(e.target.value)}
+          >
+            <option value="">— Not set —</option>
+            <option value="family-heirloom">Family heirloom cookbook</option>
+            <option value="personal">Personal cookbook</option>
+            <option value="group">Group cookbook</option>
+          </select>
         </div>
       </div>
 
