@@ -384,13 +384,17 @@ app.delete("/api/admin/cookbooks/:id", async (c) => {
   if (id === BOOTSTRAP_COOKBOOK_ID) return c.json({ error: "cannot delete the bootstrap cookbook" }, 400);
   const role = await cookbookRole(c, id);
   if (role !== "owner" && role !== "admin") return c.json({ error: "owner only" }, 403);
-  const countRow = await c.env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM recipes WHERE cookbook_id = ?"
-  ).bind(id).first();
-  if ((countRow?.n || 0) > 0) {
-    return c.json({ error: "cookbook still has recipes — move or delete them first" }, 400);
-  }
-  await c.env.DB.prepare("DELETE FROM cookbook_members WHERE cookbook_id = ?").bind(id).run();
+  // Cascade-delete: recipes, comments, invitations, favorites,
+  // and member rows all go with the cookbook. Personal cookbooks
+  // can be removed even if they have recipes — that was blocking
+  // owners from cleaning up cookbooks they own. The owner already
+  // confirmed via the danger-zone prompt before we got here.
+  await c.env.DB.prepare(
+    "DELETE FROM comments WHERE recipe_id IN (SELECT id FROM recipes WHERE cookbook_id = ?)"
+  ).bind(id).run().catch(() => {});
+  await c.env.DB.prepare("DELETE FROM recipes WHERE cookbook_id = ?").bind(id).run().catch(() => {});
+  await c.env.DB.prepare("DELETE FROM invitations WHERE cookbook_id = ?").bind(id).run().catch(() => {});
+  await c.env.DB.prepare("DELETE FROM cookbook_members WHERE cookbook_id = ?").bind(id).run().catch(() => {});
   await c.env.DB.prepare("DELETE FROM cookbooks WHERE id = ?").bind(id).run();
   return c.json({ ok: true });
 });
@@ -4053,23 +4057,64 @@ app.put("/api/admin/me/profile", async (c) => {
     "UPDATE users SET first_name = ?, last_name = ?, phone = ?, display_name = ? WHERE email = ?"
   ).bind(firstName, lastName, phone || null, displayName, email).run();
 
-  // Rename any cookbook this cook owns whose name matches the
-  // bootstrap pattern keyed off the old display name OR the raw
-  // email local-part. The local-part case catches pre-seeded
-  // family-member rows whose display_name was NULL when the
-  // cookbook bootstrap ran (e.g. "kay.fejdasz's Cookbook" minted
-  // before her display_name was backfilled). Only the auto-minted
-  // "<X>'s [Family] Cookbook" labels get rewritten — explicit
-  // renames won't match.
+  // Rename any auto-bootstrapped personal cookbook the cook owns
+  // to the new naming convention ("<First>'s Favourite Recipes").
+  // Pattern-matches against every placeholder we've ever used:
+  // the email local-part, the old display_name, "<X>'s Cookbook"
+  // (legacy bootstrap label), or "<X>'s Favourite Recipes" (in
+  // case the cook is renaming themselves after we already used
+  // the new label). Explicit renames not matching any pattern
+  // are left alone.
   const localPart = email.split("@")[0];
-  const candidates = [oldDisplayName, localPart].filter(Boolean);
+  const candidates = [oldDisplayName, localPart, firstName].filter(Boolean);
+  const newPersonalName = `${firstName}'s Favourite Recipes`;
   for (const c0 of candidates) {
+    for (const oldName of [`${c0}'s Cookbook`, `${c0}'s Favourite Recipes`]) {
+      await c.env.DB.prepare(
+        "UPDATE cookbooks SET name = ? WHERE owner_email = ? AND name = ?"
+      ).bind(newPersonalName, email, oldName).run().catch(() => {});
+    }
+    // Old "<X>'s Family Cookbook" naming is replaced with the
+    // new "<Last> Family Cookbook" convention.
     await c.env.DB.prepare(
       "UPDATE cookbooks SET name = ? WHERE owner_email = ? AND name = ?"
-    ).bind(`${firstName}'s Cookbook`, email, `${c0}'s Cookbook`).run().catch(() => {});
+    ).bind(`${lastName} Family Cookbook`, email, `${c0}'s Family Cookbook`).run().catch(() => {});
+  }
+
+  // First-time profile setup: bootstrap the family cookbook
+  // ("<Last> Family Cookbook") if the cook doesn't already own
+  // one. Adds them as owner with display_order 0 so it sits at
+  // the front of their library as the default. Their personal
+  // cookbook (already created with the placeholder name by
+  // ensureUserBootstrap) is bumped to display_order 1.
+  const owned = (await c.env.DB.prepare(
+    "SELECT id FROM cookbooks WHERE owner_email = ?"
+  ).bind(email).all()).results || [];
+  const hasFamily = owned.some(o => /family/i.test(o.id) || / family cookbook$/i.test(o.id));
+  if (!hasFamily && lastName) {
+    const emailHash = await sha256Hex(email);
+    const familyId = `family-${emailHash.slice(0, 12)}`;
+    const familySlug = `${slugifyServer(lastName)}-family-${emailHash.slice(0, 6)}`;
+    const nowIso = new Date().toISOString();
     await c.env.DB.prepare(
-      "UPDATE cookbooks SET name = ? WHERE owner_email = ? AND name = ?"
-    ).bind(`${firstName}'s Family Cookbook`, email, `${c0}'s Family Cookbook`).run().catch(() => {});
+      "ALTER TABLE cookbook_members ADD COLUMN display_order INTEGER"
+    ).run().catch(() => {});
+    await c.env.DB.prepare(
+      "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, languages, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?, ?)"
+    ).bind(
+      familyId, email, `${lastName} Family Cookbook`, familySlug,
+      JSON.stringify(["en"]), nowIso, nowIso
+    ).run().catch(() => {});
+    await c.env.DB.prepare(
+      "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, display_order, joined_at) VALUES (?, ?, 'owner', 0, ?)"
+    ).bind(familyId, email, nowIso).run().catch(() => {});
+    // Push the personal cookbook to display_order 1 so the new
+    // family book takes position 0.
+    await c.env.DB.prepare(
+      `UPDATE cookbook_members SET display_order = 1
+       WHERE user_email = ?
+         AND cookbook_id IN (SELECT id FROM cookbooks WHERE owner_email = ? AND id LIKE 'personal-%')`
+    ).bind(email, email).run().catch(() => {});
   }
 
   return c.json({

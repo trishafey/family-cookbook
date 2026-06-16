@@ -2458,9 +2458,12 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   border-radius: 999px;
   cursor: pointer;
   color: var(--ink-2);
-  opacity: 0;
-  transition: opacity .15s, transform .15s;
-  z-index: 3;
+  /* Always visible — touch devices have no hover so the buttons
+     were never tappable. Subtle on idle, slightly more present
+     on hover. */
+  opacity: .55;
+  transition: opacity .15s, transform .15s, border-color .15s, color .15s;
+  z-index: 5;
 }
 .book-edit { right: -8px; }
 .book-default-action { left: -8px; color: var(--accent); }
@@ -2472,6 +2475,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   transform: scale(1.08);
   border-color: var(--accent);
   color: var(--accent);
+  opacity: 1;
 }
 
 /* Bottom-of-screen snackbar. One message + optional inline link. */
