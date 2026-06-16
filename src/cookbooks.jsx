@@ -979,12 +979,6 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
   const [visibility, setVisibility] = useState(cookbook.visibility);
   const [coverPhoto, setCoverPhoto] = useState(cookbook.coverPhoto || null);
   const [coverColor, setCoverColor] = useState(cookbook.coverColor || null);
-  // Directory + comments toggles ship with placeholder UI here;
-  // backend persistence + behavior arrives with the public
-  // directory work (Phase 4c). Default off; explicitly disabled
-  // when the cookbook is still private since neither toggle
-  // means anything without a public surface.
-  const [listInDirectory, setListInDirectory] = useState(false);
   const [allowComments, setAllowComments] = useState(true);
   // Track the language set the cook landed on so we can show
   // "Translate existing recipes" only when they've actually
@@ -1125,8 +1119,6 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
     return <div className="modal-error">Only the owner can change settings.</div>;
   }
 
-  const isPublic = visibility === "public";
-
   return (
     <form className="cb-settings" onSubmit={submit}>
       <div className="cb-members-head">
@@ -1246,10 +1238,10 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
           </div>
         </div>
 
-        <div className="cb-setting-row">
+        <div className="cb-setting-row cb-setting-row--stack-mobile">
           <div className="cb-setting-text">
             <div className="cb-setting-label">Who can see this cookbook</div>
-            <div className="cb-setting-desc">Private books are visible only to members. Public books can be found in the directory and followed by anyone.</div>
+            <div className="cb-setting-desc">Private cookbooks are visible only to members. Public cookbooks appear in the directory and can be followed by anyone.</div>
           </div>
           <div className="cb-setting-control">
             <div className="cb-vis-toggle" role="group" aria-label="Visibility">
@@ -1268,25 +1260,6 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
                 <Icon name="share" size={13} /> Public
               </button>
             </div>
-          </div>
-        </div>
-
-        <div className={`cb-setting-row ${isPublic ? "" : "disabled"}`}>
-          <div className="cb-setting-text">
-            <div className="cb-setting-label">List in the directory</div>
-            <div className="cb-setting-desc">Show up when people browse public family cookbooks. Requires the cookbook to be public.</div>
-          </div>
-          <div className="cb-setting-control">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={listInDirectory && isPublic}
-              className={`cb-switch ${listInDirectory && isPublic ? "on" : ""}`}
-              onClick={() => isPublic && setListInDirectory(v => !v)}
-              disabled={!isPublic}
-            >
-              <span className="knob" />
-            </button>
           </div>
         </div>
 

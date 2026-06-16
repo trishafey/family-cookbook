@@ -4100,7 +4100,7 @@ app.put("/api/admin/me/profile", async (c) => {
       "ALTER TABLE cookbook_members ADD COLUMN display_order INTEGER"
     ).run().catch(() => {});
     await c.env.DB.prepare(
-      "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, languages, created_at, updated_at) VALUES (?, ?, ?, ?, 'private', '', ?, ?, ?)"
+      "INSERT OR IGNORE INTO cookbooks (id, owner_email, name, slug, visibility, blurb, languages, created_at, updated_at) VALUES (?, ?, ?, ?, 'public', '', ?, ?, ?)"
     ).bind(
       familyId, email, `${lastName} Family Cookbook`, familySlug,
       JSON.stringify(["en"]), nowIso, nowIso
