@@ -1873,15 +1873,18 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
               touchDragRef.current.suppressClick = false;
               touchDragRef.current.startX = tch.clientX;
               touchDragRef.current.startY = tch.clientY;
-              // 600ms long-press threshold — short enough to feel
-              // intentional, long enough that a regular tap that
-              // lingers a beat still resolves as a click.
+              // 380ms long-press threshold — short enough that
+              // the cook doesn't have to hold uncomfortably long
+              // to start a drag, long enough that a tap that
+              // lingers a beat still resolves as a click. Combined
+              // with the 12px movement cancel below, normal scrolls
+              // never trigger drag mode either.
               touchDragRef.current.longPressTimer = setTimeout(() => {
                 touchDragRef.current.id = cb.id;
                 touchDragRef.current.suppressClick = true;
                 setDraggedId(cb.id);
                 if (navigator.vibrate) try { navigator.vibrate(15); } catch {}
-              }, 600);
+              }, 380);
             },
             onTouchMove: (e) => {
               const t = touchDragRef.current;

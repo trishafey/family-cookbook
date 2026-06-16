@@ -2393,7 +2393,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  padding: 24px 4px 12px;
+  padding: 8px 4px 12px;
   /* Grow to the full width of the books inside so the wooden
      shelf board (::after, positioned against this element)
      extends under every book even when the row scrolls. */
