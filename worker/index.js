@@ -749,6 +749,18 @@ app.get("/api/admin/notifications", async (c) => {
        AND m.role IN ('owner', 'editor')
      ORDER BY j.created_at DESC`
   ).bind(email).all().catch(() => ({ results: [] }));
+  // Pending user accounts (status = 'pending') — admin-only.
+  // Surfaced in the same payload so admins see incoming signups
+  // alongside invites + join requests.
+  const callerIsAdmin = await isAdmin(c);
+  const accountRows = callerIsAdmin
+    ? await c.env.DB.prepare(
+        `SELECT email, display_name, first_name, last_name, created_at
+         FROM users
+         WHERE status = 'pending'
+         ORDER BY created_at DESC`
+      ).all().catch(() => ({ results: [] }))
+    : { results: [] };
   return c.json({
     invitations: (rows.results || []).map(r => ({
       token: r.token,
@@ -769,6 +781,13 @@ app.get("/api/admin/notifications", async (c) => {
       firstName: r.first_name || null,
       lastName: r.last_name || null,
       message: r.message || "",
+      createdAt: r.created_at,
+    })),
+    pendingAccounts: (accountRows.results || []).map(r => ({
+      email: r.email,
+      displayName: r.display_name || null,
+      firstName: r.first_name || null,
+      lastName: r.last_name || null,
       createdAt: r.created_at,
     })),
   });

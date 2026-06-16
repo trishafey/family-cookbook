@@ -7,10 +7,12 @@ import { useEffect, useState, useCallback } from "react";
 export function Notifications({ authEmail, onOpenCookbook }) {
   const [invites, setInvites] = useState([]);
   const [joinRequests, setJoinRequests] = useState([]);
+  const [pendingAccounts, setPendingAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busyToken, setBusyToken] = useState(null);
   const [busyJoinId, setBusyJoinId] = useState(null);
+  const [busyAccountEmail, setBusyAccountEmail] = useState(null);
   const [pendingRole, setPendingRole] = useState({}); // joinReqId → role
 
   const load = useCallback(async () => {
@@ -22,6 +24,7 @@ export function Notifications({ authEmail, onOpenCookbook }) {
       const data = await res.json();
       setInvites(data.invitations || []);
       setJoinRequests(data.joinRequests || []);
+      setPendingAccounts(data.pendingAccounts || []);
     } catch (err) {
       setError(err.message || "Could not load notifications");
     } finally {
@@ -103,7 +106,26 @@ export function Notifications({ authEmail, onOpenCookbook }) {
     }
   };
 
-  const empty = invites.length === 0 && joinRequests.length === 0;
+  const decideAccount = async (account, action) => {
+    setBusyAccountEmail(account.email);
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(account.email)}/${action}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `Could not ${action}`);
+      }
+      setPendingAccounts(prev => prev.filter(a => a.email !== account.email));
+    } catch (err) {
+      setError(err.message || `Could not ${action} account`);
+    } finally {
+      setBusyAccountEmail(null);
+    }
+  };
+
+  const empty = invites.length === 0 && joinRequests.length === 0 && pendingAccounts.length === 0;
 
   return (
     <div className="notifications-page" data-screen-label="Notifications">
@@ -191,6 +213,34 @@ export function Notifications({ authEmail, onOpenCookbook }) {
                     className="btn ghost"
                     disabled={busyJoinId === req.id}
                     onClick={() => declineJoin(req)}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+          {pendingAccounts.map(account => {
+            const name = account.displayName || `${account.firstName || ""} ${account.lastName || ""}`.trim() || account.email;
+            return (
+              <li key={`account-${account.email}`} className="notification-card">
+                <div className="notification-eyebrow">New account · admin only</div>
+                <h3 className="notification-title">
+                  <span className="from">{name}</span> signed up and is waiting for approval
+                </h3>
+                <p className="notification-blurb">{account.email}</p>
+                <div className="notification-actions">
+                  <button
+                    className="btn primary"
+                    disabled={busyAccountEmail === account.email}
+                    onClick={() => decideAccount(account, "approve")}
+                  >
+                    {busyAccountEmail === account.email ? "Approving…" : "Approve"}
+                  </button>
+                  <button
+                    className="btn ghost"
+                    disabled={busyAccountEmail === account.email}
+                    onClick={() => decideAccount(account, "decline")}
                   >
                     Decline
                   </button>

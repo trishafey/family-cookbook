@@ -2373,13 +2373,13 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
    /cookbooks. Each shelf is a horizontal-scrolling row of book
    spines (and one cover-facing default at the front of the top
    shelf), with a dashed "Add new cookbook" book at the end. */
-.shelf-section { margin-top: 36px; }
-.shelf-section:first-of-type { margin-top: 16px; }
+.shelf-section { margin-top: 28px; }
+.shelf-section:first-of-type { margin-top: 12px; }
 .shelf-section-head {
   font-family: var(--mono); font-size: 11px;
   letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--accent-2); font-weight: 600;
-  margin-bottom: 14px;
+  margin-bottom: 4px;
 }
 .shelf {
   position: relative;
@@ -4397,7 +4397,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .notification-eyebrow {
   font-family: var(--mono); font-size: 11px;
   letter-spacing: .14em; text-transform: uppercase;
-  color: var(--accent); font-weight: 600;
+  color: var(--accent-2); font-weight: 600;
   margin-bottom: 8px;
 }
 .notification-title {
