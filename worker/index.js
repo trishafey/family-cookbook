@@ -4069,6 +4069,7 @@ app.put("/api/admin/me/profile", async (c) => {
   const lastName = (body?.lastName || "").toString().trim().slice(0, 60);
   const phone = (body?.phone || "").toString().trim().slice(0, 32);
   if (!firstName || !lastName) return c.json({ error: "first and last name required" }, 400);
+  if (!phone) return c.json({ error: "phone number required" }, 400);
   // display_name follows the cook's chosen name so all other
   // surfaces (avatar menu, member rows, AI greetings later) read
   // it without separate lookups.

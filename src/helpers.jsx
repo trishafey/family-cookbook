@@ -599,18 +599,21 @@ export function useUserCookbooks(authEmail) {
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!authEmail) { setCookbooks([]); return; }
+    if (!authEmail) { setCookbooks([]); return []; }
     setLoading(true);
     try {
       const res = await fetch("/api/admin/cookbooks", { credentials: "include" });
       if (res.ok) {
         const { cookbooks: list } = await res.json();
-        setCookbooks(list || []);
-      } else {
-        setCookbooks([]);
+        const next = list || [];
+        setCookbooks(next);
+        return next;
       }
+      setCookbooks([]);
+      return [];
     } catch {
       setCookbooks([]);
+      return [];
     } finally {
       setLoading(false);
     }

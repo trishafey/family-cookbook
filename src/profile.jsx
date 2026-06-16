@@ -75,6 +75,10 @@ export function ProfileSetupGate({ authEmail, onSaved, onSignOut, save }) {
       setError("First and last name are required.");
       return;
     }
+    if (!phone.trim()) {
+      setError("Phone number is required.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -129,12 +133,13 @@ export function ProfileSetupGate({ authEmail, onSaved, onSignOut, save }) {
           </div>
 
           <label className="field">
-            <span>Phone <span className="opt">(optional, we'll verify later)</span></span>
+            <span>Phone <span className="opt">(we'll verify later)</span></span>
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               maxLength={32}
+              required
               autoComplete="tel"
               placeholder="+1 555 555 5555"
             />

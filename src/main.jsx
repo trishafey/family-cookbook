@@ -476,7 +476,7 @@ function App() {
   // Phase 4a-2: the cook's cookbook memberships. Drives the nav
   // switcher (hidden when there's only one), the cookbooks index,
   // and the active-cookbook validation below.
-  const { cookbooks: userCookbooks } = useUserCookbooks(authEmail);
+  const { cookbooks: userCookbooks, refresh: refreshUserCookbooks } = useUserCookbooks(authEmail);
   // Phase 4b-2 follow-up: profile gate. If first_name / last_name
   // aren't on file yet, the app renders the setup form before
   // anything else.
@@ -856,13 +856,21 @@ function App() {
         save={saveProfile}
         onSaved={async () => {
           await refreshProfile();
-          // Phase 4b-4: drop the new cook on the My-cookbooks index
-          // so they see their freshly-bootstrapped personal +
-          // family cookbooks and can hit "Members" on the family
-          // one to invite their household. Patricia and other
-          // pre-seeded cooks finishing the gate also land here so
-          // it's a consistent first-touch.
-          setView("cookbooks");
+          // Land on the new cook's default cookbook (their freshly
+          // bootstrapped family cookbook at display_order 0) so
+          // they immediately see something to do. Falls back to
+          // the My-cookbooks shelf if the cookbook list isn't
+          // ready yet for any reason.
+          const list = await refreshUserCookbooks().catch(() => null);
+          const cookbooks = Array.isArray(list) ? list : userCookbooks;
+          const sorted = [...(cookbooks || [])].sort((a, b) => (a.displayOrder ?? 99999) - (b.displayOrder ?? 99999));
+          const target = sorted[0];
+          if (target) {
+            setActiveCookbookId(target.id);
+            goToCookbook(target.slug || target.id);
+          } else {
+            setView("cookbooks");
+          }
         }}
         onSignOut={SIGN_OUT_URL}
       />
