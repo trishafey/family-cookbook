@@ -831,10 +831,18 @@ app.post("/api/admin/invitations/:token/accept", async (c) => {
   await c.env.DB.prepare(
     "UPDATE users SET status = 'approved' WHERE email = ? AND status = 'pending'"
   ).bind(email).run().catch(() => {});
-  // Add membership (no-op if they're somehow already a member).
+  // Upsert membership: insert if new, then overwrite the role
+  // with the invited role. INSERT OR IGNORE alone left people
+  // whose cookbook_members row already existed (from an earlier
+  // join-request approval or a manual seed) stuck on whatever
+  // role they had before — accepting an editor invite as an
+  // existing viewer wouldn't actually promote them.
   await c.env.DB.prepare(
     "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, invited_by, joined_at) VALUES (?, ?, ?, (SELECT invited_by FROM invitations WHERE token = ?), ?)"
   ).bind(row.cookbook_id, email, row.role, token, now).run();
+  await c.env.DB.prepare(
+    "UPDATE cookbook_members SET role = ? WHERE cookbook_id = ? AND user_email = ?"
+  ).bind(row.role, row.cookbook_id, email).run();
   // Mark accepted.
   await c.env.DB.prepare(
     "UPDATE invitations SET accepted_at = ?, accepted_by = ? WHERE token = ?"
