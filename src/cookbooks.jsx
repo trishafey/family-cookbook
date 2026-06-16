@@ -616,11 +616,11 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
       }
       const { invitation, link } = await res.json();
       setInvitations(prev => [{ ...invitation, link }, ...prev]);
-      try {
-        await navigator.clipboard.writeText(buildInviteMessage(cookbook.name, invitation.email, link));
-        setCopiedToken(invitation.token);
-        setTimeout(() => setCopiedToken(null), 2200);
-      } catch {}
+      // No auto-copy — when inviting multiple people in a row,
+      // the clipboard kept getting overwritten by the latest
+      // invite. The per-row "Copy link" pill is the explicit
+      // way to grab a particular invitee's link.
+      flashToast(invitation.email ? `Invite sent to ${invitation.email}` : "Invite link ready — tap Copy link");
     } catch (err) {
       setError(err.message || "Could not create invitation.");
     } finally {
