@@ -999,6 +999,23 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
   const [translating, setTranslating] = useState(false);
   const [translateMsg, setTranslateMsg] = useState(null);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [isDefault, setIsDefault] = useState((cookbook.displayOrder ?? 99999) === 0);
+  const [makingDefault, setMakingDefault] = useState(false);
+
+  const makeDefault = async () => {
+    setMakingDefault(true);
+    try {
+      const res = await fetch("/api/admin/cookbooks/order", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ defaultId: cookbook.id }),
+      });
+      if (res.ok) setIsDefault(true);
+    } catch {} finally {
+      setMakingDefault(false);
+    }
+  };
 
   const translateAll = async () => {
     setTranslating(true);
@@ -1288,6 +1305,22 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
             >
               <span className="knob" />
             </button>
+          </div>
+        </div>
+
+        <div className="cb-setting-row">
+          <div className="cb-setting-text">
+            <div className="cb-setting-label">Default cookbook</div>
+            <div className="cb-setting-desc">The cookbook that opens first when you sign in and sits cover-facing on your shelf.</div>
+          </div>
+          <div className="cb-setting-control">
+            {isDefault ? (
+              <span className="cb-default-badge">Default</span>
+            ) : (
+              <button type="button" className="btn ghost sm" onClick={makeDefault} disabled={makingDefault}>
+                {makingDefault ? "Setting…" : "Make default"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -1823,32 +1856,6 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
                 >
                   {cb.coverPhoto && <img className="book-spine-photo" src={cb.coverPhoto} alt="" />}
                   <span className="book-spine-label">{stripEmoji(cb.name)}</span>
-                </button>
-              )}
-              {canManage && (
-                <button
-                  type="button"
-                  className="book-edit"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onEditCookbook) onEditCookbook(cb);
-                    else setEditing({ cookbook: cb });
-                  }}
-                  title="Cookbook settings"
-                  aria-label="Cookbook settings"
-                >
-                  <Icon name="edit" size={12} />
-                </button>
-              )}
-              {canReorder && !isDefault && !coverFacing && (
-                <button
-                  type="button"
-                  className="book-default-action"
-                  onClick={(e) => { e.stopPropagation(); setAsDefault(cb.id); }}
-                  title="Set as default"
-                  aria-label="Set as default"
-                >
-                  <Icon name="star" size={10} />
                 </button>
               )}
             </div>

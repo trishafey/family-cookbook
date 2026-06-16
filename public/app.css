@@ -1846,6 +1846,16 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .cb-setting-control { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
 .cb-delete-confirm { display: inline-flex; gap: 8px; }
+.cb-default-badge {
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
 
 /* Cover colour swatch row inside the Settings card. */
 .cb-color-swatches {
@@ -2462,36 +2472,6 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .book-spine-body, .book-cover-body {
   transition: transform .15s ease;
 }
-.book-edit, .book-default-action {
-  position: absolute;
-  top: -10px;
-  width: 24px; height: 24px;
-  display: grid; place-items: center;
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  cursor: pointer;
-  color: var(--ink-2);
-  /* Always visible — touch devices have no hover so the buttons
-     were never tappable. Subtle on idle, slightly more present
-     on hover. */
-  opacity: .55;
-  transition: opacity .15s, transform .15s, border-color .15s, color .15s;
-  z-index: 5;
-}
-.book-edit { right: -8px; }
-.book-default-action { left: -8px; color: var(--accent); }
-.book:hover .book-edit,
-.book:hover .book-default-action {
-  opacity: 1;
-}
-.book-edit:hover, .book-default-action:hover {
-  transform: scale(1.08);
-  border-color: var(--accent);
-  color: var(--accent);
-  opacity: 1;
-}
-
 /* Bottom-of-screen snackbar. One message + optional inline link. */
 .snackbar {
   position: fixed;
