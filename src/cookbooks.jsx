@@ -857,10 +857,7 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
                 defaultValue={inv.role}
                 onChange={(e) => {
                   const v = e.target.value;
-                  if (v === "__copy__") {
-                    e.target.value = inv.role;
-                    copyLink(inv.link, inv.token, inv.email);
-                  } else if (v === "__remove__") {
+                  if (v === "__remove__") {
                     e.target.value = inv.role;
                     if (window.confirm(`Are you sure you want to revoke this invitation?`)) {
                       revoke(inv.token);
@@ -870,7 +867,6 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
               >
                 <option value="viewer" disabled>Follower</option>
                 <option value="editor" disabled>Editor</option>
-                <option value="__copy__">{copiedToken === inv.token ? "Copied!" : "Copy link"}</option>
                 {canRemoveMembers && <option value="__remove__">Remove…</option>}
               </select>
             </li>
@@ -1987,10 +1983,13 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
               >
                 {cb.coverPhoto && <img className="book-spine-photo" src={cb.coverPhoto} alt="" />}
                 <span className="book-spine-label">{stripEmoji(cb.name)}</span>
-                <span className="pending-marker" aria-hidden>
-                  <Icon name={kind === "invite" ? "send" : "clock"} size={11} />
-                </span>
               </button>
+              {/* Marker lives OUTSIDE book-spine-body because the
+                  spine body clips overflow (for the photo); the
+                  marker hangs off the top corner. */}
+              <span className="pending-marker" aria-hidden>
+                <Icon name={kind === "invite" ? "send" : "clock"} size={11} />
+              </span>
             </div>
           );
         };
