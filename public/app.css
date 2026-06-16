@@ -5043,7 +5043,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .lab-header .eyebrow {
   font-family: var(--mono); font-size: 11px;
   letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--accent-2); font-weight: 600;
+  color: var(--accent-cool); font-weight: 600;
 }
 .lab-header h1 {
   font-family: var(--serif); font-size: 56px; font-weight: 400;
