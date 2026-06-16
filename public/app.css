@@ -1875,6 +1875,20 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   margin-top: 12px;
 }
 
+@media (max-width: 640px) {
+  .cb-setting-row--stack-mobile {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .cb-setting-row--stack-mobile .cb-setting-control {
+    justify-content: flex-start;
+  }
+  .cb-setting-row--stack-mobile .cb-color-swatches {
+    display: flex; flex-wrap: wrap;
+  }
+}
+
 /* Private / Public visibility toggle */
 .cb-vis-toggle {
   display: inline-flex;

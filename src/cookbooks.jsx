@@ -1173,7 +1173,7 @@ export function CookbookSettingsForm({ cookbook, isAdmin, onSaved, onDeleted, on
 
       {/* Card 3: cover colour / cover photo / visibility / directory / comments / delete */}
       <div className="cb-card cb-rows-card">
-        <div className="cb-setting-row">
+        <div className="cb-setting-row cb-setting-row--stack-mobile">
           <div className="cb-setting-text">
             <div className="cb-setting-label">Cover colour</div>
             <div className="cb-setting-desc">The cloth colour of the book when there's no cover photo.</div>
