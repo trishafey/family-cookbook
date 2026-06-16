@@ -1577,7 +1577,7 @@ function MobileMenuDrawer({
             )}
             {onOpenDiscover && (
               <button className={`mobile-menu-item ${currentView === "discover" ? "active" : ""}`} onClick={() => go(onOpenDiscover)}>
-                <Icon name="search" size={18} />
+                <Icon name="discover" size={18} />
                 <span>Discover</span>
               </button>
             )}
