@@ -7,12 +7,12 @@ import { Icon } from "./helpers.jsx";
 import { LANG_META } from "./i18n.js";
 
 const FLAG_SRC = {
-  en:   "/images/flags/canada.svg",
-  enUS: "/images/flags/us.svg",
-  pl:   "/images/flags/pl.svg",
-  es:   "/images/flags/es.svg",
-  el:   "/images/flags/el.svg",
-  pt:   "/images/flags/pt.svg",
+  en:   "/images/flags/en.png",
+  enUS: "/images/flags/en-us.svg",
+  pl:   "/images/flags/pl.jpg",
+  es:   "/images/flags/es.png",
+  el:   "/images/flags/el.jpg",
+  pt:   "/images/flags/pt.png",
   fil:  "/images/flags/fil.svg",
 };
 
