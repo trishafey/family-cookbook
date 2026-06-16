@@ -518,7 +518,18 @@ app.post("/api/admin/cookbooks/:id/invitations", async (c) => {
 
   const body = await c.req.json().catch(() => ({}));
   const inviteEmail = (body?.email || "").toString().trim().toLowerCase() || null;
-  const inviteRole = ["editor", "viewer"].includes(body?.role) ? body.role : "viewer";
+  // Owner-grants are restricted to owners + admins — editors can
+  // invite editors/viewers but not promote anyone to owner.
+  const requestedRole = body?.role;
+  let inviteRole;
+  if (requestedRole === "owner") {
+    if (role !== "owner" && role !== "admin") {
+      return c.json({ error: "only owners can invite co-owners" }, 403);
+    }
+    inviteRole = "owner";
+  } else {
+    inviteRole = ["editor", "viewer"].includes(requestedRole) ? requestedRole : "viewer";
+  }
 
   // If they're already a member, just return the existing row
   // instead of creating a duplicate invite.

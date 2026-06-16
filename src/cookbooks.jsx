@@ -928,6 +928,7 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
             disabled={inviting}
             className="cb-invite-role"
           >
+            {canRemoveMembers && <option value="owner">As owner</option>}
             <option value="editor">As editor</option>
             <option value="viewer">As viewer</option>
           </select>
