@@ -4291,6 +4291,86 @@ app.get("/api/admin/me/profile", async (c) => {
   });
 });
 
+// Admin: detail view for a single user — memberships, pending
+// invitations addressed to them, and outgoing join requests
+// they've sent. Used by the admin user-edit modal so admins can
+// see "what cookbooks does this person have access to" at a
+// glance.
+app.get("/api/admin/users/:email/cookbooks", async (c) => {
+  const caller = authedEmail(c);
+  if (!caller) return c.json({ error: "not signed in" }, 401);
+  if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
+  const target = c.req.param("email").toLowerCase();
+  // Self-heal: join_requests may not exist on older deploys.
+  await c.env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS join_requests (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       cookbook_id TEXT NOT NULL,
+       user_email TEXT NOT NULL,
+       message TEXT,
+       status TEXT NOT NULL DEFAULT 'pending',
+       created_at TEXT NOT NULL,
+       decided_at TEXT,
+       decided_by TEXT,
+       decided_role TEXT,
+       UNIQUE(cookbook_id, user_email)
+     )`
+  ).run().catch(() => {});
+  const nowIso = new Date().toISOString();
+  const memberships = await c.env.DB.prepare(
+    `SELECT m.role, m.joined_at, c.id, c.name, c.slug, c.visibility, c.cover_color, c.cover_photo
+     FROM cookbook_members m
+     JOIN cookbooks c ON c.id = m.cookbook_id
+     WHERE m.user_email = ?
+     ORDER BY m.joined_at DESC`
+  ).bind(target).all();
+  const invitations = await c.env.DB.prepare(
+    `SELECT i.token, i.role, i.invited_by, i.created_at, i.expires_at,
+            c.id AS cookbook_id, c.name, c.slug
+     FROM invitations i
+     LEFT JOIN cookbooks c ON c.id = i.cookbook_id
+     WHERE LOWER(i.email) = LOWER(?) AND i.accepted_at IS NULL AND i.expires_at > ?
+     ORDER BY i.created_at DESC`
+  ).bind(target, nowIso).all();
+  const joinRequests = await c.env.DB.prepare(
+    `SELECT j.id, j.created_at, j.status,
+            c.id AS cookbook_id, c.name, c.slug
+     FROM join_requests j
+     LEFT JOIN cookbooks c ON c.id = j.cookbook_id
+     WHERE j.user_email = ? AND j.status = 'pending'
+     ORDER BY j.created_at DESC`
+  ).bind(target).all().catch(() => ({ results: [] }));
+  return c.json({
+    memberships: (memberships.results || []).map(r => ({
+      cookbookId: r.id,
+      name: r.name,
+      slug: r.slug,
+      visibility: r.visibility,
+      coverColor: r.cover_color || null,
+      coverPhoto: r.cover_photo || null,
+      role: r.role,
+      joinedAt: r.joined_at,
+    })),
+    invitations: (invitations.results || []).map(r => ({
+      token: r.token,
+      role: r.role,
+      invitedBy: r.invited_by,
+      createdAt: r.created_at,
+      expiresAt: r.expires_at,
+      cookbookId: r.cookbook_id,
+      cookbookName: r.name,
+      cookbookSlug: r.slug,
+    })),
+    joinRequests: (joinRequests.results || []).map(r => ({
+      id: r.id,
+      createdAt: r.created_at,
+      cookbookId: r.cookbook_id,
+      cookbookName: r.name,
+      cookbookSlug: r.slug,
+    })),
+  });
+});
+
 // Admin: approve / decline a pending account.
 app.post("/api/admin/users/:email/approve", async (c) => {
   const email = authedEmail(c);

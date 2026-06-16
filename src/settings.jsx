@@ -206,6 +206,25 @@ function EditUserModal({ user, onClose, onSaved, onDeleted }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [memberships, setMemberships] = useState([]);
+  const [invitations, setInvitations] = useState([]);
+  const [joinRequests, setJoinRequests] = useState([]);
+  const [accessLoading, setAccessLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setAccessLoading(true);
+    fetch(`/api/admin/users/${encodeURIComponent(user.email)}/cookbooks`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled || !data) return;
+        setMemberships(data.memberships || []);
+        setInvitations(data.invitations || []);
+        setJoinRequests(data.joinRequests || []);
+      })
+      .finally(() => { if (!cancelled) setAccessLoading(false); });
+    return () => { cancelled = true; };
+  }, [user.email]);
 
   const save = async (e) => {
     e?.preventDefault?.();
@@ -335,6 +354,62 @@ function EditUserModal({ user, onClose, onSaved, onDeleted }) {
             </button>
           </div>
         </form>
+
+        <div className="admin-user-access">
+          <div className="admin-user-access-head">Cookbook access</div>
+          {accessLoading ? (
+            <div className="admin-user-access-empty">Loading…</div>
+          ) : (memberships.length === 0 && invitations.length === 0 && joinRequests.length === 0) ? (
+            <div className="admin-user-access-empty">No cookbook memberships or pending requests.</div>
+          ) : (
+            <>
+              {memberships.length > 0 && (
+                <div className="admin-user-access-group">
+                  <div className="admin-user-access-label">Member of</div>
+                  <ul className="admin-user-access-list">
+                    {memberships.map(m => (
+                      <li key={m.cookbookId}>
+                        <span className="dot" style={m.coverColor ? { background: m.coverColor } : undefined} />
+                        <span className="name">{m.name}</span>
+                        <span className={`role role-${m.role}`}>{m.role === "viewer" ? "follower" : m.role}</span>
+                        <span className="vis">{m.visibility}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {invitations.length > 0 && (
+                <div className="admin-user-access-group">
+                  <div className="admin-user-access-label">Pending invitations</div>
+                  <ul className="admin-user-access-list">
+                    {invitations.map(inv => (
+                      <li key={inv.token}>
+                        <Icon name="send" size={11} />
+                        <span className="name">{inv.cookbookName}</span>
+                        <span className={`role role-${inv.role}`}>{inv.role === "viewer" ? "follower" : inv.role}</span>
+                        <span className="vis">from {inv.invitedBy}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {joinRequests.length > 0 && (
+                <div className="admin-user-access-group">
+                  <div className="admin-user-access-label">Pending join requests</div>
+                  <ul className="admin-user-access-list">
+                    {joinRequests.map(req => (
+                      <li key={req.id}>
+                        <Icon name="clock" size={11} />
+                        <span className="name">{req.cookbookName}</span>
+                        <span className="vis">{new Date(req.createdAt).toLocaleDateString()}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
         <div className="modal-danger">
           <div className="head">Danger zone</div>
