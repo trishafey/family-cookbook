@@ -5120,13 +5120,13 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .lab-header .eyebrow {
   font-family: var(--mono); font-size: 11px;
   letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--accent-cool); font-weight: 600;
+  color: var(--accent-2); font-weight: 600;
 }
 .lab-header h1 {
   font-family: var(--serif); font-size: 56px; font-weight: 400;
   margin: 6px 0 12px; letter-spacing: -0.02em;
 }
-.lab-header h1 em { color: var(--accent); font-style: italic; }
+.lab-header h1 em { color: var(--accent-cool); font-style: italic; }
 .lab-header .intro {
   font-family: var(--serif); font-size: 17px; color: var(--ink-2);
   line-height: 1.5;
@@ -5521,7 +5521,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .lab-prefs-bar .t .label {
   font-family: var(--mono); font-size: 10px;
   letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--accent-2); font-weight: 600;
+  color: var(--accent-cool); font-weight: 600;
   flex-shrink: 0;
 }
 .lab-prefs-bar .t .val {
