@@ -11,10 +11,13 @@ export function CreateCookbookPage({ onClose, onCreated }) {
   const [name, setName] = useState("");
   const [blurb, setBlurb] = useState("");
   const [visibility, setVisibility] = useState("private");
+  const [cookbookType, setCookbookType] = useState("");
   const [languages, setLanguages] = useState(["en"]);
   const [coverColor, setCoverColor] = useState(null);
   const [coverPhoto, setCoverPhoto] = useState(null);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [allowComments, setAllowComments] = useState(true);
+  const [makeDefault, setMakeDefault] = useState(false);
   const [network, setNetwork] = useState([]);
   const [invites, setInvites] = useState([]);
   const [manualEmail, setManualEmail] = useState("");
@@ -67,7 +70,7 @@ export function CreateCookbookPage({ onClose, onCreated }) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: n, blurb, visibility, languages, coverColor, coverPhoto }),
+        body: JSON.stringify({ name: n, blurb, visibility, languages, coverColor, coverPhoto, cookbookType: cookbookType || null }),
       });
       if (!res.ok) {
         const { error: msg } = await res.json().catch(() => ({}));
@@ -83,6 +86,16 @@ export function CreateCookbookPage({ onClose, onCreated }) {
             credentials: "include",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: inv.email, role: inv.role }),
+          });
+        } catch {}
+      }
+      if (makeDefault) {
+        try {
+          await fetch("/api/admin/cookbooks/order", {
+            method: "PUT",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ defaultId: cookbook.id }),
           });
         } catch {}
       }
@@ -145,6 +158,20 @@ export function CreateCookbookPage({ onClose, onCreated }) {
               maxLength={150}
               rows={3}
             />
+          </div>
+          <div className="cb-field-stack">
+            <label className="cb-field-label" htmlFor="cb-new-type">Cookbook type</label>
+            <select
+              id="cb-new-type"
+              className="cb-field-input"
+              value={cookbookType}
+              onChange={(e) => setCookbookType(e.target.value)}
+            >
+              <option value="">— Not set —</option>
+              <option value="family-heirloom">Family heirloom cookbook</option>
+              <option value="personal">Personal cookbook</option>
+              <option value="group">Group cookbook</option>
+            </select>
           </div>
         </div>
 
@@ -226,7 +253,69 @@ export function CreateCookbookPage({ onClose, onCreated }) {
           </div>
         </div>
 
-        {/* Card 4: invite cooks */}
+        {/* Card 4: visibility + comments + default */}
+        <div className="cb-card cb-rows-card">
+          <div className="cb-setting-row cb-setting-row--stack-mobile">
+            <div className="cb-setting-text">
+              <div className="cb-setting-label">Who can see this cookbook</div>
+              <div className="cb-setting-desc">Private cookbooks are visible only to members. Public cookbooks appear in the directory and can be followed by anyone.</div>
+            </div>
+            <div className="cb-setting-control">
+              <div className="cb-vis-toggle" role="group" aria-label="Visibility">
+                <button
+                  type="button"
+                  className={`cb-vis-btn ${visibility === "private" ? "active" : ""}`}
+                  onClick={() => setVisibility("private")}
+                >
+                  <Icon name="bookmark" size={13} /> Private
+                </button>
+                <button
+                  type="button"
+                  className={`cb-vis-btn ${visibility === "public" ? "active" : ""}`}
+                  onClick={() => setVisibility("public")}
+                >
+                  <Icon name="share" size={13} /> Public
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="cb-setting-row">
+            <div className="cb-setting-text">
+              <div className="cb-setting-label">Allow comments from followers</div>
+              <div className="cb-setting-desc">People who follow this cookbook can leave notes on recipes they've cooked.</div>
+            </div>
+            <div className="cb-setting-control">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={allowComments}
+                className={`cb-switch ${allowComments ? "on" : ""}`}
+                onClick={() => setAllowComments(v => !v)}
+              >
+                <span className="knob" />
+              </button>
+            </div>
+          </div>
+          <div className="cb-setting-row">
+            <div className="cb-setting-text">
+              <div className="cb-setting-label">Default cookbook</div>
+              <div className="cb-setting-desc">Make this the cookbook that opens first when you sign in. It'll sit cover-facing at the front of your shelf.</div>
+            </div>
+            <div className="cb-setting-control">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={makeDefault}
+                className={`cb-switch ${makeDefault ? "on" : ""}`}
+                onClick={() => setMakeDefault(v => !v)}
+              >
+                <span className="knob" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 5: invite cooks */}
         <div className="cb-card cb-invite-card">
           <div className="cb-card-title">Invite cooks <span className="opt" style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-3)" }}>(optional)</span></div>
           <div className="cb-card-desc">They'll get an invitation as soon as the cookbook is created.</div>
