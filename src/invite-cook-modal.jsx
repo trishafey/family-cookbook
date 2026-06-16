@@ -14,7 +14,6 @@ export function InviteCookModal({ cookbook, onClose }) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("editor");
   const [inviting, setInviting] = useState(false);
-  const [copiedToken, setCopiedToken] = useState(null);
   const [error, setError] = useState(null);
   const [lastInvite, setLastInvite] = useState(null);
 
@@ -31,14 +30,6 @@ export function InviteCookModal({ cookbook, onClose }) {
   }, [cookbook.id]);
 
   const niceName = (p) => p.displayName || [p.firstName, p.lastName].filter(Boolean).join(" ") || p.email;
-
-  const buildInviteMessage = (cookbookName, inviteEmail, link) => {
-    const parts = [`You've been invited to ${cookbookName} on Heirloom.`];
-    if (inviteEmail) parts.push(`Sign in with ${inviteEmail} to accept:`);
-    else parts.push(`Accept here:`);
-    parts.push(link);
-    return parts.join(" ");
-  };
 
   const sendInvite = async (email, role) => {
     setInviting(true);
@@ -58,11 +49,10 @@ export function InviteCookModal({ cookbook, onClose }) {
       const { invitation, link } = await res.json();
       setInvitations(prev => [{ ...invitation, link }, ...prev]);
       setLastInvite({ email: invitation.email, link, token: invitation.token });
-      try {
-        await navigator.clipboard.writeText(buildInviteMessage(cookbook.name, invitation.email, link));
-        setCopiedToken(invitation.token);
-        setTimeout(() => setCopiedToken(null), 2200);
-      } catch {}
+      // No auto-copy — back-to-back invites kept overwriting the
+      // clipboard with the latest invitee's link. Cooks who want
+      // to share a specific person's link use the Copy link
+      // button on that row in the Members tab.
     } catch (err) {
       setError(err.message || "Could not create invitation.");
     } finally {
@@ -117,10 +107,7 @@ export function InviteCookModal({ cookbook, onClose }) {
         {lastInvite && (
           <div className="invite-confirmation">
             <Icon name="check" size={14} />
-            {copiedToken === lastInvite.token
-              ? <>Invite sent to <strong>{lastInvite.email || "the link"}</strong> — link copied to your clipboard too.</>
-              : <>Invite sent to <strong>{lastInvite.email || "the link"}</strong>.</>
-            }
+            Invite sent to <strong>{lastInvite.email || "the link"}</strong>.
           </div>
         )}
 

@@ -2281,10 +2281,10 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   display: inline-flex; align-items: center; gap: 6px;
   margin-top: 14px;
   padding: 8px 12px;
-  background: color-mix(in srgb, var(--accent-cool, #6e7a3a) 12%, var(--paper));
-  border: 1px solid color-mix(in srgb, var(--accent-cool, #6e7a3a) 28%, transparent);
+  background: color-mix(in srgb, var(--accent-2) 12%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--accent-2) 30%, transparent);
   border-radius: var(--radius);
-  color: var(--accent-cool, #6e7a3a);
+  color: var(--accent-2);
   font-family: var(--sans); font-size: 13px;
 }
 
@@ -2299,7 +2299,7 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 .cb-members-toast {
   display: inline-flex; align-items: center; gap: 6px;
   font-family: var(--sans); font-size: 13px;
-  color: var(--accent-cool, #6e7a3a);
+  color: var(--accent-2);
   font-weight: 500;
 }
 .cb-member-row.pending {
