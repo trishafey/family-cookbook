@@ -323,6 +323,9 @@ app.post("/api/admin/cookbooks", async (c) => {
   const visibility = ["private", "unlisted", "public"].includes(body?.visibility)
     ? body.visibility : "private";
   const languages = normaliseLanguages(body?.languages) || ["en"];
+  const coverColor = (body?.coverColor === null || (typeof body?.coverColor === "string" && /^[a-zA-Z0-9#\-]{0,32}$/.test(body.coverColor)))
+    ? (body.coverColor || null) : null;
+  const coverPhoto = (typeof body?.coverPhoto === "string" && body.coverPhoto.length < 256) ? body.coverPhoto : null;
 
   const now = new Date().toISOString();
   const suffix = Math.random().toString(36).slice(2, 8);
@@ -333,8 +336,11 @@ app.post("/api/admin/cookbooks", async (c) => {
       "ALTER TABLE cookbooks ADD COLUMN languages TEXT"
     ).run().catch(() => {});
     await c.env.DB.prepare(
-      "INSERT INTO cookbooks (id, owner_email, name, slug, visibility, blurb, languages, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    ).bind(id, email, name, slug, visibility, blurb, JSON.stringify(languages), now, now).run();
+      "ALTER TABLE cookbooks ADD COLUMN cover_color TEXT"
+    ).run().catch(() => {});
+    await c.env.DB.prepare(
+      "INSERT INTO cookbooks (id, owner_email, name, slug, visibility, blurb, languages, cover_color, cover_photo, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    ).bind(id, email, name, slug, visibility, blurb, JSON.stringify(languages), coverColor, coverPhoto, now, now).run();
     await c.env.DB.prepare(
       "INSERT INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
     ).bind(id, email, now).run();
@@ -345,7 +351,7 @@ app.post("/api/admin/cookbooks", async (c) => {
   return c.json({
     cookbook: {
       id, ownerEmail: email, name, slug, visibility,
-      blurb, coverPhoto: null, languages,
+      blurb, coverPhoto, coverColor, languages,
       createdAt: now, updatedAt: now,
       yourRole: "owner",
     },

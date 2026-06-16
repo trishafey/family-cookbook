@@ -843,6 +843,15 @@ export function MembersSection({ cookbook, authEmail, isAdmin, canRemoveMembers,
                 <Icon name="send" size={11} />
                 <span className="cb-invited-text">INVITED</span>
               </span>
+              <button
+                type="button"
+                className="cb-copy-link-btn"
+                onClick={() => copyLink(inv.link, inv.token, inv.email)}
+                title={copiedToken === inv.token ? "Copied!" : "Copy invite link"}
+              >
+                <Icon name={copiedToken === inv.token ? "check" : "share"} size={13} />
+                <span className="cb-copy-link-text">{copiedToken === inv.token ? "Copied" : "Copy link"}</span>
+              </button>
               <select
                 className="cb-role-select"
                 defaultValue={inv.role}

@@ -1901,6 +1901,22 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   border: 1px solid color-mix(in srgb, var(--accent-2) 30%, transparent);
   border-radius: 999px;
 }
+.cb-copy-link-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px;
+  font-family: var(--sans); font-size: 11px;
+  background: var(--paper-2);
+  color: var(--ink-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.cb-copy-link-btn:hover { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 640px) {
+  .cb-copy-link-text { display: none; }
+  .cb-copy-link-btn { padding: 5px; }
+}
 .cb-default-badge {
   font-family: var(--sans);
   font-size: 11px;

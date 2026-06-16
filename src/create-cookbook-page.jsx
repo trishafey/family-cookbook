@@ -157,7 +157,7 @@ export function CreateCookbookPage({ onClose, onCreated }) {
 
         {/* Card 3: cover colour + cover photo */}
         <div className="cb-card cb-rows-card">
-          <div className="cb-setting-row">
+          <div className="cb-setting-row cb-setting-row--stack-mobile">
             <div className="cb-setting-text">
               <div className="cb-setting-label">Cover colour</div>
               <div className="cb-setting-desc">The cloth colour of the book when there's no cover photo.</div>
@@ -176,6 +176,18 @@ export function CreateCookbookPage({ onClose, onCreated }) {
                     title={c.label}
                   />
                 ))}
+                <label
+                  className={`cb-color-swatch custom ${coverColor && !COVER_COLORS.some(c => c.value === coverColor) ? "active" : ""}`}
+                  title="Pick a custom colour"
+                  style={coverColor && !COVER_COLORS.some(c => c.value === coverColor) ? { background: coverColor } : undefined}
+                >
+                  <Icon name="plus" size={11} />
+                  <input
+                    type="color"
+                    value={coverColor && !COVER_COLORS.some(c => c.value === coverColor) ? coverColor : "#7a3a52"}
+                    onChange={(e) => setCoverColor(e.target.value)}
+                  />
+                </label>
                 {coverColor && (
                   <button
                     type="button"
