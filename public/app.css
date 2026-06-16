@@ -1876,13 +1876,15 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
 }
 .discover-join {
   display: inline-flex; align-items: center; gap: 6px;
+  align-self: flex-start;
   margin-top: 10px;
-  padding: 6px 12px;
+  padding: 5px 10px;
+  width: auto;
   font-family: var(--sans); font-size: 12px;
   color: var(--paper);
   background: var(--ink);
   border: 1px solid var(--ink);
-  border-radius: 999px;
+  border-radius: var(--radius);
   cursor: pointer;
   transition: background .12s, border-color .12s;
 }
