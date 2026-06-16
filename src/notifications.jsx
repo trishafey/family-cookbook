@@ -160,14 +160,14 @@ export function Notifications({ authEmail, onOpenCookbook }) {
               </div>
               <div className="notification-actions">
                 <button
-                  className="btn primary"
+                  className="btn primary sm"
                   disabled={busyToken === inv.token}
                   onClick={() => accept(inv.token, inv.cookbookId)}
                 >
                   {busyToken === inv.token ? "Accepting…" : "Accept"}
                 </button>
                 <button
-                  className="btn ghost"
+                  className="btn ghost sm"
                   disabled={busyToken === inv.token}
                   onClick={() => decline(inv.token)}
                 >
@@ -194,7 +194,7 @@ export function Notifications({ authEmail, onOpenCookbook }) {
                   <select
                     value={role}
                     onChange={(e) => setPendingRole(prev => ({ ...prev, [req.id]: e.target.value }))}
-                    className="role-select"
+                    className="cb-role-select"
                   >
                     <option value="viewer">Follower</option>
                     <option value="editor">Editor</option>
@@ -203,14 +203,14 @@ export function Notifications({ authEmail, onOpenCookbook }) {
                 </div>
                 <div className="notification-actions">
                   <button
-                    className="btn primary"
+                    className="btn primary sm"
                     disabled={busyJoinId === req.id}
                     onClick={() => approveJoin(req)}
                   >
                     {busyJoinId === req.id ? "Approving…" : "Approve"}
                   </button>
                   <button
-                    className="btn ghost"
+                    className="btn ghost sm"
                     disabled={busyJoinId === req.id}
                     onClick={() => declineJoin(req)}
                   >
@@ -231,14 +231,14 @@ export function Notifications({ authEmail, onOpenCookbook }) {
                 <p className="notification-blurb">{account.email}</p>
                 <div className="notification-actions">
                   <button
-                    className="btn primary"
+                    className="btn primary sm"
                     disabled={busyAccountEmail === account.email}
                     onClick={() => decideAccount(account, "approve")}
                   >
                     {busyAccountEmail === account.email ? "Approving…" : "Approve"}
                   </button>
                   <button
-                    className="btn ghost"
+                    className="btn ghost sm"
                     disabled={busyAccountEmail === account.email}
                     onClick={() => decideAccount(account, "decline")}
                   >
