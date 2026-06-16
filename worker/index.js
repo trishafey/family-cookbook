@@ -1042,6 +1042,21 @@ async function cookbookRole(c, cookbookId) {
     "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
   ).bind(cookbookId, email).first();
   if (memberRow?.role) return memberRow.role;
+  // Self-heal: if the caller is the cookbook's owner_email but
+  // somehow has no cookbook_members row (data drift from an early
+  // bootstrap path that silently swallowed the INSERT), patch
+  // the membership in now so future requests are fast and
+  // consistent. Treat them as owner for this request.
+  const ownerRow = await c.env.DB.prepare(
+    "SELECT owner_email FROM cookbooks WHERE id = ?"
+  ).bind(cookbookId).first();
+  if (ownerRow?.owner_email && ownerRow.owner_email === email) {
+    const now = new Date().toISOString();
+    await c.env.DB.prepare(
+      "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'owner', ?)"
+    ).bind(cookbookId, email, now).run().catch(() => {});
+    return "owner";
+  }
   const adminRow = await c.env.DB.prepare(
     "SELECT is_admin FROM users WHERE email = ?"
   ).bind(email).first();
@@ -1865,7 +1880,10 @@ app.post("/api/admin/recipes", async (c) => {
   const cookbookId = (draft?.cookbookId || draft?.cookbook_id || BOOTSTRAP_COOKBOOK_ID).toString();
   const writerRole = await cookbookRole(c, cookbookId);
   if (!["owner", "editor", "admin"].includes(writerRole)) {
-    return c.json({ error: "not allowed to add recipes to this cookbook" }, 403);
+    return c.json({
+      error: "not allowed to add recipes to this cookbook",
+      detail: { cookbookId, yourRole: writerRole || "none" },
+    }, 403);
   }
 
   const now = Date.now();
