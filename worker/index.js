@@ -59,10 +59,57 @@ CREATE TABLE IF NOT EXISTS favorites (
 
 const app = new Hono();
 
+// Self-heal: the email/password migration (0025) is not
+// running on Workers Builds prebuild yet. Add the columns
+// inline at boot so the auth endpoints don't crash with
+// "no such column". Each ALTER is wrapped in catch() so
+// reruns (column already exists) are no-ops. Safe to delete
+// once 0025 actually runs on the remote DB.
+async function ensureAuthColumns(env) {
+  const stmts = [
+    "ALTER TABLE users ADD COLUMN password_hash TEXT",
+    "ALTER TABLE users ADD COLUMN password_salt TEXT",
+    "ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN verification_token TEXT",
+    "ALTER TABLE users ADD COLUMN verification_expires TEXT",
+    "ALTER TABLE users ADD COLUMN reset_token TEXT",
+    "ALTER TABLE users ADD COLUMN reset_expires TEXT",
+    "ALTER TABLE users ADD COLUMN last_login_at TEXT",
+    "ALTER TABLE users ADD COLUMN failed_login_count INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN failed_login_until TEXT",
+  ];
+  for (const sql of stmts) {
+    await env.DB.prepare(sql).run().catch(() => {});
+  }
+  // Backfill: seed Tomato123 / fixed temp salt onto any account
+  // that has no password yet (mirrors migration 0026).
+  await env.DB.prepare(
+    `UPDATE users
+       SET password_hash = '659ea802e67cb4ae63aa255ab2b7e260ba2dfcd7e934f562bea5eea02404d252',
+           password_salt = '686569726c6f6f6d2d74656d702d3032'
+     WHERE password_hash IS NULL`
+  ).run().catch(() => {});
+}
+
 // Resolve the session cookie (or legacy CF Access header) into
 // c.var.authedEmail once per request so route handlers can stay
 // synchronous on the authedEmail() call.
 app.use("*", resolveSession);
+
+// Run the auth-column self-heal exactly once per worker
+// instance. A module-scope promise gives us cheap idempotency
+// without needing a real init lifecycle.
+let _authReady = null;
+app.use("/api/auth/*", async (c, next) => {
+  if (!_authReady) _authReady = ensureAuthColumns(c.env);
+  await _authReady;
+  return next();
+});
+app.use("/api/admin/users/:email/reset-password", async (c, next) => {
+  if (!_authReady) _authReady = ensureAuthColumns(c.env);
+  await _authReady;
+  return next();
+});
 
 // ─── Email + password auth (Phase 1) ───
 // Signup writes a hashed password and immediately starts a
