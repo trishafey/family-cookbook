@@ -72,7 +72,36 @@ app.use("*", resolveSession);
 const LOGIN_MAX_FAILURES = 5;
 const LOGIN_LOCKOUT_MINUTES = 15;
 
+// Surface internal worker errors as readable JSON on the auth
+// endpoints (default Hono 500 is opaque, which made the temp
+// password rollout impossible to diagnose).
+function jsonError(err) {
+  return { error: err?.message || "Unexpected error.", detail: String(err) };
+}
+
+app.get("/api/auth/diagnose", async (c) => {
+  if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
+  const email = (c.req.query("email") || "").toLowerCase();
+  const hasSecret = !!c.env.SESSION_SECRET;
+  let row = null;
+  if (email) {
+    row = await c.env.DB.prepare(
+      "SELECT email, password_hash IS NOT NULL AS has_hash, password_salt, status FROM users WHERE LOWER(email) = LOWER(?)"
+    ).bind(email).first();
+  }
+  return c.json({
+    sessionSecretSet: hasSecret,
+    user: row ? {
+      email: row.email,
+      hasHash: !!row.has_hash,
+      saltPrefix: row.password_salt ? row.password_salt.slice(0, 12) : null,
+      status: row.status,
+    } : null,
+  });
+});
+
 app.post("/api/auth/signup", async (c) => {
+  try {
   const body = await c.req.json().catch(() => ({}));
   const email = (body?.email || "").toString().trim().toLowerCase();
   const password = (body?.password || "").toString();
@@ -120,9 +149,14 @@ app.post("/api/auth/signup", async (c) => {
   const token = await signSession(c.env, email);
   c.header("Set-Cookie", sessionCookie(token));
   return c.json({ ok: true, email });
+  } catch (err) {
+    console.error("signup error", err);
+    return c.json(jsonError(err), 500);
+  }
 });
 
 app.post("/api/auth/login", async (c) => {
+  try {
   const body = await c.req.json().catch(() => ({}));
   const email = (body?.email || "").toString().trim().toLowerCase();
   const password = (body?.password || "").toString();
@@ -165,12 +199,17 @@ app.post("/api/auth/login", async (c) => {
   const token = await signSession(c.env, email);
   c.header("Set-Cookie", sessionCookie(token));
   return c.json({ ok: true, email, mustChangePassword });
+  } catch (err) {
+    console.error("login error", err);
+    return c.json(jsonError(err), 500);
+  }
 });
 
 // Set a new password while signed in. Used by the post-login
 // "you're on a temp password" modal and the future settings
 // "change password" surface.
 app.post("/api/auth/change-password", async (c) => {
+  try {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const body = await c.req.json().catch(() => ({}));
@@ -185,6 +224,10 @@ app.post("/api/auth/change-password", async (c) => {
      WHERE LOWER(email) = LOWER(?)`
   ).bind(hash, salt, email).run();
   return c.json({ ok: true });
+  } catch (err) {
+    console.error("change-password error", err);
+    return c.json(jsonError(err), 500);
+  }
 });
 
 app.post("/api/auth/logout", async (c) => {
