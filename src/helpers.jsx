@@ -698,11 +698,18 @@ export function useFavorites(authEmail) {
 // Cloudflare Access (login if needed) and return them to `returnTo`.
 export function signInUrl(returnTo) {
   const target = returnTo ?? (window.location.pathname + window.location.search);
-  return `/api/admin/login?return=${encodeURIComponent(target)}`;
+  return `/signin?return=${encodeURIComponent(target)}`;
 }
 
-// Cloudflare Access's built-in logout URL — clears the session cookie.
-export const SIGN_OUT_URL = "/cdn-cgi/access/logout";
+// Logout: POST clears the session cookie, then we drop the cook
+// back on the public landing. SIGN_OUT_URL stays as an <a href>
+// for places that expect a plain link.
+export const SIGN_OUT_URL = "#sign-out";
+
+export async function signOut() {
+  try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch {}
+  window.location.assign("/");
+}
 
 // ─── URL routing ─────────────────────────────────────────────
 // Backs view + recipeId + editingId with the browser URL so the

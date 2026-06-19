@@ -10,6 +10,10 @@
 
 import { Hono } from "hono";
 import { RECIPES as SEED_RECIPES } from "../src/data.js";
+import {
+  hashPassword, verifyPassword, isValidEmail, passwordIssues,
+  signSession, verifySession, sessionCookie, clearSessionCookie, readSessionCookie,
+} from "./auth.js";
 
 // One-time setup key. Used by /api/setup to apply the schema and seed
 // the database. Safe to regenerate / remove after first use — the
@@ -53,6 +57,121 @@ CREATE TABLE IF NOT EXISTS favorites (
 `;
 
 const app = new Hono();
+
+// Resolve the session cookie (or legacy CF Access header) into
+// c.var.authedEmail once per request so route handlers can stay
+// synchronous on the authedEmail() call.
+app.use("*", resolveSession);
+
+// ─── Email + password auth (Phase 1) ───
+// Signup writes a hashed password and immediately starts a
+// session — verification email lands in Phase 2. Login does
+// constant-time hash comparison + per-account lockout after
+// five consecutive failures.
+const LOGIN_MAX_FAILURES = 5;
+const LOGIN_LOCKOUT_MINUTES = 15;
+
+app.post("/api/auth/signup", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const email = (body?.email || "").toString().trim().toLowerCase();
+  const password = (body?.password || "").toString();
+  const firstName = (body?.firstName || "").toString().trim().slice(0, 60);
+  const lastName = (body?.lastName || "").toString().trim().slice(0, 60);
+  const phone = (body?.phone || "").toString().trim().slice(0, 32);
+  const lang = ["en", "enUS", "pl", "es", "el", "pt", "fil"].includes(body?.lang) ? body.lang : "en";
+
+  if (!isValidEmail(email)) return c.json({ error: "Enter a valid email address." }, 400);
+  const pwIssue = passwordIssues(password);
+  if (pwIssue) return c.json({ error: pwIssue }, 400);
+  if (!firstName || !lastName) return c.json({ error: "First and last name are required." }, 400);
+  if (!phone) return c.json({ error: "Phone number is required." }, 400);
+
+  // Reject if a fully-registered user already exists. Old rows
+  // from the CF Access flow (no password_hash) can still upgrade
+  // by going through the password-reset path.
+  const existing = await c.env.DB.prepare(
+    "SELECT email, password_hash FROM users WHERE LOWER(email) = ?"
+  ).bind(email).first();
+  if (existing?.password_hash) {
+    return c.json({ error: "An account with that email already exists. Try signing in." }, 409);
+  }
+
+  const { hash, salt } = await hashPassword(password);
+  const displayName = `${firstName} ${lastName}`.trim();
+  const now = new Date().toISOString();
+  if (existing) {
+    await c.env.DB.prepare(
+      `UPDATE users SET password_hash = ?, password_salt = ?,
+                        first_name = ?, last_name = ?, phone = ?,
+                        display_name = ?, lang = ?, last_login_at = ?
+       WHERE LOWER(email) = ?`
+    ).bind(hash, salt, firstName, lastName, phone, displayName, lang, now, email).run();
+  } else {
+    await c.env.DB.prepare(
+      `INSERT INTO users (email, display_name, first_name, last_name, phone, lang,
+                          password_hash, password_salt,
+                          tier, status, email_verified,
+                          created_at, last_seen_at, last_login_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'full', 'pending', 0, ?, ?, ?)`
+    ).bind(email, displayName, firstName, lastName, phone, lang, hash, salt, now, now, now).run();
+  }
+
+  const token = await signSession(c.env, email);
+  c.header("Set-Cookie", sessionCookie(token));
+  return c.json({ ok: true, email });
+});
+
+app.post("/api/auth/login", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const email = (body?.email || "").toString().trim().toLowerCase();
+  const password = (body?.password || "").toString();
+  if (!isValidEmail(email) || !password) {
+    return c.json({ error: "Email and password required." }, 400);
+  }
+  const row = await c.env.DB.prepare(
+    `SELECT email, password_hash, password_salt,
+            failed_login_count, failed_login_until
+     FROM users WHERE LOWER(email) = ?`
+  ).bind(email).first();
+  if (!row?.password_hash) {
+    // Don't leak whether the email exists.
+    return c.json({ error: "That email and password don't match an account." }, 401);
+  }
+  if (row.failed_login_until && new Date(row.failed_login_until) > new Date()) {
+    return c.json({
+      error: "Too many failed attempts. Try again in a few minutes.",
+    }, 429);
+  }
+  const ok = await verifyPassword(password, row.password_hash, row.password_salt);
+  if (!ok) {
+    const fails = (row.failed_login_count || 0) + 1;
+    const until = fails >= LOGIN_MAX_FAILURES
+      ? new Date(Date.now() + LOGIN_LOCKOUT_MINUTES * 60_000).toISOString()
+      : null;
+    await c.env.DB.prepare(
+      "UPDATE users SET failed_login_count = ?, failed_login_until = ? WHERE LOWER(email) = ?"
+    ).bind(fails, until, email).run().catch(() => {});
+    return c.json({ error: "That email and password don't match an account." }, 401);
+  }
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    "UPDATE users SET failed_login_count = 0, failed_login_until = NULL, last_login_at = ?, last_seen_at = ? WHERE LOWER(email) = ?"
+  ).bind(now, now, email).run().catch(() => {});
+  const token = await signSession(c.env, email);
+  c.header("Set-Cookie", sessionCookie(token));
+  return c.json({ ok: true, email });
+});
+
+app.post("/api/auth/logout", async (c) => {
+  c.header("Set-Cookie", clearSessionCookie());
+  return c.json({ ok: true });
+});
+
+app.get("/api/auth/me", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ email: null }, 200);
+  return c.json({ email });
+});
 
 // Supported language codes for the per-cookbook switcher. Add a
 // code here when the UI chrome translations land for it; recipe
@@ -1378,8 +1497,24 @@ app.get("/api/setup", async (c) => {
 // 'cf-access-authenticated-user-email' header. The worker trusts this
 // header — Access alone controls who's allowed in.
 
+// Resolves the caller's email from either the signed session
+// cookie (new email+password flow) or the legacy Cloudflare
+// Access header (still in place during the transition). Runs
+// once as middleware; downstream code reads it synchronously
+// via authedEmail(c).
+async function resolveSession(c, next) {
+  let email = null;
+  try {
+    const token = readSessionCookie(c);
+    if (token) email = await verifySession(c.env, token);
+  } catch {}
+  if (!email) email = c.req.header("cf-access-authenticated-user-email") || null;
+  c.set("authedEmail", email ? email.toLowerCase() : null);
+  return next();
+}
+
 function authedEmail(c) {
-  return c.req.header("cf-access-authenticated-user-email") || null;
+  return c.get("authedEmail") || null;
 }
 
 // ─── Multi-tenant cookbooks (Phase 4a) ───
@@ -4450,6 +4585,28 @@ app.post("/api/admin/users/:email/decline", async (c) => {
   await c.env.DB.prepare(
     "UPDATE users SET status = 'declined' WHERE email = ?"
   ).bind(target).run();
+  return c.json({ ok: true });
+});
+
+// Admin: reset another user's password. Sets a known new
+// password chosen by the admin (no email round-trip). Logs the
+// reset event so we have an audit trail.
+app.post("/api/admin/users/:email/reset-password", async (c) => {
+  const caller = authedEmail(c);
+  if (!caller) return c.json({ error: "not signed in" }, 401);
+  if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
+  const targetEmail = c.req.param("email").toLowerCase();
+  const body = await c.req.json().catch(() => ({}));
+  const newPassword = (body?.newPassword || "").toString();
+  const pwIssue = passwordIssues(newPassword);
+  if (pwIssue) return c.json({ error: pwIssue }, 400);
+  const { hash, salt } = await hashPassword(newPassword);
+  await c.env.DB.prepare(
+    `UPDATE users SET password_hash = ?, password_salt = ?,
+                      failed_login_count = 0, failed_login_until = NULL,
+                      reset_token = NULL, reset_expires = NULL
+     WHERE LOWER(email) = ?`
+  ).bind(hash, salt, targetEmail).run();
   return c.json({ ok: true });
 });
 

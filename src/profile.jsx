@@ -164,7 +164,7 @@ export function ProfileSetupGate({ authEmail, onSaved, onSignOut, save }) {
               {saving ? "Saving…" : "Continue"}
             </button>
             {onSignOut && (
-              <a className="btn ghost" href={onSignOut}>Sign out</a>
+              <button type="button" className="btn ghost" onClick={() => { if (typeof onSignOut === "function") onSignOut(); else window.location.assign(onSignOut); }}>Sign out</button>
             )}
           </div>
         </form>

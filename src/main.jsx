@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, useUserCookbooks, useProfile, usePendingApprovalCount, useNotificationCount, signInUrl, SIGN_OUT_URL, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions, BOOTSTRAP_COOKBOOK_ID } from "./helpers.jsx";
+import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, useUserCookbooks, useProfile, usePendingApprovalCount, useNotificationCount, signInUrl, SIGN_OUT_URL, signOut, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions, BOOTSTRAP_COOKBOOK_ID } from "./helpers.jsx";
+import { SignInPage, SignUpPage, ForgotPasswordPage } from "./auth.jsx";
 import { useLang, LANG_META } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
@@ -361,6 +362,15 @@ function NavSearch({ query, setQuery, placeholder, mobilePlaceholder, simpleMode
 }
 
 function App() {
+  // ─── Branded auth pages — short-circuit before the main app
+  //     renders so they don't depend on cookbook/profile state. ───
+  if (typeof window !== "undefined") {
+    const p = window.location.pathname;
+    if (p === "/signin") return <SignInPage />;
+    if (p === "/signup") return <SignUpPage />;
+    if (p === "/forgot-password") return <ForgotPasswordPage />;
+  }
+
   // ─── View routing ───
   // view: "browse" | "recipe" | "add" | "edit" | "meal"
   // View routing persists in sessionStorage so a refresh keeps you on
@@ -895,7 +905,7 @@ function App() {
             setView("cookbooks");
           }
         }}
-        onSignOut={SIGN_OUT_URL}
+        onSignOut={signOut}
       />
     );
   }
@@ -1664,10 +1674,10 @@ function MobileMenuDrawer({
 
         <footer className="mobile-menu-foot">
           {authEmail ? (
-            <a className="mobile-menu-item" href={SIGN_OUT_URL}>
+            <button className="mobile-menu-item" type="button" onClick={signOut}>
               <Icon name="chef" size={18} />
               <span>{t("signOut")}</span>
-            </a>
+            </button>
           ) : (
             <a className="mobile-menu-item sign-in-cta" href={signInUrl()}>
               <Icon name="chef" size={18} />
@@ -1777,7 +1787,7 @@ function AvatarMenu({ email, simpleMode, isAdmin: isSystemAdmin, pendingCount = 
           >
             {simpleMode ? t("simpleModeOn") : t("simpleModeOff")}
           </button>
-          <a className="item" href={SIGN_OUT_URL}>{t("signOut")}</a>
+          <button className="item" type="button" onClick={signOut}>{t("signOut")}</button>
         </div>
       )}
     </div>

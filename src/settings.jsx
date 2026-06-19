@@ -193,6 +193,76 @@ export function AccountSettings({ profile, refreshProfile, onClose, saveProfile 
   );
 }
 
+// Reset another cook's password. Admin-only utility on the
+// edit-user modal so Patricia can rescue someone who's locked
+// out or wants a new credential.
+function AdminPasswordReset({ email }) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const [error, setError] = useState(null);
+
+  const submit = async (e) => {
+    e?.preventDefault?.();
+    if (newPassword.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (newPassword !== confirm) { setError("Passwords don't match."); return; }
+    setBusy(true); setError(null); setMsg(null);
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(email)}/reset-password`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword }),
+      });
+      if (!res.ok) {
+        const { error: m } = await res.json().catch(() => ({}));
+        throw new Error(m || `Reset failed (${res.status})`);
+      }
+      setMsg(`Password updated. Share it with ${email} on a trusted channel.`);
+      setNewPassword(""); setConfirm("");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="admin-user-access">
+      <div className="admin-user-access-head">Reset password</div>
+      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <label className="modal-field">
+          <span>New password</span>
+          <input
+            type="text"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            autoComplete="new-password"
+            minLength={8}
+            placeholder="At least 8 characters"
+          />
+        </label>
+        <label className="modal-field">
+          <span>Confirm</span>
+          <input
+            type="text"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+            minLength={8}
+          />
+        </label>
+        {error && <div className="modal-error">{error}</div>}
+        {msg && <div className="modal-success" style={{ color: "var(--accent-2)", fontSize: 13 }}>{msg}</div>}
+        <button type="submit" className="btn primary sm" disabled={busy} style={{ alignSelf: "flex-start" }}>
+          {busy ? "Updating…" : "Set new password"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 // Edit-user modal: admin can change first/last name, phone,
 // approval status, admin flag, or delete the account.
 function EditUserModal({ user, onClose, onSaved, onDeleted }) {
@@ -410,6 +480,8 @@ function EditUserModal({ user, onClose, onSaved, onDeleted }) {
             </>
           )}
         </div>
+
+        <AdminPasswordReset email={user.email} />
 
         <div className="modal-danger">
           <div className="head">Danger zone</div>
