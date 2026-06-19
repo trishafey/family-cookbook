@@ -1911,8 +1911,6 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   display: flex; flex-direction: column; gap: 14px;
   margin-top: 6px;
 }
-.auth-row { display: flex; gap: 10px; }
-.auth-row .auth-field { flex: 1; }
 .auth-field { display: flex; flex-direction: column; gap: 6px; }
 .auth-field > span {
   font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--ink-2);
@@ -1938,13 +1936,76 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   color: #933;
   font-family: var(--sans); font-size: 13px;
 }
-.auth-submit { margin-top: 4px; }
+.auth-submit {
+  margin-top: 4px;
+  /* Reduce default .btn height + center the label + icon. */
+  padding: 9px 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px;
+  width: 100%;
+  font-size: 14px;
+  transition: background .14s, border-color .14s, color .14s;
+}
+.auth-submit:hover {
+  /* Heirloom orange on hover. */
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--paper);
+}
 .auth-link {
   text-align: center;
   font-family: var(--sans); font-size: 13px; color: var(--ink-3);
   text-decoration: underline; text-underline-offset: 3px;
 }
 .auth-link:hover { color: var(--accent); }
+
+/* Show-password toggle inside the auth input. */
+.password-input {
+  position: relative;
+  display: flex;
+}
+.password-input input {
+  flex: 1; min-width: 0;
+  padding-right: 40px;
+  font-family: var(--sans); font-size: 15px;
+  padding-top: 10px; padding-bottom: 10px; padding-left: 12px;
+  border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--paper); color: var(--ink);
+}
+.password-input input:focus { outline: none; border-color: var(--accent); }
+.password-toggle {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  background: transparent; border: 0;
+  color: var(--ink-3); cursor: pointer;
+  border-radius: 4px;
+}
+.password-toggle:hover { color: var(--accent); }
+
+/* Soft yellow hint banner — temporary while testing with family. */
+.auth-hint {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 4px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--accent-2) 8%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--accent-2) 22%, transparent);
+  border-radius: 6px;
+  font-family: var(--sans); font-size: 12.5px; color: var(--ink-2);
+  text-align: left;
+}
+.auth-hint .icon { color: var(--accent-2); flex-shrink: 0; }
+
+/* Force-password-change modal sits over the auth shell. */
+.force-change-modal { max-width: 440px; padding: 28px 28px 24px; }
+.force-change-modal h2 {
+  font-family: var(--serif); font-weight: 400;
+  font-size: 26px; margin: 8px 0 6px;
+}
+.force-change-modal .modal-sub {
+  font-family: var(--serif); font-size: 14px; color: var(--ink-2);
+  line-height: 1.5; margin: 0;
+}
 .auth-footer {
   text-align: center;
   font-family: var(--sans); font-size: 13px; color: var(--ink-3);

@@ -11,8 +11,9 @@
 import { Hono } from "hono";
 import { RECIPES as SEED_RECIPES } from "../src/data.js";
 import {
-  hashPassword, verifyPassword, isValidEmail, passwordIssues,
+  hashPassword, verifyPassword, isValidEmail, passwordIssues, passwordPolicyIssue,
   signSession, verifySession, sessionCookie, clearSessionCookie, readSessionCookie,
+  TEMP_PASSWORD_SALT,
 } from "./auth.js";
 
 // One-time setup key. Used by /api/setup to apply the schema and seed
@@ -131,7 +132,7 @@ app.post("/api/auth/login", async (c) => {
   const row = await c.env.DB.prepare(
     `SELECT email, password_hash, password_salt,
             failed_login_count, failed_login_until
-     FROM users WHERE LOWER(email) = ?`
+     FROM users WHERE LOWER(email) = LOWER(?)`
   ).bind(email).first();
   if (!row?.password_hash) {
     // Don't leak whether the email exists.
@@ -155,11 +156,35 @@ app.post("/api/auth/login", async (c) => {
   }
   const now = new Date().toISOString();
   await c.env.DB.prepare(
-    "UPDATE users SET failed_login_count = 0, failed_login_until = NULL, last_login_at = ?, last_seen_at = ? WHERE LOWER(email) = ?"
+    "UPDATE users SET failed_login_count = 0, failed_login_until = NULL, last_login_at = ?, last_seen_at = ? WHERE LOWER(email) = LOWER(?)"
   ).bind(now, now, email).run().catch(() => {});
+  // mustChangePassword: the seeded temp salt means this account
+  // was provisioned via migration 0026, not by the cook. Frontend
+  // pops the "set a new password" modal before letting them in.
+  const mustChangePassword = (row.password_salt || "").toLowerCase() === TEMP_PASSWORD_SALT;
   const token = await signSession(c.env, email);
   c.header("Set-Cookie", sessionCookie(token));
-  return c.json({ ok: true, email });
+  return c.json({ ok: true, email, mustChangePassword });
+});
+
+// Set a new password while signed in. Used by the post-login
+// "you're on a temp password" modal and the future settings
+// "change password" surface.
+app.post("/api/auth/change-password", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const body = await c.req.json().catch(() => ({}));
+  const newPassword = (body?.newPassword || "").toString();
+  const issue = passwordPolicyIssue(newPassword);
+  if (issue) return c.json({ error: issue }, 400);
+  const { hash, salt } = await hashPassword(newPassword);
+  await c.env.DB.prepare(
+    `UPDATE users SET password_hash = ?, password_salt = ?,
+                      failed_login_count = 0, failed_login_until = NULL,
+                      reset_token = NULL, reset_expires = NULL
+     WHERE LOWER(email) = LOWER(?)`
+  ).bind(hash, salt, email).run();
+  return c.json({ ok: true });
 });
 
 app.post("/api/auth/logout", async (c) => {

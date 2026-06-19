@@ -3,6 +3,24 @@
 // deps required. Sessions are stateless: a base64-encoded JSON
 // payload signed with HMAC-SHA256 over SESSION_SECRET.
 
+// The shared fixed salt used by migration 0026 to seed a temp
+// password for existing accounts. Detecting it on login lets us
+// force a password change before the cook can use the app.
+export const TEMP_PASSWORD_SALT = "686569726c6f6f6d2d74656d702d3032";
+
+// Password policy for resets + signups (post-temp). Min 6 chars,
+// must include at least one digit OR one non-alphanumeric
+// character.
+export function passwordPolicyIssue(password) {
+  if (typeof password !== "string") return "Password is required.";
+  if (password.length < 6) return "Password must be at least 6 characters.";
+  if (password.length > 128) return "Password is too long.";
+  if (!/[0-9]/.test(password) && !/[^A-Za-z0-9]/.test(password)) {
+    return "Password must include a number or a symbol.";
+  }
+  return null;
+}
+
 const PBKDF2_ITERS = 100_000;
 const SALT_BYTES = 16;
 const HASH_BYTES = 32;

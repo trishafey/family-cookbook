@@ -1006,6 +1006,8 @@ export const Icon = ({ name, size = 18 }) => {
     // ── System / utility (kept simple, no botanical reframing) ──
     check:     <path d="m5 12 5 5L20 7" />,
     x:         <path d="M6 6l12 12M6 18 18 6" />,
+    eye:       <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>,
+    "eye-off": <><path d="M3 3l18 18" /><path d="M9.9 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.4 4.3" /><path d="M6.5 7.6A17.4 17.4 0 0 0 2 12s3.5 7 10 7a10 10 0 0 0 4.4-1" /><path d="M9.9 9.9A3 3 0 0 0 12 15a3 3 0 0 0 2.1-.9" /></>,
     chevR:     <path d="m9 6 6 6-6 6" />,
     chevL:     <path d="m15 6-6 6 6 6" />,
     chevD:     <path d="m6 9 6 6 6-6" />,

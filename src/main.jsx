@@ -859,9 +859,17 @@ function App() {
   // link, invite acceptance), render the marketing / sign-in
   // landing instead of dropping them on the empty browse view.
   // Wait for authLoading so we don't flicker the landing during
-  // the initial auth probe.
+  // the initial auth probe. Signed-out cooks get bounced to the
+  // branded /signin page (with the current URL preserved as
+  // ?return=...). Invite acceptance and shared recipe links
+  // stay reachable while signed out so the click-through flow
+  // can render its own context-aware messaging.
   if (!authLoading && !authEmail && view !== "invite" && view !== "recipe") {
-    return <SignedOutLanding />;
+    if (typeof window !== "undefined") {
+      const target = window.location.pathname + window.location.search;
+      window.location.assign(`/signin?return=${encodeURIComponent(target)}`);
+    }
+    return null;
   }
 
   // Pending-approval gate: cooks signed up via the open Cloudflare
