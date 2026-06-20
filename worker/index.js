@@ -5538,6 +5538,20 @@ app.put("/api/admin/me/prefs", async (c) => {
   return c.json({ ok: true, updatedAt: now });
 });
 
+// Self-set simple mode. Stores on users.simple_mode so admin
+// overrides + cross-device sync both work. Self-toggle writes
+// here; profile fetch reads back from the same column.
+app.put("/api/admin/me/simple-mode", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const body = await c.req.json().catch(() => ({}));
+  const simpleMode = !!body?.simpleMode;
+  await c.env.DB.prepare(
+    "UPDATE users SET simple_mode = ? WHERE LOWER(email) = LOWER(?)"
+  ).bind(simpleMode ? 1 : 0, email).run();
+  return c.json({ ok: true, simpleMode });
+});
+
 // ─── AI: Nutrition estimate ───
 // Some extracted recipes come back with zero nutrition (the model
 // gave up on the rough cookbook print). The editor exposes an

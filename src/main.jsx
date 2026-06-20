@@ -1,6 +1,6 @@
 // Main app — router, top nav, tweaks panel, modal hosts.
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import ReactDOM from "react-dom/client";
 import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, useUserCookbooks, useProfile, usePendingApprovalCount, useNotificationCount, signInUrl, SIGN_OUT_URL, signOut, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions, BOOTSTRAP_COOKBOOK_ID } from "./helpers.jsx";
 import { SignInPage, SignUpPage, ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from "./auth.jsx";
@@ -572,12 +572,41 @@ function App() {
   // printout-like core (photo, ingredients, steps, comments,
   // pairings). Toggled from the avatar menu. Body class drives
   // typography/layout adjustments in CSS.
-  const [simpleMode, setSimpleMode] = useStorage("ui:simpleMode", false);
+  // simpleMode is the source-of-truth for the typography +
+  // layout simplification used by less technical cooks. Stored
+  // on users.simple_mode (so admin overrides + cross-device
+  // sync both work) and mirrored to a local key for fast
+  // first-paint while profile loads.
+  const [simpleMode, setSimpleModeLocal] = useStorage("ui:simpleMode", false);
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.body.classList.toggle("simple-mode", !!simpleMode);
     return () => document.body.classList.remove("simple-mode");
   }, [simpleMode]);
+  // Sync the server's simple_mode into the local mirror whenever
+  // the profile lands. Catches admin-side toggles immediately on
+  // next profile fetch.
+  useEffect(() => {
+    if (!profile) return;
+    if (!!profile.simpleMode !== !!simpleMode) {
+      setSimpleModeLocal(!!profile.simpleMode);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.simpleMode]);
+  const setSimpleMode = useCallback((updater) => {
+    setSimpleModeLocal(prev => {
+      const next = typeof updater === "function" ? !!updater(prev) : !!updater;
+      // Persist server-side; ignore failures, the local toggle
+      // still works for the rest of the session.
+      fetch("/api/admin/me/simple-mode", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ simpleMode: next }),
+      }).catch(() => {});
+      return next;
+    });
+  }, [setSimpleModeLocal]);
 
   // ─── Search / filter ───
   const [query, setQuery] = useState("");
