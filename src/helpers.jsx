@@ -635,13 +635,18 @@ export function useAuth() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/me", {
+      // /api/auth/me always returns 200 with { email: null | string }
+      // so we don't have to disambiguate "401" vs "200 with no email".
+      // cache: no-store keeps any intermediate cache from serving
+      // a stale signed-out result post-login.
+      const res = await fetch("/api/auth/me", {
         credentials: "include",
+        cache: "no-store",
         headers: { Accept: "application/json" },
       });
       if (res.ok) {
         const data = await res.json();
-        setEmail(data.email);
+        setEmail(data?.email || null);
       } else {
         setEmail(null);
       }
