@@ -398,7 +398,7 @@ app.get("/api/admin/cookbooks", async (c) => {
           ON m.cookbook_id = c.id AND LOWER(m.user_email) = LOWER(?)
         ORDER BY (m.user_email IS NULL) ASC,
                  COALESCE(m.display_order, 99999) ASC,
-                 (c.LOWER(owner_email) = LOWER(?)) DESC, c.created_at ASC
+                 (LOWER(c.owner_email) = LOWER(?)) DESC, c.created_at ASC
       `).bind(email, email).all()
     : await c.env.DB.prepare(`
         SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
@@ -1019,7 +1019,7 @@ app.get("/api/admin/notifications", async (c) => {
      FROM join_requests j
      LEFT JOIN cookbooks cb ON cb.id = j.cookbook_id
      LEFT JOIN users u ON u.email = j.user_email
-     LEFT JOIN cookbook_members m ON m.cookbook_id = j.cookbook_id AND m.LOWER(user_email) = LOWER(?)
+     LEFT JOIN cookbook_members m ON m.cookbook_id = j.cookbook_id AND LOWER(m.user_email) = LOWER(?)
      WHERE j.status = 'pending'
        AND m.role IN ('owner', 'editor')
      ORDER BY j.created_at DESC`
@@ -1425,7 +1425,7 @@ app.get("/api/admin/discover", async (c) => {
      FROM cookbooks c
      LEFT JOIN users u ON u.email = c.owner_email
      LEFT JOIN cookbook_members m ON m.cookbook_id = c.id AND LOWER(m.user_email) = LOWER(?)
-     LEFT JOIN join_requests j ON j.cookbook_id = c.id AND j.LOWER(user_email) = LOWER(?) AND j.status = 'pending'
+     LEFT JOIN join_requests j ON j.cookbook_id = c.id AND LOWER(j.user_email) = LOWER(?) AND j.status = 'pending'
      WHERE c.visibility = 'public'
      ORDER BY recipe_count DESC, c.name ASC`
   ).bind(email, email).all();
@@ -1474,7 +1474,7 @@ app.get("/api/admin/me/recipes", async (c) => {
         `SELECT c.id, c.name
          FROM cookbooks c
          JOIN cookbook_members m ON m.cookbook_id = c.id
-         WHERE m.LOWER(user_email) = LOWER(?)
+         WHERE LOWER(m.user_email) = LOWER(?)
          ORDER BY c.name ASC`
       ).bind(email).all();
   const cookbooks = cookbookRows.results || [];
@@ -1553,7 +1553,7 @@ app.get("/api/admin/me/pending", async (c) => {
             c.cover_photo, c.cover_color, c.languages
      FROM join_requests j
      LEFT JOIN cookbooks c ON c.id = j.cookbook_id
-     WHERE j.LOWER(user_email) = LOWER(?) AND j.status = 'pending'
+     WHERE LOWER(j.user_email) = LOWER(?) AND j.status = 'pending'
      ORDER BY j.created_at DESC`
   ).bind(email).all().catch(() => ({ results: [] }));
   return c.json({
@@ -4578,7 +4578,7 @@ app.get("/api/admin/me/network", async (c) => {
     JOIN cookbook_members m2
       ON m2.cookbook_id = m1.cookbook_id AND m2.user_email != m1.user_email
     LEFT JOIN users u ON u.email = m2.user_email
-    WHERE m1.LOWER(user_email) = LOWER(?)
+    WHERE LOWER(m1.user_email) = LOWER(?)
     ORDER BY u.display_name COLLATE NOCASE
   `).bind(email).all();
   return c.json({
@@ -4656,7 +4656,7 @@ app.get("/api/admin/users/:email/cookbooks", async (c) => {
     `SELECT m.role, m.joined_at, c.id, c.name, c.slug, c.visibility, c.cover_color, c.cover_photo
      FROM cookbook_members m
      JOIN cookbooks c ON c.id = m.cookbook_id
-     WHERE m.LOWER(user_email) = LOWER(?)
+     WHERE LOWER(m.user_email) = LOWER(?)
      ORDER BY m.joined_at DESC`
   ).bind(target).all();
   const invitations = await c.env.DB.prepare(
@@ -4672,7 +4672,7 @@ app.get("/api/admin/users/:email/cookbooks", async (c) => {
             c.id AS cookbook_id, c.name, c.slug
      FROM join_requests j
      LEFT JOIN cookbooks c ON c.id = j.cookbook_id
-     WHERE j.LOWER(user_email) = LOWER(?) AND j.status = 'pending'
+     WHERE LOWER(j.user_email) = LOWER(?) AND j.status = 'pending'
      ORDER BY j.created_at DESC`
   ).bind(target).all().catch(() => ({ results: [] }));
   return c.json({
