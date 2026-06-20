@@ -129,6 +129,70 @@ app.use("/api/admin/users/:email/reset-password", async (c, next) => {
 // five consecutive failures.
 const LOGIN_MAX_FAILURES = 10;
 const LOGIN_LOCKOUT_MINUTES = 15;
+// IP-level throttle: 50 wrong attempts across any combo of
+// emails in a 15-minute window locks the IP. Comfortable for
+// a household behind one NAT, painful for a credential
+// stuffer cycling addresses.
+const IP_MAX_FAILURES = 50;
+const IP_LOCKOUT_MINUTES = 15;
+
+async function ensureLoginThrottleTable(env) {
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS login_throttle (
+       ip TEXT PRIMARY KEY,
+       failure_count INTEGER NOT NULL DEFAULT 0,
+       locked_until TEXT,
+       last_failure_at TEXT NOT NULL
+     )`
+  ).run().catch(() => {});
+}
+
+function callerIp(c) {
+  // Cloudflare always sets CF-Connecting-IP. Fallback to
+  // x-forwarded-for first hop for non-CF environments.
+  return c.req.header("cf-connecting-ip")
+    || (c.req.header("x-forwarded-for") || "").split(",")[0].trim()
+    || "unknown";
+}
+
+async function checkIpLock(env, ip) {
+  const row = await env.DB.prepare(
+    "SELECT locked_until FROM login_throttle WHERE ip = ?"
+  ).bind(ip).first().catch(() => null);
+  if (row?.locked_until && new Date(row.locked_until) > new Date()) {
+    return { locked: true, until: row.locked_until };
+  }
+  return { locked: false };
+}
+
+async function recordIpFailure(env, ip) {
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const row = await env.DB.prepare(
+    "SELECT failure_count, locked_until, last_failure_at FROM login_throttle WHERE ip = ?"
+  ).bind(ip).first().catch(() => null);
+  // Reset counter if it's been more than IP_LOCKOUT_MINUTES
+  // since the last failure — a slow trickle never piles up.
+  const recent = row?.last_failure_at && (now - new Date(row.last_failure_at)) < IP_LOCKOUT_MINUTES * 60_000;
+  const count = recent ? (row.failure_count || 0) + 1 : 1;
+  const lockedUntil = count >= IP_MAX_FAILURES
+    ? new Date(now.getTime() + IP_LOCKOUT_MINUTES * 60_000).toISOString()
+    : null;
+  await env.DB.prepare(
+    `INSERT INTO login_throttle (ip, failure_count, locked_until, last_failure_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(ip) DO UPDATE SET
+       failure_count = excluded.failure_count,
+       locked_until = excluded.locked_until,
+       last_failure_at = excluded.last_failure_at`
+  ).bind(ip, count, lockedUntil, nowIso).run().catch(() => {});
+}
+
+async function clearIpFailures(env, ip) {
+  await env.DB.prepare(
+    "DELETE FROM login_throttle WHERE ip = ?"
+  ).bind(ip).run().catch(() => {});
+}
 
 // Surface internal worker errors as readable JSON on the auth
 // endpoints (default Hono 500 is opaque, which made the temp
@@ -225,6 +289,27 @@ app.post("/api/auth/signup", async (c) => {
     ).bind(email, displayName, firstName, lastName, phone, lang, hash, salt, now, now, now).run();
   }
 
+  // Issue a verification token + email so we can confirm the
+  // address is reachable. Cook is signed in immediately
+  // regardless — verification is a nag, not a gate, while
+  // we're still bedding the flow in.
+  try {
+    const verifyToken = randomToken();
+    const verifyExpires = new Date(Date.now() + 72 * 60 * 60_000).toISOString();
+    await c.env.DB.prepare(
+      "UPDATE users SET verification_token = ?, verification_expires = ? WHERE LOWER(email) = LOWER(?)"
+    ).bind(verifyToken, verifyExpires, email).run();
+    const origin = new URL(c.req.url).origin;
+    const verifyLink = `${origin}/verify-email?token=${encodeURIComponent(verifyToken)}`;
+    await sendVerificationEmail(c.env, {
+      toEmail: email,
+      firstName,
+      link: verifyLink,
+    }).catch(() => {});
+  } catch (verifyErr) {
+    console.error("verification email queue failed", verifyErr);
+  }
+
   const token = await signSession(c.env, email);
   setCookie(c, SESSION_COOKIE, token, SESSION_COOKIE_OPTS);
   return c.json({ ok: true, email });
@@ -234,8 +319,61 @@ app.post("/api/auth/signup", async (c) => {
   }
 });
 
+// Confirm a signup verification token. One-shot — clears
+// the token on success, marks email_verified = 1, and
+// upgrades pending users to approved.
+app.get("/api/auth/verify-email", async (c) => {
+  const token = (c.req.query("token") || "").toString();
+  if (!token) return c.json({ ok: false, reason: "missing-token" });
+  const row = await c.env.DB.prepare(
+    "SELECT email, verification_expires FROM users WHERE verification_token = ?"
+  ).bind(token).first();
+  if (!row) return c.json({ ok: false, reason: "unknown-token" });
+  if (!row.verification_expires || new Date(row.verification_expires) < new Date()) {
+    return c.json({ ok: false, reason: "expired" });
+  }
+  await c.env.DB.prepare(
+    `UPDATE users SET email_verified = 1, verification_token = NULL, verification_expires = NULL,
+                      status = CASE WHEN status = 'pending' THEN 'approved' ELSE status END
+     WHERE LOWER(email) = LOWER(?)`
+  ).bind(row.email).run();
+  return c.json({ ok: true, email: row.email.toLowerCase() });
+});
+
+// Resend a verification email if the cook missed it.
+app.post("/api/auth/resend-verification", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const row = await c.env.DB.prepare(
+    "SELECT email, first_name, email_verified FROM users WHERE LOWER(email) = LOWER(?)"
+  ).bind(email).first();
+  if (!row) return c.json({ ok: true });
+  if (row.email_verified) return c.json({ ok: true, alreadyVerified: true });
+  const verifyToken = randomToken();
+  const verifyExpires = new Date(Date.now() + 72 * 60 * 60_000).toISOString();
+  await c.env.DB.prepare(
+    "UPDATE users SET verification_token = ?, verification_expires = ? WHERE LOWER(email) = LOWER(?)"
+  ).bind(verifyToken, verifyExpires, email).run();
+  const origin = new URL(c.req.url).origin;
+  const link = `${origin}/verify-email?token=${encodeURIComponent(verifyToken)}`;
+  await sendVerificationEmail(c.env, {
+    toEmail: row.email,
+    firstName: row.first_name || "",
+    link,
+  }).catch(() => {});
+  return c.json({ ok: true });
+});
+
 app.post("/api/auth/login", async (c) => {
   try {
+  await ensureLoginThrottleTable(c.env);
+  const ip = callerIp(c);
+  const ipLock = await checkIpLock(c.env, ip);
+  if (ipLock.locked) {
+    return c.json({
+      error: "Too many failed sign-ins from this network. Try again in a few minutes.",
+    }, 429);
+  }
   const body = await c.req.json().catch(() => ({}));
   const email = (body?.email || "").toString().trim().toLowerCase();
   const password = (body?.password || "").toString();
@@ -263,14 +401,16 @@ app.post("/api/auth/login", async (c) => {
       ? new Date(Date.now() + LOGIN_LOCKOUT_MINUTES * 60_000).toISOString()
       : null;
     await c.env.DB.prepare(
-      "UPDATE users SET failed_login_count = ?, failed_login_until = ? WHERE LOWER(email) = ?"
+      "UPDATE users SET failed_login_count = ?, failed_login_until = ? WHERE LOWER(email) = LOWER(?)"
     ).bind(fails, until, email).run().catch(() => {});
+    await recordIpFailure(c.env, ip);
     return c.json({ error: "That email and password don't match an account." }, 401);
   }
   const now = new Date().toISOString();
   await c.env.DB.prepare(
     "UPDATE users SET failed_login_count = 0, failed_login_until = NULL, last_login_at = ?, last_seen_at = ? WHERE LOWER(email) = LOWER(?)"
   ).bind(now, now, email).run().catch(() => {});
+  await clearIpFailures(c.env, ip);
   // mustChangePassword: the seeded temp salt means this account
   // was provisioned via migration 0026, not by the cook. Frontend
   // pops the "set a new password" modal before letting them in.
@@ -312,6 +452,97 @@ app.post("/api/auth/change-password", async (c) => {
 app.post("/api/auth/logout", async (c) => {
   deleteCookie(c, SESSION_COOKIE, { path: "/" });
   return c.json({ ok: true });
+});
+
+// Request a password-reset email. Always responds 200 with a
+// generic confirmation regardless of whether the email exists,
+// so we don't leak which accounts are registered. Real reset
+// links go out via the existing Resend pipeline.
+const RESET_TTL_MINUTES = 30;
+app.post("/api/auth/request-reset", async (c) => {
+  try {
+  const body = await c.req.json().catch(() => ({}));
+  const email = (body?.email || "").toString().trim().toLowerCase();
+  if (!isValidEmail(email)) {
+    // Same 200 shape so the UI can't fingerprint "valid email".
+    return c.json({ ok: true });
+  }
+  const row = await c.env.DB.prepare(
+    "SELECT email, display_name, first_name FROM users WHERE LOWER(email) = LOWER(?)"
+  ).bind(email).first();
+  if (row) {
+    const token = randomToken();
+    const expires = new Date(Date.now() + RESET_TTL_MINUTES * 60_000).toISOString();
+    await c.env.DB.prepare(
+      "UPDATE users SET reset_token = ?, reset_expires = ? WHERE LOWER(email) = LOWER(?)"
+    ).bind(token, expires, email).run();
+    const origin = new URL(c.req.url).origin;
+    const link = `${origin}/reset-password?token=${encodeURIComponent(token)}`;
+    const firstName = row.first_name || (row.display_name || "").split(" ")[0] || "";
+    // Best-effort send — same as invites, swallow failures
+    // because the cook can also be helped via admin reset.
+    await sendPasswordResetEmail(c.env, {
+      toEmail: row.email,
+      firstName,
+      link,
+    }).catch(() => {});
+  }
+  return c.json({ ok: true });
+  } catch (err) {
+    console.error("request-reset error", err);
+    return c.json(jsonError(err), 500);
+  }
+});
+
+// Complete a password reset using the token from the email
+// link. Token is single-use and expires after RESET_TTL_MINUTES.
+app.post("/api/auth/reset-password", async (c) => {
+  try {
+  const body = await c.req.json().catch(() => ({}));
+  const token = (body?.token || "").toString();
+  const newPassword = (body?.newPassword || "").toString();
+  if (!token) return c.json({ error: "Missing reset token." }, 400);
+  const issue = passwordPolicyIssue(newPassword);
+  if (issue) return c.json({ error: issue }, 400);
+  const row = await c.env.DB.prepare(
+    "SELECT email, reset_expires FROM users WHERE reset_token = ?"
+  ).bind(token).first();
+  if (!row) return c.json({ error: "That reset link isn't valid. Request a new one." }, 400);
+  if (!row.reset_expires || new Date(row.reset_expires) < new Date()) {
+    return c.json({ error: "That reset link has expired. Request a new one." }, 400);
+  }
+  const { hash, salt } = await hashPassword(newPassword);
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `UPDATE users SET password_hash = ?, password_salt = ?,
+                      reset_token = NULL, reset_expires = NULL,
+                      failed_login_count = 0, failed_login_until = NULL,
+                      last_login_at = ?, last_seen_at = ?
+     WHERE LOWER(email) = LOWER(?)`
+  ).bind(hash, salt, now, now, row.email).run();
+  const sessionToken = await signSession(c.env, row.email.toLowerCase());
+  setCookie(c, SESSION_COOKIE, sessionToken, SESSION_COOKIE_OPTS);
+  return c.json({ ok: true, email: row.email.toLowerCase() });
+  } catch (err) {
+    console.error("reset-password error", err);
+    return c.json(jsonError(err), 500);
+  }
+});
+
+// Verify a reset token without consuming it. Lets the reset
+// page show a clear "this link expired, request a new one"
+// message before the cook fills in their new password.
+app.get("/api/auth/reset-status", async (c) => {
+  const token = (c.req.query("token") || "").toString();
+  if (!token) return c.json({ valid: false, reason: "missing-token" });
+  const row = await c.env.DB.prepare(
+    "SELECT reset_expires FROM users WHERE reset_token = ?"
+  ).bind(token).first();
+  if (!row) return c.json({ valid: false, reason: "unknown-token" });
+  if (!row.reset_expires || new Date(row.reset_expires) < new Date()) {
+    return c.json({ valid: false, reason: "expired" });
+  }
+  return c.json({ valid: true });
 });
 
 app.get("/api/auth/me", async (c) => {
@@ -822,6 +1053,147 @@ This link expires in ${INVITE_TTL_DAYS} days.`;
     return { ok: true, id: data?.id || null };
   } catch (err) {
     console.error("resend send threw", err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+// Verification email — sent on signup and on resend-verification.
+// Same Resend pipeline + branded template as the invite + reset
+// emails so the family experience stays consistent.
+async function sendVerificationEmail(env, { toEmail, firstName, link }) {
+  if (!env.RESEND_API_KEY) return { ok: false, reason: "not configured" };
+  if (!toEmail) return { ok: false, reason: "no recipient" };
+  const fromEmail = env.INVITE_FROM_EMAIL || "invites@heirloomcookbook.net";
+  const fromName = env.INVITE_FROM_NAME || "Heirloom Cookbook";
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const subject = `Confirm your Heirloom email`;
+  const text = `${greeting}
+
+Welcome to Heirloom! Confirm your email address so we know we can reach you for invites and password resets:
+
+${link}
+
+This link is valid for 3 days. You don't have to do this right away — you can already use the cookbook.`;
+
+  const html = `<!doctype html>
+<html><body style="margin:0;padding:0;background:#fdfcfa;font-family:Georgia,serif;color:#1c1813;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:48px 20px;">
+    <table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0" style="background:#fdfcfa;border:1px solid #e6dfd0;border-radius:12px;">
+      <tr><td style="padding:40px 36px;">
+        <div style="font-family:'IBM Plex Mono',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#6e7a3a;font-weight:600;margin-bottom:10px;">Welcome to Heirloom</div>
+        <h1 style="font-family:Georgia,serif;font-size:26px;font-weight:500;margin:0 0 12px;line-height:1.3;color:#1c1813;">
+          Confirm your <em style="color:#b04a2a;">email</em>
+        </h1>
+        ${firstName ? `<p style="font-family:Georgia,serif;font-size:15px;color:#3d362c;margin:0 0 8px;line-height:1.5;">${escapeHtml(greeting)}</p>` : ""}
+        <p style="font-family:Georgia,serif;font-size:15px;color:#3d362c;margin:0 0 24px;line-height:1.5;">
+          So we know we can reach you for invites and password resets, take a second to confirm your address.
+        </p>
+        <p style="margin:0 0 24px;">
+          <a href="${link}" style="display:inline-block;background:#1c1813;color:#fdfcfa;padding:14px 24px;border-radius:999px;text-decoration:none;font-family:Georgia,serif;font-size:15px;">Confirm my email</a>
+        </p>
+        <p style="font-family:Georgia,serif;font-style:italic;font-size:13px;color:#8a8170;margin:0;">
+          This link is valid for 3 days. No rush — you can use Heirloom in the meantime.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: `${fromName} <${fromEmail}>`,
+        to: [toEmail],
+        subject,
+        text,
+        html,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error("verification email failed", res.status, body);
+      return { ok: false, reason: `provider error ${res.status}` };
+    }
+    const data = await res.json().catch(() => ({}));
+    return { ok: true, id: data?.id || null };
+  } catch (err) {
+    console.error("verification email threw", err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+// Password-reset email — same Resend pipeline as invites,
+// branded in the same way. Best-effort: failures don't break
+// the reset flow because admin can also reset from the user
+// edit modal.
+async function sendPasswordResetEmail(env, { toEmail, firstName, link }) {
+  if (!env.RESEND_API_KEY) return { ok: false, reason: "not configured" };
+  if (!toEmail) return { ok: false, reason: "no recipient" };
+  const fromEmail = env.INVITE_FROM_EMAIL || "invites@heirloomcookbook.net";
+  const fromName = env.INVITE_FROM_NAME || "Heirloom Cookbook";
+  const subject = `Reset your Heirloom password`;
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const text = `${greeting}
+
+Someone asked to reset the password on this Heirloom account. If that was you, follow the link below to choose a new one:
+
+${link}
+
+This link expires in ${RESET_TTL_MINUTES} minutes. If you didn't ask for a reset, just ignore this email — your password stays as it was.`;
+
+  const html = `<!doctype html>
+<html><body style="margin:0;padding:0;background:#fdfcfa;font-family:Georgia,serif;color:#1c1813;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:48px 20px;">
+    <table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0" style="background:#fdfcfa;border:1px solid #e6dfd0;border-radius:12px;">
+      <tr><td style="padding:40px 36px;">
+        <div style="font-family:'IBM Plex Mono',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#6e7a3a;font-weight:600;margin-bottom:10px;">Password reset</div>
+        <h1 style="font-family:Georgia,serif;font-size:26px;font-weight:500;margin:0 0 12px;line-height:1.3;color:#1c1813;">
+          Reset your <em style="color:#b04a2a;">Heirloom</em> password
+        </h1>
+        ${firstName ? `<p style="font-family:Georgia,serif;font-size:15px;color:#3d362c;margin:0 0 8px;line-height:1.5;">${escapeHtml(greeting)}</p>` : ""}
+        <p style="font-family:Georgia,serif;font-size:15px;color:#3d362c;margin:0 0 24px;line-height:1.5;">
+          Someone asked to reset the password on this account. If that was you, tap the button below to choose a new one.
+        </p>
+        <p style="margin:0 0 24px;">
+          <a href="${link}" style="display:inline-block;background:#1c1813;color:#fdfcfa;padding:14px 24px;border-radius:999px;text-decoration:none;font-family:Georgia,serif;font-size:15px;">Choose a new password</a>
+        </p>
+        <p style="font-family:Georgia,serif;font-style:italic;font-size:13px;color:#8a8170;margin:0;">
+          This link expires in ${RESET_TTL_MINUTES} minutes. If you didn't ask for a reset, just ignore this email and your password stays as it was.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: `${fromName} <${fromEmail}>`,
+        to: [toEmail],
+        subject,
+        text,
+        html,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error("password-reset email failed", res.status, body);
+      return { ok: false, reason: `provider error ${res.status}` };
+    }
+    const data = await res.json().catch(() => ({}));
+    return { ok: true, id: data?.id || null };
+  } catch (err) {
+    console.error("password-reset email threw", err);
     return { ok: false, reason: String(err?.message || err) };
   }
 }
@@ -1660,7 +2032,6 @@ async function resolveSession(c, next) {
     const token = getCookie(c, SESSION_COOKIE);
     if (token) email = await verifySession(c.env, token);
   } catch {}
-  if (!email) email = c.req.header("cf-access-authenticated-user-email") || null;
   c.set("authedEmail", email ? email.toLowerCase() : null);
   return next();
 }

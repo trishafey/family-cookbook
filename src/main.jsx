@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { Icon, useStorage, useRouting, useRecipes, useAuth, useFavorites, useUserCookbooks, useProfile, usePendingApprovalCount, useNotificationCount, signInUrl, SIGN_OUT_URL, signOut, applyFilters, logEvent, normalizeRecipe, localizeRecipe, ErrorBoundary, recipeSuggestions, BOOTSTRAP_COOKBOOK_ID } from "./helpers.jsx";
-import { SignInPage, SignUpPage, ForgotPasswordPage } from "./auth.jsx";
+import { SignInPage, SignUpPage, ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from "./auth.jsx";
 import { useLang, LANG_META } from "./i18n.js";
 import { FLAGS } from "./config/flags.js";
 import { TweaksPanel, TweakSection, TweakRadio, TweakSelect, useTweaks } from "./tweaks-panel.jsx";
@@ -369,6 +369,8 @@ function App() {
     if (p === "/signin") return <SignInPage />;
     if (p === "/signup") return <SignUpPage />;
     if (p === "/forgot-password") return <ForgotPasswordPage />;
+    if (p === "/reset-password") return <ResetPasswordPage />;
+    if (p === "/verify-email") return <VerifyEmailPage />;
   }
 
   // ─── View routing ───

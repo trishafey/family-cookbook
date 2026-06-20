@@ -2,7 +2,7 @@
 // Renders at /signin and /signup. Shares the cookbook's serif
 // + tomato visual language.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "./helpers.jsx";
 import { LANG_META, SUPPORTED_LANGS } from "./i18n.js";
 
@@ -349,18 +349,252 @@ export function SignUpPage() {
 }
 
 export function ForgotPasswordPage() {
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const submit = async (e) => {
+    e?.preventDefault?.();
+    setSubmitting(true);
+    try {
+      await fetch("/api/auth/request-reset", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      // Server returns 200 regardless of whether the email
+      // exists, so we always render the "check your inbox"
+      // surface to avoid leaking which addresses are registered.
+      setSent(true);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (sent) {
+    return (
+      <AuthShell
+        eyebrow="Reset link sent"
+        title={<>Check your <em>inbox</em></>}
+        sub={`If an account exists for ${email.trim().toLowerCase()}, a reset link is on its way. It expires in 30 minutes.`}
+        footer={<a href="/signin">Back to sign in</a>}
+      >
+        <div style={{ marginTop: 8, color: "var(--ink-3)", fontSize: 13, textAlign: "center" }}>
+          No email after a few minutes? Check your spam folder or text Patricia.
+        </div>
+      </AuthShell>
+    );
+  }
+
   return (
     <AuthShell
       eyebrow="Forgot password"
       title={<>Reset your <em>password</em></>}
-      sub="Password reset emails are coming in the next deploy. For now, text Patricia and she'll set a temporary one from the admin page."
-      footer={
-        <a href="/signin">Back to sign in</a>
-      }
+      sub="Enter the email you sign in with. We'll send you a link to set a new password."
+      footer={<a href="/signin">Back to sign in</a>}
     >
-      <div style={{ marginTop: 8, color: "var(--ink-3)", fontSize: 14, textAlign: "center" }}>
-        Hold tight — the email flow is one push away.
-      </div>
+      <form className="auth-form" onSubmit={submit}>
+        <label className="auth-field">
+          <span>Email</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            autoFocus
+            required
+          />
+        </label>
+        <button type="submit" className="btn primary auth-submit" disabled={submitting || !email.trim()}>
+          <Icon name="chef" size={14} /> {submitting ? "Sending…" : "Send reset link"}
+        </button>
+      </form>
+    </AuthShell>
+  );
+}
+
+export function VerifyEmailPage() {
+  const [status, setStatus] = useState("checking"); // checking | ok | invalid | expired
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = new URLSearchParams(window.location.search).get("token") || "";
+        const res = await fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`, { credentials: "include" });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (data?.ok) setStatus("ok");
+        else if (data?.reason === "expired") setStatus("expired");
+        else setStatus("invalid");
+      } catch {
+        if (!cancelled) setStatus("invalid");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (status === "checking") {
+    return (
+      <AuthShell eyebrow="Verifying" title={<>One moment</>}>
+        <div style={{ marginTop: 8, color: "var(--ink-3)", fontSize: 14, textAlign: "center" }}>
+          Confirming your email…
+        </div>
+      </AuthShell>
+    );
+  }
+  if (status === "ok") {
+    return (
+      <AuthShell
+        eyebrow="Email confirmed"
+        title={<>You're <em>verified</em></>}
+        sub="Your email is on file. You're all set."
+        footer={<a href="/cookbooks">Open your cookbooks</a>}
+      >
+        <button
+          type="button"
+          className="btn primary auth-submit"
+          onClick={() => window.location.assign("/cookbooks")}
+        >
+          <Icon name="chef" size={14} /> Open Heirloom
+        </button>
+      </AuthShell>
+    );
+  }
+  return (
+    <AuthShell
+      eyebrow="Verification"
+      title={<>Link no longer <em>works</em></>}
+      sub={status === "expired"
+        ? "That verification link expired. Sign in and request a new one from your account."
+        : "That verification link isn't valid. Sign in and request a new one."}
+      footer={<a href="/signin">Sign in</a>}
+    >
+      <div style={{ marginTop: 8 }} />
+    </AuthShell>
+  );
+}
+
+export function ResetPasswordPage() {
+  const [token] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get("token") || ""; }
+    catch { return ""; }
+  });
+  const [status, setStatus] = useState("checking"); // checking | valid | invalid | done
+  const [reason, setReason] = useState(null);
+  const [pw, setPw] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!token) { setStatus("invalid"); setReason("missing-token"); return; }
+      try {
+        const res = await fetch(`/api/auth/reset-status?token=${encodeURIComponent(token)}`, { credentials: "include" });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (data?.valid) setStatus("valid");
+        else { setStatus("invalid"); setReason(data?.reason || null); }
+      } catch {
+        if (!cancelled) { setStatus("invalid"); setReason("network"); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
+
+  const submit = async (e) => {
+    e?.preventDefault?.();
+    if (pw.length < 6) { setError("Password must be at least 6 characters."); return; }
+    if (!/[0-9]/.test(pw) && !/[^A-Za-z0-9]/.test(pw)) {
+      setError("Password must include a number or a symbol."); return;
+    }
+    if (pw !== confirm) { setError("Passwords don't match."); return; }
+    setSubmitting(true); setError(null);
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, newPassword: pw }),
+      });
+      if (!res.ok) {
+        const { error: msg } = await res.json().catch(() => ({}));
+        throw new Error(msg || `Reset failed (${res.status})`);
+      }
+      setStatus("done");
+    } catch (err) {
+      setError(err.message || "Could not reset your password.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (status === "checking") {
+    return (
+      <AuthShell eyebrow="Reset password" title={<>One moment</>}>
+        <div style={{ marginTop: 8, color: "var(--ink-3)", fontSize: 14, textAlign: "center" }}>
+          Checking your reset link…
+        </div>
+      </AuthShell>
+    );
+  }
+  if (status === "invalid") {
+    const msg = reason === "expired"
+      ? "That reset link expired. Reset links are only valid for 30 minutes — request a new one."
+      : "That reset link isn't valid. Request a new one from the forgot-password page.";
+    return (
+      <AuthShell
+        eyebrow="Reset link"
+        title={<>Link no longer <em>works</em></>}
+        sub={msg}
+        footer={<a href="/forgot-password">Request a new link</a>}
+      >
+        <div style={{ marginTop: 8 }} />
+      </AuthShell>
+    );
+  }
+  if (status === "done") {
+    return (
+      <AuthShell
+        eyebrow="Reset complete"
+        title={<>You're <em>in</em></>}
+        sub="Your password is set. You can head to your cookbooks now."
+        footer={<a href="/cookbooks">Go to your cookbooks</a>}
+      >
+        <button
+          type="button"
+          className="btn primary auth-submit"
+          onClick={() => window.location.assign("/cookbooks")}
+        >
+          <Icon name="chef" size={14} /> Open Heirloom
+        </button>
+      </AuthShell>
+    );
+  }
+
+  return (
+    <AuthShell
+      eyebrow="Reset password"
+      title={<>Choose a new <em>password</em></>}
+      sub="At least 6 characters, with a number or a symbol."
+      footer={<a href="/signin">Back to sign in</a>}
+    >
+      <form className="auth-form" onSubmit={submit}>
+        <label className="auth-field">
+          <span>New password</span>
+          <PasswordInput value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" minLength={6} />
+        </label>
+        <label className="auth-field">
+          <span>Confirm</span>
+          <PasswordInput value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" minLength={6} />
+        </label>
+        {error && <div className="auth-error">{error}</div>}
+        <button type="submit" className="btn primary auth-submit" disabled={submitting}>
+          <Icon name="chef" size={14} /> {submitting ? "Saving…" : "Save new password"}
+        </button>
+      </form>
     </AuthShell>
   );
 }
