@@ -202,7 +202,7 @@ export function SignInPage() {
         <a className="auth-link" href="/forgot-password">Forgot password?</a>
         {/* TEMP HINT — remove before opening up beyond family + friends. */}
         <div className="auth-hint">
-          <Icon name="info" size={12} />
+          <Icon name="info" size={18} />
           <span>Can't log in? Existing accounts got a new temporary password. Text Patricia for your temporary password.</span>
         </div>
       </form>
