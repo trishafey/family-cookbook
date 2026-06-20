@@ -398,7 +398,7 @@ app.get("/api/admin/cookbooks", async (c) => {
           ON m.cookbook_id = c.id AND LOWER(m.user_email) = LOWER(?)
         ORDER BY (m.user_email IS NULL) ASC,
                  COALESCE(m.display_order, 99999) ASC,
-                 (c.owner_email = ?) DESC, c.created_at ASC
+                 (c.LOWER(owner_email) = LOWER(?)) DESC, c.created_at ASC
       `).bind(email, email).all()
     : await c.env.DB.prepare(`
         SELECT c.id, c.owner_email, c.name, c.slug, c.visibility, c.blurb,
@@ -491,7 +491,7 @@ app.get("/api/admin/cookbooks/:id", async (c) => {
        AND accepted_at IS NULL AND expires_at > ?`
   ).bind(id, email, nowIso).first().catch(() => null);
   const yourPendingRequest = await c.env.DB.prepare(
-    "SELECT created_at FROM join_requests WHERE cookbook_id = ? AND user_email = ? AND status = 'pending'"
+    "SELECT created_at FROM join_requests WHERE cookbook_id = ? AND LOWER(user_email) = LOWER(?) AND status = 'pending'"
   ).bind(id, email).first().catch(() => null);
   return c.json({
     yourInvitation: yourInvitation
@@ -568,7 +568,7 @@ app.put("/api/admin/cookbooks/order", async (c) => {
   if (defaultId && !ids) {
     const cur = await c.env.DB.prepare(
       `SELECT cookbook_id FROM cookbook_members
-       WHERE user_email = ?
+       WHERE LOWER(user_email) = LOWER(?)
        ORDER BY COALESCE(display_order, 99999) ASC, joined_at ASC`
     ).bind(email).all();
     ids = (cur.results || []).map(r => r.cookbook_id);
@@ -582,7 +582,7 @@ app.put("/api/admin/cookbooks/order", async (c) => {
   // WHERE clause matching zero rows.
   const stmts = ids.map((id, i) =>
     c.env.DB.prepare(
-      "UPDATE cookbook_members SET display_order = ? WHERE cookbook_id = ? AND user_email = ?"
+      "UPDATE cookbook_members SET display_order = ? WHERE cookbook_id = ? AND LOWER(user_email) = LOWER(?)"
     ).bind(i, id, email)
   );
   await c.env.DB.batch(stmts);
@@ -864,7 +864,7 @@ app.post("/api/admin/cookbooks/:id/invitations", async (c) => {
   // instead of creating a duplicate invite.
   if (inviteEmail) {
     const exists = await c.env.DB.prepare(
-      "SELECT user_email FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
+      "SELECT user_email FROM cookbook_members WHERE cookbook_id = ? AND LOWER(user_email) = LOWER(?)"
     ).bind(cookbookId, inviteEmail).first();
     if (exists) return c.json({ error: "already a member" }, 400);
   }
@@ -1019,7 +1019,7 @@ app.get("/api/admin/notifications", async (c) => {
      FROM join_requests j
      LEFT JOIN cookbooks cb ON cb.id = j.cookbook_id
      LEFT JOIN users u ON u.email = j.user_email
-     LEFT JOIN cookbook_members m ON m.cookbook_id = j.cookbook_id AND m.user_email = ?
+     LEFT JOIN cookbook_members m ON m.cookbook_id = j.cookbook_id AND m.LOWER(user_email) = LOWER(?)
      WHERE j.status = 'pending'
        AND m.role IN ('owner', 'editor')
      ORDER BY j.created_at DESC`
@@ -1100,7 +1100,7 @@ app.post("/api/admin/invitations/:token/accept", async (c) => {
   // Vouched cooks bypass the pending queue — being invited by an
   // existing cookbook owner is social proof enough.
   await c.env.DB.prepare(
-    "UPDATE users SET status = 'approved' WHERE email = ? AND status = 'pending'"
+    "UPDATE users SET status = 'approved' WHERE LOWER(email) = LOWER(?) AND status = 'pending'"
   ).bind(email).run().catch(() => {});
   // Upsert membership: insert if new, then overwrite the role
   // with the invited role. INSERT OR IGNORE alone left people
@@ -1144,13 +1144,13 @@ app.patch("/api/admin/cookbooks/:id/members/:email", async (c) => {
     ).bind(cookbookId).first();
     if ((owners?.n || 0) <= 1) {
       const target = await c.env.DB.prepare(
-        "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
+        "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND LOWER(user_email) = LOWER(?)"
       ).bind(cookbookId, targetEmail).first();
       if (target?.role === "owner") return c.json({ error: "promote another member to owner first" }, 400);
     }
   }
   await c.env.DB.prepare(
-    "UPDATE cookbook_members SET role = ? WHERE cookbook_id = ? AND user_email = ?"
+    "UPDATE cookbook_members SET role = ? WHERE cookbook_id = ? AND LOWER(user_email) = LOWER(?)"
   ).bind(newRole, cookbookId, targetEmail).run();
   return c.json({ ok: true });
 });
@@ -1168,7 +1168,7 @@ app.delete("/api/admin/cookbooks/:id/members/:email", async (c) => {
   if (role !== "owner" && role !== "admin" && !isSelf) return c.json({ error: "owner only" }, 403);
   // Don't strand a cookbook with no owners.
   const target = await c.env.DB.prepare(
-    "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
+    "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND LOWER(user_email) = LOWER(?)"
   ).bind(cookbookId, targetEmail).first();
   if (!target) return c.json({ error: "not found" }, 404);
   if (target.role === "owner") {
@@ -1178,7 +1178,7 @@ app.delete("/api/admin/cookbooks/:id/members/:email", async (c) => {
     if ((owners?.n || 0) <= 1) return c.json({ error: "transfer ownership before removing the last owner" }, 400);
   }
   await c.env.DB.prepare(
-    "DELETE FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
+    "DELETE FROM cookbook_members WHERE cookbook_id = ? AND LOWER(user_email) = LOWER(?)"
   ).bind(cookbookId, targetEmail).run();
   return c.json({ ok: true });
 });
@@ -1282,7 +1282,7 @@ app.post("/api/admin/cookbooks/:id/join-request", async (c) => {
   // admins from joining a cookbook as a regular member if they
   // want to.
   const membership = await c.env.DB.prepare(
-    "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND user_email = ?"
+    "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND LOWER(user_email) = LOWER(?)"
   ).bind(cookbookId, email).first();
   if (membership?.role) {
     return c.json({ error: "already a member" }, 400);
@@ -1425,7 +1425,7 @@ app.get("/api/admin/discover", async (c) => {
      FROM cookbooks c
      LEFT JOIN users u ON u.email = c.owner_email
      LEFT JOIN cookbook_members m ON m.cookbook_id = c.id AND LOWER(m.user_email) = LOWER(?)
-     LEFT JOIN join_requests j ON j.cookbook_id = c.id AND j.user_email = ? AND j.status = 'pending'
+     LEFT JOIN join_requests j ON j.cookbook_id = c.id AND j.LOWER(user_email) = LOWER(?) AND j.status = 'pending'
      WHERE c.visibility = 'public'
      ORDER BY recipe_count DESC, c.name ASC`
   ).bind(email, email).all();
@@ -1474,7 +1474,7 @@ app.get("/api/admin/me/recipes", async (c) => {
         `SELECT c.id, c.name
          FROM cookbooks c
          JOIN cookbook_members m ON m.cookbook_id = c.id
-         WHERE m.user_email = ?
+         WHERE m.LOWER(user_email) = LOWER(?)
          ORDER BY c.name ASC`
       ).bind(email).all();
   const cookbooks = cookbookRows.results || [];
@@ -1553,7 +1553,7 @@ app.get("/api/admin/me/pending", async (c) => {
             c.cover_photo, c.cover_color, c.languages
      FROM join_requests j
      LEFT JOIN cookbooks c ON c.id = j.cookbook_id
-     WHERE j.user_email = ? AND j.status = 'pending'
+     WHERE j.LOWER(user_email) = LOWER(?) AND j.status = 'pending'
      ORDER BY j.created_at DESC`
   ).bind(email).all().catch(() => ({ results: [] }));
   return c.json({
@@ -1722,7 +1722,7 @@ async function isAdmin(c) {
   const email = authedEmail(c);
   if (!email) return false;
   const row = await c.env.DB.prepare(
-    "SELECT is_admin FROM users WHERE email = ?"
+    "SELECT is_admin FROM users WHERE LOWER(email) = LOWER(?)"
   ).bind(email).first();
   return !!row?.is_admin;
 }
@@ -1806,7 +1806,7 @@ async function ensureUserBootstrap(c) {
   // index nudges new cooks who don't yet have a family cookbook
   // to create or join one.
   const owned = (await c.env.DB.prepare(
-    "SELECT id FROM cookbooks WHERE owner_email = ?"
+    "SELECT id FROM cookbooks WHERE LOWER(owner_email) = LOWER(?)"
   ).bind(email).all()).results || [];
   const hasPersonal = owned.some(c => /^personal-/i.test(c.id));
   if (hasPersonal) return;
@@ -2767,7 +2767,7 @@ app.get("/api/admin/favorites", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const rows = await c.env.DB.prepare(
-    "SELECT recipe_id FROM favorites WHERE user_email = ?"
+    "SELECT recipe_id FROM favorites WHERE LOWER(user_email) = LOWER(?)"
   ).bind(email).all();
   return c.json(rows.results.map(r => r.recipe_id));
 });
@@ -2785,7 +2785,7 @@ app.delete("/api/admin/favorites/:id", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   await c.env.DB.prepare(
-    "DELETE FROM favorites WHERE user_email = ? AND recipe_id = ?"
+    "DELETE FROM favorites WHERE LOWER(user_email) = LOWER(?) AND recipe_id = ?"
   ).bind(email, c.req.param("id")).run();
   return c.json({ ok: true });
 });
@@ -4479,7 +4479,7 @@ app.get("/api/admin/lab/experiments", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const rows = await c.env.DB.prepare(
-    "SELECT id, title, blurb, status, draft_json, chat_json, created_at, updated_at FROM lab_experiments WHERE owner_email = ? ORDER BY updated_at DESC"
+    "SELECT id, title, blurb, status, draft_json, chat_json, created_at, updated_at FROM lab_experiments WHERE LOWER(owner_email) = LOWER(?) ORDER BY updated_at DESC"
   ).bind(email).all();
   const experiments = (rows.results || []).map(r => ({
     id: r.id,
@@ -4578,7 +4578,7 @@ app.get("/api/admin/me/network", async (c) => {
     JOIN cookbook_members m2
       ON m2.cookbook_id = m1.cookbook_id AND m2.user_email != m1.user_email
     LEFT JOIN users u ON u.email = m2.user_email
-    WHERE m1.user_email = ?
+    WHERE m1.LOWER(user_email) = LOWER(?)
     ORDER BY u.display_name COLLATE NOCASE
   `).bind(email).all();
   return c.json({
@@ -4603,11 +4603,11 @@ app.get("/api/admin/me/profile", async (c) => {
   let row;
   try {
     row = await c.env.DB.prepare(
-      "SELECT email, display_name, first_name, last_name, phone, is_admin, status, simple_mode, lang FROM users WHERE email = ?"
+      "SELECT email, display_name, first_name, last_name, phone, is_admin, status, simple_mode, lang FROM users WHERE LOWER(email) = LOWER(?)"
     ).bind(email).first();
   } catch (err) {
     row = await c.env.DB.prepare(
-      "SELECT email, display_name, first_name, last_name, phone, is_admin, status FROM users WHERE email = ?"
+      "SELECT email, display_name, first_name, last_name, phone, is_admin, status FROM users WHERE LOWER(email) = LOWER(?)"
     ).bind(email).first();
   }
   const firstName = row?.first_name || "";
@@ -4656,7 +4656,7 @@ app.get("/api/admin/users/:email/cookbooks", async (c) => {
     `SELECT m.role, m.joined_at, c.id, c.name, c.slug, c.visibility, c.cover_color, c.cover_photo
      FROM cookbook_members m
      JOIN cookbooks c ON c.id = m.cookbook_id
-     WHERE m.user_email = ?
+     WHERE m.LOWER(user_email) = LOWER(?)
      ORDER BY m.joined_at DESC`
   ).bind(target).all();
   const invitations = await c.env.DB.prepare(
@@ -4672,7 +4672,7 @@ app.get("/api/admin/users/:email/cookbooks", async (c) => {
             c.id AS cookbook_id, c.name, c.slug
      FROM join_requests j
      LEFT JOIN cookbooks c ON c.id = j.cookbook_id
-     WHERE j.user_email = ? AND j.status = 'pending'
+     WHERE j.LOWER(user_email) = LOWER(?) AND j.status = 'pending'
      ORDER BY j.created_at DESC`
   ).bind(target).all().catch(() => ({ results: [] }));
   return c.json({
@@ -4713,7 +4713,7 @@ app.post("/api/admin/users/:email/approve", async (c) => {
   if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
   const target = c.req.param("email").toLowerCase();
   await c.env.DB.prepare(
-    "UPDATE users SET status = 'approved' WHERE email = ?"
+    "UPDATE users SET status = 'approved' WHERE LOWER(email) = LOWER(?)"
   ).bind(target).run();
   return c.json({ ok: true });
 });
@@ -4737,7 +4737,7 @@ app.post("/api/admin/users/:email/decline", async (c) => {
   if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
   const target = c.req.param("email").toLowerCase();
   await c.env.DB.prepare(
-    "UPDATE users SET status = 'declined' WHERE email = ?"
+    "UPDATE users SET status = 'declined' WHERE LOWER(email) = LOWER(?)"
   ).bind(target).run();
   return c.json({ ok: true });
 });
@@ -4800,7 +4800,7 @@ app.patch("/api/admin/users/:email", async (c) => {
   if (!sets.length) return c.json({ ok: true });
   args.push(target);
   await c.env.DB.prepare(
-    `UPDATE users SET ${sets.join(", ")} WHERE email = ?`
+    `UPDATE users SET ${sets.join(", ")} WHERE LOWER(email) = LOWER(?)`
   ).bind(...args).run();
   return c.json({ ok: true });
 });
@@ -4825,18 +4825,18 @@ app.put("/api/admin/me/profile", async (c) => {
   // email-derived placeholder ("kayrwojcik's Cookbook" → "Kayla's
   // Cookbook").
   const oldRow = await c.env.DB.prepare(
-    "SELECT display_name FROM users WHERE email = ?"
+    "SELECT display_name FROM users WHERE LOWER(email) = LOWER(?)"
   ).bind(email).first();
   const oldDisplayName = oldRow?.display_name || "";
 
   const displayName = `${firstName} ${lastName}`.trim();
   if (lang) {
     await c.env.DB.prepare(
-      "UPDATE users SET first_name = ?, last_name = ?, phone = ?, display_name = ?, lang = ? WHERE email = ?"
+      "UPDATE users SET first_name = ?, last_name = ?, phone = ?, display_name = ?, lang = ? WHERE LOWER(email) = LOWER(?)"
     ).bind(firstName, lastName, phone || null, displayName, lang, email).run();
   } else {
     await c.env.DB.prepare(
-      "UPDATE users SET first_name = ?, last_name = ?, phone = ?, display_name = ? WHERE email = ?"
+      "UPDATE users SET first_name = ?, last_name = ?, phone = ?, display_name = ? WHERE LOWER(email) = LOWER(?)"
     ).bind(firstName, lastName, phone || null, displayName, email).run();
   }
 
@@ -4854,13 +4854,13 @@ app.put("/api/admin/me/profile", async (c) => {
   for (const c0 of candidates) {
     for (const oldName of [`${c0}'s Cookbook`, `${c0}'s Favourite Recipes`]) {
       await c.env.DB.prepare(
-        "UPDATE cookbooks SET name = ? WHERE owner_email = ? AND name = ?"
+        "UPDATE cookbooks SET name = ? WHERE LOWER(owner_email) = LOWER(?) AND name = ?"
       ).bind(newPersonalName, email, oldName).run().catch(() => {});
     }
     // Old "<X>'s Family Cookbook" naming is replaced with the
     // new "<Last> Family Cookbook" convention.
     await c.env.DB.prepare(
-      "UPDATE cookbooks SET name = ? WHERE owner_email = ? AND name = ?"
+      "UPDATE cookbooks SET name = ? WHERE LOWER(owner_email) = LOWER(?) AND name = ?"
     ).bind(`${lastName} Family Cookbook`, email, `${c0}'s Family Cookbook`).run().catch(() => {});
   }
 
@@ -4871,7 +4871,7 @@ app.put("/api/admin/me/profile", async (c) => {
   // cookbook (already created with the placeholder name by
   // ensureUserBootstrap) is bumped to display_order 1.
   const owned = (await c.env.DB.prepare(
-    "SELECT id FROM cookbooks WHERE owner_email = ?"
+    "SELECT id FROM cookbooks WHERE LOWER(owner_email) = LOWER(?)"
   ).bind(email).all()).results || [];
   const hasFamily = owned.some(o => /family/i.test(o.id) || / family cookbook$/i.test(o.id));
   if (!hasFamily && lastName) {
@@ -4915,8 +4915,8 @@ app.put("/api/admin/me/profile", async (c) => {
     // family book takes position 0.
     await c.env.DB.prepare(
       `UPDATE cookbook_members SET display_order = 1
-       WHERE user_email = ?
-         AND cookbook_id IN (SELECT id FROM cookbooks WHERE owner_email = ? AND id LIKE 'personal-%')`
+       WHERE LOWER(user_email) = LOWER(?)
+         AND cookbook_id IN (SELECT id FROM cookbooks WHERE LOWER(owner_email) = LOWER(?) AND id LIKE 'personal-%')`
     ).bind(email, email).run().catch(() => {});
   }
 
@@ -4936,7 +4936,7 @@ app.put("/api/admin/me/profile", async (c) => {
 // "fully erase" path could anonymise these.
 async function deleteUserCascade(env, email) {
   const cookbooks = (await env.DB.prepare(
-    "SELECT id FROM cookbooks WHERE owner_email = ?"
+    "SELECT id FROM cookbooks WHERE LOWER(owner_email) = LOWER(?)"
   ).bind(email).all()).results || [];
 
   for (const { id: cbId } of cookbooks) {
@@ -4953,12 +4953,12 @@ async function deleteUserCascade(env, email) {
     await env.DB.prepare("DELETE FROM cookbooks WHERE id = ?").bind(cbId).run().catch(() => {});
   }
 
-  await env.DB.prepare("DELETE FROM cookbook_members WHERE user_email = ?").bind(email).run().catch(() => {});
-  await env.DB.prepare("DELETE FROM favorites WHERE user_email = ?").bind(email).run().catch(() => {});
-  await env.DB.prepare("DELETE FROM lab_experiments WHERE owner_email = ?").bind(email).run().catch(() => {});
-  await env.DB.prepare("DELETE FROM user_prefs WHERE user_email = ?").bind(email).run().catch(() => {});
+  await env.DB.prepare("DELETE FROM cookbook_members WHERE LOWER(user_email) = LOWER(?)").bind(email).run().catch(() => {});
+  await env.DB.prepare("DELETE FROM favorites WHERE LOWER(user_email) = LOWER(?)").bind(email).run().catch(() => {});
+  await env.DB.prepare("DELETE FROM lab_experiments WHERE LOWER(owner_email) = LOWER(?)").bind(email).run().catch(() => {});
+  await env.DB.prepare("DELETE FROM user_prefs WHERE LOWER(user_email) = LOWER(?)").bind(email).run().catch(() => {});
   await env.DB.prepare("DELETE FROM invitations WHERE invited_by = ? AND accepted_at IS NULL").bind(email).run().catch(() => {});
-  await env.DB.prepare("DELETE FROM users WHERE email = ?").bind(email).run().catch(() => {});
+  await env.DB.prepare("DELETE FROM users WHERE LOWER(email) = LOWER(?)").bind(email).run().catch(() => {});
 }
 
 // Self-delete. Refuses if the user still owns the historical
@@ -4970,7 +4970,7 @@ app.delete("/api/admin/me/account", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const bootstrap = await c.env.DB.prepare(
-    "SELECT id FROM cookbooks WHERE id = ? AND owner_email = ?"
+    "SELECT id FROM cookbooks WHERE id = ? AND LOWER(owner_email) = LOWER(?)"
   ).bind(BOOTSTRAP_COOKBOOK_ID, email).first();
   if (bootstrap) {
     return c.json({
@@ -5042,7 +5042,7 @@ app.delete("/api/admin/users/:email", async (c) => {
   // Refuse to nuke the bootstrap cookbook owner — Patricia keeps
   // a guard rail against accidentally deleting the root account.
   const ownsBootstrap = await c.env.DB.prepare(
-    "SELECT id FROM cookbooks WHERE id = ? AND owner_email = ?"
+    "SELECT id FROM cookbooks WHERE id = ? AND LOWER(owner_email) = LOWER(?)"
   ).bind(BOOTSTRAP_COOKBOOK_ID, target).first();
   if (ownsBootstrap) {
     return c.json({
@@ -5059,7 +5059,7 @@ app.get("/api/admin/me/prefs", async (c) => {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   const row = await c.env.DB.prepare(
-    "SELECT prefs_text, updated_at FROM user_prefs WHERE user_email = ?"
+    "SELECT prefs_text, updated_at FROM user_prefs WHERE LOWER(user_email) = LOWER(?)"
   ).bind(email).first();
   return c.json({
     cookPrefs: row?.prefs_text || "",
