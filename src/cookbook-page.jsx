@@ -90,13 +90,12 @@ function LeaveCookbookButton({ cookbookId, cookbookName, role, authEmail, onLeft
   };
   return (
     <button
-      className="btn cookbook-action-btn"
+      className="btn ghost sm cookbook-leave-btn"
       onClick={onClick}
       disabled={busy}
       title={label}
     >
-      <Icon name={isFollower ? "x" : "chevL"} />
-      <span className="btn-label">{busy ? "Leaving…" : label}</span>
+      {busy ? "Leaving…" : label}
     </button>
   );
 }
