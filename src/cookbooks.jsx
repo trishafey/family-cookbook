@@ -1612,7 +1612,10 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
         fetch("/api/admin/cookbooks", { credentials: "include" }),
         fetch("/api/admin/me/pending", { credentials: "include" }),
       ]);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const { error: msg, detail } = await res.json().catch(() => ({}));
+        throw new Error(msg ? `${msg}${detail ? ` (${detail})` : ""}` : `HTTP ${res.status}`);
+      }
       const { cookbooks: list } = await res.json();
       setCookbooks(list || []);
       if (pendingRes.ok) {
@@ -1621,7 +1624,7 @@ export function CookbooksIndex({ authEmail, isAdmin, activeCookbookId, onClose, 
         setPendingRequests(p.joinRequests || []);
       }
     } catch (err) {
-      setError("Could not load your cookbooks.");
+      setError(err.message || "Could not load your cookbooks.");
     } finally {
       setLoading(false);
     }

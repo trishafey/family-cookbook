@@ -341,6 +341,7 @@ function normaliseLanguages(arr) {
 // the cf-access-authenticated-user-email header on the protected
 // /api/admin/* paths.
 app.get("/api/admin/cookbooks", async (c) => {
+  try {
   const email = authedEmail(c);
   if (!email) return c.json({ error: "not signed in" }, 401);
   // Guarantee the cook has a users row + personal + family
@@ -421,6 +422,10 @@ app.get("/api/admin/cookbooks", async (c) => {
       updatedAt: r.updated_at,
     })),
   });
+  } catch (err) {
+    console.error("cookbooks list failed", err);
+    return c.json({ error: err?.message || "Could not load cookbooks.", detail: String(err) }, 500);
+  }
 });
 
 // Cookbook details + members. Members get their explicit role;
@@ -1733,9 +1738,11 @@ async function ensureUserBootstrap(c) {
   if (!email) return;
   const now = new Date().toISOString();
 
-  // users row
+  // users row — LOWER() on both sides because authedEmail is
+  // always lowercased by the middleware but legacy rows can
+  // have mixed case.
   const userRow = await c.env.DB.prepare(
-    "SELECT email, display_name FROM users WHERE email = ?"
+    "SELECT email, display_name FROM users WHERE LOWER(email) = LOWER(?)"
   ).bind(email).first();
 
   // Normalize a raw email local-part into a friendly display
@@ -1767,12 +1774,12 @@ async function ensureUserBootstrap(c) {
     // their first/last name in the profile gate next.
     displayName = normaliseLocal();
     await c.env.DB.prepare(
-      "UPDATE users SET display_name = ?, last_seen_at = ? WHERE email = ?"
+      "UPDATE users SET display_name = ?, last_seen_at = ? WHERE LOWER(email) = LOWER(?)"
     ).bind(displayName, now, email).run().catch(() => {});
   } else {
     // Touch last_seen_at best-effort — never block the request.
     c.executionCtx.waitUntil(
-      c.env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE email = ?")
+      c.env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE LOWER(email) = LOWER(?)")
         .bind(now, email).run().catch(() => {})
     );
   }
