@@ -9,12 +9,23 @@
 // to the static React app.
 
 import { Hono } from "hono";
+import { setCookie, deleteCookie, getCookie } from "hono/cookie";
 import { RECIPES as SEED_RECIPES } from "../src/data.js";
 import {
   hashPassword, verifyPassword, isValidEmail, passwordIssues, passwordPolicyIssue,
-  signSession, verifySession, sessionCookie, clearSessionCookie, readSessionCookie,
+  signSession, verifySession,
   TEMP_PASSWORD_SALT,
 } from "./auth.js";
+
+const SESSION_COOKIE = "heirloom_session";
+const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
+const SESSION_COOKIE_OPTS = {
+  path: "/",
+  httpOnly: true,
+  secure: true,
+  sameSite: "Lax",
+  maxAge: SESSION_TTL_SECONDS,
+};
 
 // One-time setup key. Used by /api/setup to apply the schema and seed
 // the database. Safe to regenerate / remove after first use — the
@@ -116,7 +127,7 @@ app.use("/api/admin/users/:email/reset-password", async (c, next) => {
 // session — verification email lands in Phase 2. Login does
 // constant-time hash comparison + per-account lockout after
 // five consecutive failures.
-const LOGIN_MAX_FAILURES = 5;
+const LOGIN_MAX_FAILURES = 10;
 const LOGIN_LOCKOUT_MINUTES = 15;
 
 // Surface internal worker errors as readable JSON on the auth
@@ -136,8 +147,14 @@ app.get("/api/auth/diagnose", async (c) => {
       "SELECT email, password_hash IS NOT NULL AS has_hash, password_salt, status FROM users WHERE LOWER(email) = LOWER(?)"
     ).bind(email).first();
   }
+  const cookieToken = getCookie(c, SESSION_COOKIE);
+  const cookieEmail = cookieToken ? await verifySession(c.env, cookieToken) : null;
   return c.json({
     sessionSecretSet: hasSecret,
+    callerEmail: authedEmail(c),
+    sessionCookiePresent: !!cookieToken,
+    sessionCookieVerifies: !!cookieEmail,
+    sessionCookieEmail: cookieEmail,
     user: row ? {
       email: row.email,
       hasHash: !!row.has_hash,
@@ -194,7 +211,7 @@ app.post("/api/auth/signup", async (c) => {
   }
 
   const token = await signSession(c.env, email);
-  c.header("Set-Cookie", sessionCookie(token));
+  setCookie(c, SESSION_COOKIE, token, SESSION_COOKIE_OPTS);
   return c.json({ ok: true, email });
   } catch (err) {
     console.error("signup error", err);
@@ -244,7 +261,7 @@ app.post("/api/auth/login", async (c) => {
   // pops the "set a new password" modal before letting them in.
   const mustChangePassword = (row.password_salt || "").toLowerCase() === TEMP_PASSWORD_SALT;
   const token = await signSession(c.env, email);
-  c.header("Set-Cookie", sessionCookie(token));
+  setCookie(c, SESSION_COOKIE, token, SESSION_COOKIE_OPTS);
   return c.json({ ok: true, email, mustChangePassword });
   } catch (err) {
     console.error("login error", err);
@@ -278,7 +295,7 @@ app.post("/api/auth/change-password", async (c) => {
 });
 
 app.post("/api/auth/logout", async (c) => {
-  c.header("Set-Cookie", clearSessionCookie());
+  deleteCookie(c, SESSION_COOKIE, { path: "/" });
   return c.json({ ok: true });
 });
 
@@ -1620,7 +1637,7 @@ app.get("/api/setup", async (c) => {
 async function resolveSession(c, next) {
   let email = null;
   try {
-    const token = readSessionCookie(c);
+    const token = getCookie(c, SESSION_COOKIE);
     if (token) email = await verifySession(c.env, token);
   } catch {}
   if (!email) email = c.req.header("cf-access-authenticated-user-email") || null;
