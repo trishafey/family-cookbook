@@ -1686,6 +1686,48 @@ app.get("/api/admin/cookbooks/:cookbookId/recipes", async (c) => {
 });
 
 // ─── Join requests ───
+// Auto-approved one-tap follow. Adds the caller as a
+// follower-role member of a public cookbook without going
+// through the owner's approval queue. Idempotent — re-following
+// is a no-op. Followers see the cookbook on their "Following"
+// shelf and the owner sees them in the Members tab.
+app.post("/api/admin/cookbooks/:id/follow", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("id");
+  const vis = await c.env.DB.prepare(
+    "SELECT visibility FROM cookbooks WHERE id = ?"
+  ).bind(cookbookId).first();
+  if (!vis) return c.json({ error: "not found" }, 404);
+  if (vis.visibility !== "public") return c.json({ error: "cookbook is private" }, 403);
+  const existing = await c.env.DB.prepare(
+    "SELECT role FROM cookbook_members WHERE cookbook_id = ? AND LOWER(user_email) = LOWER(?)"
+  ).bind(cookbookId, email).first();
+  if (existing?.role) {
+    // Already a member — nothing to do. Don't downgrade an
+    // editor/owner who taps Follow.
+    return c.json({ ok: true, role: existing.role });
+  }
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    "INSERT OR IGNORE INTO cookbook_members (cookbook_id, user_email, role, joined_at) VALUES (?, ?, 'viewer', ?)"
+  ).bind(cookbookId, email.toLowerCase(), now).run();
+  return c.json({ ok: true, role: "viewer" });
+});
+
+// Unfollow — removes a self-added follower membership. Won't
+// remove anyone whose role is editor or owner (they'd need to
+// be removed by an owner explicitly).
+app.delete("/api/admin/cookbooks/:id/follow", async (c) => {
+  const email = authedEmail(c);
+  if (!email) return c.json({ error: "not signed in" }, 401);
+  const cookbookId = c.req.param("id");
+  await c.env.DB.prepare(
+    "DELETE FROM cookbook_members WHERE cookbook_id = ? AND LOWER(user_email) = LOWER(?) AND role = 'viewer'"
+  ).bind(cookbookId, email).run();
+  return c.json({ ok: true });
+});
+
 // A signed-in cook who discovers a public cookbook can ask its
 // owners + editors for membership. The owner picks the role on
 // approval (follower / editor / owner). Pending requests double

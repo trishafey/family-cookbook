@@ -32,6 +32,39 @@ const COOKBOOK_TYPE_LABEL = {
   "group": "Group",
 };
 
+function DiscoverFollowButton({ cookbookId, alreadyFollowing }) {
+  const [state, setState] = useState(alreadyFollowing ? "following" : "idle");
+  const send = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setState("sending");
+    try {
+      const res = await fetch(`/api/admin/cookbooks/${encodeURIComponent(cookbookId)}/follow`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      setState(res.ok ? "following" : "error");
+    } catch {
+      setState("error");
+    }
+  };
+  if (state === "following") {
+    return <span className="discover-follow following"><Icon name="check" size={12} /> Following</span>;
+  }
+  return (
+    <button
+      type="button"
+      className="discover-follow"
+      onClick={send}
+      disabled={state === "sending"}
+    >
+      <Icon name="bookmark" size={12} /> {state === "sending" ? "Following…" : "Follow"}
+    </button>
+  );
+}
+
 function DiscoverJoinButton({ cookbookId, alreadyRequested }) {
   const [state, setState] = useState(alreadyRequested ? "sent" : "idle");
   const send = async (e) => {
@@ -265,7 +298,15 @@ export function Discover({ onOpenCookbook, onClose }) {
                     </span>
                   </div>
                   {!cb.yourRole && (
-                    <DiscoverJoinButton cookbookId={cb.id} alreadyRequested={cb.pendingJoin} />
+                    <div className="discover-actions">
+                      <DiscoverFollowButton cookbookId={cb.id} alreadyFollowing={false} />
+                      <DiscoverJoinButton cookbookId={cb.id} alreadyRequested={cb.pendingJoin} />
+                    </div>
+                  )}
+                  {cb.yourRole === "viewer" && (
+                    <div className="discover-actions">
+                      <span className="discover-follow following"><Icon name="check" size={12} /> Following</span>
+                    </div>
                   )}
                 </div>
               </div>

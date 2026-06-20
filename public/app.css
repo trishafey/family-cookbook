@@ -2015,12 +2015,15 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   color: var(--accent); text-decoration: underline; text-underline-offset: 3px;
 }
 
-.discover-join {
-  display: inline-flex; align-items: center; gap: 6px;
-  align-self: flex-start;
+.discover-actions {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   margin-top: 10px;
-  padding: 5px 10px;
-  width: auto;
+}
+/* Follow — the primary CTA on a Discover card. Filled,
+   heirloom-orange on hover. */
+.discover-follow {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px;
   font-family: var(--sans); font-size: 12px;
   color: var(--paper);
   background: var(--ink);
@@ -2029,7 +2032,27 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   cursor: pointer;
   transition: background .12s, border-color .12s;
 }
-.discover-join:hover { background: var(--accent); border-color: var(--accent); }
+.discover-follow:hover { background: var(--accent); border-color: var(--accent); }
+.discover-follow.following {
+  background: color-mix(in srgb, var(--accent-2) 12%, var(--paper));
+  color: var(--accent-2);
+  border-color: color-mix(in srgb, var(--accent-2) 30%, transparent);
+  cursor: default;
+}
+/* Request to join — secondary CTA after Follow. Ghost / outlined
+   so Follow leads visual hierarchy. */
+.discover-join {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  font-family: var(--sans); font-size: 12px;
+  color: var(--ink-2);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.discover-join:hover { border-color: var(--accent); color: var(--accent); }
 .discover-join.requested {
   background: color-mix(in srgb, var(--accent-2) 12%, var(--paper));
   color: var(--accent-2);

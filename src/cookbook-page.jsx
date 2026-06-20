@@ -66,6 +66,37 @@ function AcceptInvitationButton({ token, invitedRole, onAccepted }) {
   );
 }
 
+function FollowButton({ cookbookId, onFollowed }) {
+  const [state, setState] = useState("idle");
+  const send = async () => {
+    setState("sending");
+    try {
+      const res = await fetch(`/api/admin/cookbooks/${encodeURIComponent(cookbookId)}/follow`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        setState("following");
+        onFollowed?.();
+      } else {
+        setState("error");
+      }
+    } catch {
+      setState("error");
+    }
+  };
+  if (state === "following") {
+    return <span className="join-requested"><Icon name="check" size={14} /> Following</span>;
+  }
+  return (
+    <button className="btn primary" onClick={send} disabled={state === "sending"}>
+      <Icon name="bookmark" /> {state === "sending" ? "Following…" : "Follow"}
+    </button>
+  );
+}
+
 function RequestToJoinButton({ cookbookId }) {
   const [state, setState] = useState("idle"); // idle | sending | sent | error
   const { t } = useLang();
@@ -87,7 +118,7 @@ function RequestToJoinButton({ cookbookId }) {
     return <span className="join-requested"><Icon name="check" size={14} /> {t("requested")}</span>;
   }
   return (
-    <button className="btn primary" onClick={send} disabled={state === "sending"}>
+    <button className="btn cookbook-action-btn" onClick={send} disabled={state === "sending"}>
       <Icon name="chefAdd" /> {state === "sending" ? "Sending…" : t("requestToJoin")}
     </button>
   );
@@ -408,8 +439,11 @@ export function CookbookPage({
             {role === "guest" && cookbook.yourPendingRequest && (
               <span className="join-requested"><Icon name="clock" size={14} /> Request pending</span>
             )}
-            {role === "guest" && !cookbook.yourInvitation && !cookbook.yourPendingRequest && (
-              <RequestToJoinButton cookbookId={cookbook.id} />
+            {role === "guest" && !cookbook.yourInvitation && cookbook.visibility === "public" && (
+              <>
+                <FollowButton cookbookId={cookbook.id} onFollowed={load} />
+                {!cookbook.yourPendingRequest && <RequestToJoinButton cookbookId={cookbook.id} />}
+              </>
             )}
             {role !== "viewer" && role !== "guest" && (
               <button className="btn primary" onClick={openAddRecipe}>
