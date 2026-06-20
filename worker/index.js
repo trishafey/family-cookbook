@@ -357,6 +357,16 @@ app.post("/api/auth/signup", async (c) => {
 
   const token = await signSession(c.env, email);
   setCookie(c, SESSION_COOKIE, token, SESSION_COOKIE_OPTS);
+  // Bootstrap the cook's personal cookbook now so /cookbooks
+  // renders something on first load. Wrapped in try/catch so a
+  // bootstrap failure doesn't fail the signup itself — the cook
+  // can always re-bootstrap by visiting any /api/admin/* path.
+  try {
+    c.set("authedEmail", email);
+    await ensureUserBootstrap(c);
+  } catch (bootstrapErr) {
+    console.error("ensureUserBootstrap during signup failed", bootstrapErr);
+  }
   return c.json({ ok: true, email });
   } catch (err) {
     console.error("signup error", err);
@@ -5536,6 +5546,27 @@ app.put("/api/admin/me/prefs", async (c) => {
      ON CONFLICT(user_email) DO UPDATE SET prefs_text = excluded.prefs_text, updated_at = excluded.updated_at`
   ).bind(email, prefs, now).run();
   return c.json({ ok: true, updatedAt: now });
+});
+
+// Admin: re-run ensureUserBootstrap for another user. Creates
+// their personal cookbook if it's missing. Idempotent — safe
+// to call on a user who already has one. Useful when a signup
+// completed but the cookbook bootstrap didn't fire for any
+// reason.
+app.post("/api/admin/users/:email/bootstrap", async (c) => {
+  if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
+  const targetEmail = c.req.param("email").toLowerCase();
+  // Temporarily impersonate the target so ensureUserBootstrap
+  // operates on their row. We restore afterwards so the rest
+  // of this request still sees the admin caller.
+  const original = authedEmail(c);
+  try {
+    c.set("authedEmail", targetEmail);
+    await ensureUserBootstrap(c);
+  } finally {
+    c.set("authedEmail", original);
+  }
+  return c.json({ ok: true });
 });
 
 // Self-set simple mode. Stores on users.simple_mode so admin
