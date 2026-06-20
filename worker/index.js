@@ -201,6 +201,51 @@ function jsonError(err) {
   return { error: err?.message || "Unexpected error.", detail: String(err) };
 }
 
+// Admin-only quick test: try to send a test email to the
+// signed-in admin via the same Resend pipeline as reset /
+// verify / invite. Returns the provider response verbatim so
+// it's clear whether the failure is "no API key", "domain not
+// verified", "rate limited", etc.
+app.post("/api/auth/diagnose-email", async (c) => {
+  if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
+  const email = authedEmail(c);
+  const fromEmail = c.env.INVITE_FROM_EMAIL || "invites@heirloomcookbook.net";
+  const fromName = c.env.INVITE_FROM_NAME || "Heirloom Cookbook";
+  const config = {
+    resendApiKeySet: !!c.env.RESEND_API_KEY,
+    fromEmail,
+    fromName,
+    sendingTo: email,
+  };
+  if (!c.env.RESEND_API_KEY) {
+    return c.json({ ...config, sent: false, reason: "RESEND_API_KEY not set on the worker" });
+  }
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${c.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: `${fromName} <${fromEmail}>`,
+        to: [email],
+        subject: "Heirloom email diagnostic",
+        text: "This is the Heirloom worker confirming email delivery is configured correctly. You can ignore it.",
+      }),
+    });
+    const body = await res.text().catch(() => "");
+    return c.json({
+      ...config,
+      sent: res.ok,
+      providerStatus: res.status,
+      providerResponse: body,
+    });
+  } catch (err) {
+    return c.json({ ...config, sent: false, reason: String(err?.message || err) });
+  }
+});
+
 app.get("/api/auth/diagnose", async (c) => {
   if (!(await isAdmin(c))) return c.json({ error: "admin only" }, 403);
   const email = (c.req.query("email") || "").toLowerCase();
