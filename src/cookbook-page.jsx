@@ -66,6 +66,41 @@ function AcceptInvitationButton({ token, invitedRole, onAccepted }) {
   );
 }
 
+function LeaveCookbookButton({ cookbookId, cookbookName, role, authEmail, onLeft }) {
+  // Followers see "Unfollow"; editors get "Leave cookbook".
+  // Owners can't reach this component (gated upstream by role).
+  const isFollower = role === "viewer";
+  const label = isFollower ? "Unfollow" : "Leave cookbook";
+  const confirmMsg = isFollower
+    ? `Stop following ${cookbookName}? You can follow again any time from Discover.`
+    : `Leave ${cookbookName}? You'll lose access — only the cookbook's owner can add you back.`;
+  const [busy, setBusy] = useState(false);
+  const onClick = async () => {
+    if (!window.confirm(confirmMsg)) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/cookbooks/${encodeURIComponent(cookbookId)}/members/${encodeURIComponent(authEmail)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) onLeft?.();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      className="btn cookbook-action-btn"
+      onClick={onClick}
+      disabled={busy}
+      title={label}
+    >
+      <Icon name={isFollower ? "x" : "chevL"} />
+      <span className="btn-label">{busy ? "Leaving…" : label}</span>
+    </button>
+  );
+}
+
 function FollowButton({ cookbookId, onFollowed }) {
   const [state, setState] = useState("idle");
   const send = async () => {
@@ -459,6 +494,19 @@ export function CookbookPage({
               <button className="btn cookbook-action-btn" onClick={() => goToManage("settings")} title={t("settings")}>
                 <Icon name="edit" /> <span className="btn-label">{t("settings")}</span>
               </button>
+            )}
+            {(role === "viewer" || role === "editor") && authEmail && (
+              <LeaveCookbookButton
+                cookbookId={cookbook.id}
+                cookbookName={cookbook.name}
+                role={role}
+                authEmail={authEmail}
+                onLeft={() => {
+                  // After leaving, drop them back on their library
+                  // — the cookbook is no longer in their list.
+                  goToLibrary?.();
+                }}
+              />
             )}
           </div>
         </div>

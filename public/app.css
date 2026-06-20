@@ -2037,7 +2037,12 @@ body[data-card="minimal"] .card .photo { border-radius: 4px; aspect-ratio: 5/4; 
   background: color-mix(in srgb, var(--accent-2) 12%, var(--paper));
   color: var(--accent-2);
   border-color: color-mix(in srgb, var(--accent-2) 30%, transparent);
-  cursor: default;
+  cursor: pointer;
+}
+.discover-follow.following:hover {
+  background: color-mix(in srgb, var(--accent) 12%, var(--paper));
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 /* Request to join — secondary CTA after Follow. Ghost / outlined
    so Follow leads visual hierarchy. */

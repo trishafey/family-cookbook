@@ -50,8 +50,31 @@ function DiscoverFollowButton({ cookbookId, alreadyFollowing }) {
       setState("error");
     }
   };
+  const unfollow = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setState("sending");
+    try {
+      const res = await fetch(`/api/admin/cookbooks/${encodeURIComponent(cookbookId)}/follow`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      setState(res.ok ? "idle" : "following");
+    } catch {
+      setState("following");
+    }
+  };
   if (state === "following") {
-    return <span className="discover-follow following"><Icon name="check" size={12} /> Following</span>;
+    return (
+      <button
+        type="button"
+        className="discover-follow following"
+        onClick={unfollow}
+        title="Unfollow"
+      >
+        <Icon name="check" size={12} /> Following
+      </button>
+    );
   }
   return (
     <button
@@ -305,7 +328,7 @@ export function Discover({ onOpenCookbook, onClose }) {
                   )}
                   {cb.yourRole === "viewer" && (
                     <div className="discover-actions">
-                      <span className="discover-follow following"><Icon name="check" size={12} /> Following</span>
+                      <DiscoverFollowButton cookbookId={cb.id} alreadyFollowing={true} />
                     </div>
                   )}
                 </div>
