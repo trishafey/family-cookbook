@@ -144,9 +144,18 @@ app.get("/api/auth/diagnose", async (c) => {
   let row = null;
   if (email) {
     row = await c.env.DB.prepare(
-      "SELECT email, password_hash IS NOT NULL AS has_hash, password_salt, status FROM users WHERE LOWER(email) = LOWER(?)"
+      "SELECT email, password_hash IS NOT NULL AS has_hash, password_salt, status, is_admin FROM users WHERE LOWER(email) = LOWER(?)"
     ).bind(email).first();
   }
+  // Total cookbooks this email is a member of, plus a count of
+  // any rows where the stored case differs from lowercase (drift
+  // indicator).
+  const memberships = email ? await c.env.DB.prepare(
+    `SELECT COUNT(*) AS total,
+            SUM(CASE WHEN user_email != LOWER(user_email) THEN 1 ELSE 0 END) AS mixed_case
+     FROM cookbook_members WHERE LOWER(user_email) = LOWER(?)`
+  ).bind(email).first() : null;
+  const cookbookCount = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM cookbooks").first().catch(() => null);
   const cookieToken = getCookie(c, SESSION_COOKIE);
   const cookieEmail = cookieToken ? await verifySession(c.env, cookieToken) : null;
   return c.json({
@@ -160,7 +169,13 @@ app.get("/api/auth/diagnose", async (c) => {
       hasHash: !!row.has_hash,
       saltPrefix: row.password_salt ? row.password_salt.slice(0, 12) : null,
       status: row.status,
+      isAdmin: !!row.is_admin,
     } : null,
+    memberships: memberships ? {
+      total: memberships.total || 0,
+      mixedCase: memberships.mixed_case || 0,
+    } : null,
+    totalCookbooksInDb: cookbookCount?.n ?? null,
   });
 });
 
@@ -380,7 +395,7 @@ app.get("/api/admin/cookbooks", async (c) => {
                (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count
         FROM cookbooks c
         LEFT JOIN cookbook_members m
-          ON m.cookbook_id = c.id AND m.user_email = ?
+          ON m.cookbook_id = c.id AND LOWER(m.user_email) = LOWER(?)
         ORDER BY (m.user_email IS NULL) ASC,
                  COALESCE(m.display_order, 99999) ASC,
                  (c.owner_email = ?) DESC, c.created_at ASC
@@ -393,7 +408,7 @@ app.get("/api/admin/cookbooks", async (c) => {
                (SELECT COUNT(*) FROM recipes WHERE cookbook_id = c.id) AS recipe_count
         FROM cookbooks c
         JOIN cookbook_members m ON m.cookbook_id = c.id
-        WHERE m.user_email = ?
+        WHERE LOWER(m.user_email) = LOWER(?)
         ORDER BY COALESCE(m.display_order, 99999) ASC, c.created_at ASC
       `).bind(email).all();
   return c.json({
@@ -1409,7 +1424,7 @@ app.get("/api/admin/discover", async (c) => {
             j.status AS join_status
      FROM cookbooks c
      LEFT JOIN users u ON u.email = c.owner_email
-     LEFT JOIN cookbook_members m ON m.cookbook_id = c.id AND m.user_email = ?
+     LEFT JOIN cookbook_members m ON m.cookbook_id = c.id AND LOWER(m.user_email) = LOWER(?)
      LEFT JOIN join_requests j ON j.cookbook_id = c.id AND j.user_email = ? AND j.status = 'pending'
      WHERE c.visibility = 'public'
      ORDER BY recipe_count DESC, c.name ASC`
