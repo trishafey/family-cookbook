@@ -6,39 +6,87 @@
 // running `npm run build` locally) it's a no-op — local D1 is
 // applied separately via `npm run migrate:local`.
 //
-// Cloudflare exposes CI=1 in both Workers Builds and Pages build
-// environments, plus their own WORKERS_CI / CF_PAGES flags. We
-// accept any of them so this also runs under generic CI providers
-// if the project ever moves.
+// History: the old version of this script silently failed
+// because (a) wrangler was being fetched on demand via npx and
+// (b) failures were quietly tolerated to avoid blocking deploys.
+// The combined effect was that nine schema migrations never ran
+// on prod between Phase 4a and the email/password auth work,
+// which forced a parade of self-heal ALTER statements throughout
+// the worker. This version is loud — env state, command output,
+// applied-migration list — so anyone reading the build log can
+// confirm the migrations actually ran.
 
 import { spawnSync } from "node:child_process";
 
-const inCI =
-  process.env.CI === "1" ||
-  process.env.CI === "true" ||
-  process.env.WORKERS_CI === "1" ||
-  process.env.WORKERS_CI === "true" ||
-  process.env.CF_PAGES === "1" ||
-  process.env.CF_PAGES === "true";
+function logHeader(s) {
+  console.log("");
+  console.log("──────────────────────────────────────────────");
+  console.log(`[prebuild] ${s}`);
+  console.log("──────────────────────────────────────────────");
+}
+
+// Surface every env var that any CI provider sets so it's
+// obvious from the build log which path we took. Names only —
+// values can carry secrets.
+function listCiSignalEnv() {
+  const keys = [
+    "CI", "WORKERS_CI", "WORKERS_BUILD", "CF_PAGES", "CF_BUILDER",
+    "GITHUB_ACTIONS", "VERCEL", "NETLIFY", "CIRCLECI",
+  ];
+  return Object.fromEntries(
+    keys.filter(k => process.env[k] !== undefined).map(k => [k, process.env[k]])
+  );
+}
+
+const ciSignals = listCiSignalEnv();
+const inCI = Object.keys(ciSignals).length > 0;
+
+logHeader("D1 migrations on CI");
+console.log("[prebuild] CI signals present:", ciSignals);
+console.log("[prebuild] inCI:", inCI);
 
 if (!inCI) {
   console.log("[prebuild] Not in CI — skipping remote D1 migrations.");
+  console.log("[prebuild] Run `npm run migrate:remote` locally if you want to apply now.");
   process.exit(0);
 }
 
-console.log("[prebuild] Applying D1 migrations to remote (family-cookbook-db)…");
-const result = spawnSync(
+logHeader("Listing already-applied migrations");
+const list = spawnSync(
   "npx",
-  ["wrangler", "d1", "migrations", "apply", "family-cookbook-db", "--remote"],
+  ["--no-install", "wrangler", "d1", "migrations", "list", "family-cookbook-db", "--remote"],
+  { stdio: "inherit" }
+);
+if (list.status !== 0) {
+  console.error("[prebuild] Could not list migrations (status " + list.status + ").");
+  console.error("[prebuild] Most common causes:");
+  console.error("  - wrangler isn't installed (now pinned in devDependencies — check `npm install` ran)");
+  console.error("  - the Workers Builds env doesn't have D1 API access");
+  console.error("  - the database name 'family-cookbook-db' doesn't match wrangler.jsonc");
+  console.error("[prebuild] Continuing the build so we don't block deploys.");
+  process.exit(0);
+}
+
+logHeader("Applying any pending migrations");
+const apply = spawnSync(
+  "npx",
+  ["--no-install", "wrangler", "d1", "migrations", "apply", "family-cookbook-db", "--remote"],
   { stdio: "inherit" }
 );
 
-if (result.status !== 0) {
-  // Don't fail the build on a migration error — the worker has a
-  // defensive ALTER fallback for new columns, and a permanent
-  // migration failure here would lock us out of deploying any
-  // worker fix. Log loudly so it shows up in the Cloudflare logs.
-  console.error("[prebuild] Migration step failed (status " + result.status + ") — continuing build anyway.");
+if (apply.status !== 0) {
+  // Don't fail the build on a migration error — the worker still
+  // has defensive ALTER fallbacks for new columns, and a
+  // persistent migration failure here would lock us out of
+  // deploying a worker fix. Log loudly so it shows up in logs.
+  console.error("[prebuild] Migration step failed (status " + apply.status + ") — continuing build anyway.");
   process.exit(0);
 }
-console.log("[prebuild] D1 migrations applied.");
+
+logHeader("Migrations applied — listing final state");
+spawnSync(
+  "npx",
+  ["--no-install", "wrangler", "d1", "migrations", "list", "family-cookbook-db", "--remote"],
+  { stdio: "inherit" }
+);
+console.log("[prebuild] Done.");
