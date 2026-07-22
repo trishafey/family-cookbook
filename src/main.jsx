@@ -447,6 +447,39 @@ function App() {
   }, [recipes]);
   const recipe = recipes.find(r => r.id === recipeId);
 
+  // Shared-recipe fallback. When the recipe isn't in the active
+  // cookbook's list — a link opened by someone who isn't a
+  // member, or a signed-out visitor with no cookbook at all —
+  // fetch it standalone from the public /api/recipes/:id
+  // endpoint so a shared link always resolves. Read-only:
+  // comment / favourite / edit affordances inside RecipeDetail
+  // are already gated behind authEmail, so a signed-out viewer
+  // just sees the recipe.
+  const [sharedRecipe, setSharedRecipe] = useState(null);
+  const [sharedLoading, setSharedLoading] = useState(false);
+  useEffect(() => {
+    if (view !== "recipe" || !recipeId || recipe) { setSharedRecipe(null); setSharedLoading(false); return; }
+    let cancelled = false;
+    setSharedLoading(true);
+    (async () => {
+      try {
+        const res = await fetch(`/api/recipes/${encodeURIComponent(recipeId)}`, {
+          headers: { Accept: "application/json" },
+        });
+        if (cancelled) return;
+        if (res.ok) {
+          const blob = await res.json();
+          if (!cancelled && blob?.id) setSharedRecipe(localizeRecipe(normalizeRecipe(blob), currentLang));
+        }
+      } catch {} finally {
+        if (!cancelled) setSharedLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [view, recipeId, recipe, currentLang]);
+
+  const displayRecipe = recipe || sharedRecipe;
+
   // When a cook lands on /recipe/<id> for a recipe that isn't
   // in their currently-active cookbook (typically a shared
   // URL), ask the worker which cookbook owns it and switch.
@@ -1116,23 +1149,35 @@ function App() {
           activeCookbookName={effectiveUserCookbooks.find(c => c.id === activeCookbookId)?.name}
         />
       )}
-      {view === "recipe" && !recipe && (
-        // Recipe lookup failed — most likely because the cook
-        // saved a recipe to a different cookbook than the one
-        // currently active in the switcher. Tell them, with a
-        // link back to browse and to swap cookbooks.
+      {view === "recipe" && !displayRecipe && sharedLoading && (
+        // Resolving a shared link via the public single-recipe
+        // endpoint. Brief — just avoids flashing the not-found
+        // copy before the fetch lands.
         <div style={{ padding: "80px 24px", textAlign: "center", color: "var(--ink-3)", fontFamily: "var(--serif)" }}>
-          <div style={{ fontSize: 32, fontStyle: "italic", marginBottom: 12 }}>Recipe not in this cookbook.</div>
-          <div style={{ marginBottom: 20, maxWidth: "36ch", marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>
-            It may have been saved to a different cookbook. Try switching cookbooks in the top nav, or head back to the list.
-          </div>
-          <button className="btn primary" onClick={backToBrowse}>Back to cookbook</button>
+          <div style={{ fontSize: 24, fontStyle: "italic" }}>Loading recipe…</div>
         </div>
       )}
-      {view === "recipe" && recipe && (
+      {view === "recipe" && !displayRecipe && !sharedLoading && (
+        // The recipe genuinely couldn't be found even via the
+        // public endpoint — deleted, or a bad link. Signed-out
+        // visitors get a sign-in nudge; signed-in cooks get the
+        // back-to-cookbook path.
+        <div style={{ padding: "80px 24px", textAlign: "center", color: "var(--ink-3)", fontFamily: "var(--serif)" }}>
+          <div style={{ fontSize: 32, fontStyle: "italic", marginBottom: 12 }}>Recipe not found.</div>
+          <div style={{ marginBottom: 20, maxWidth: "36ch", marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>
+            {authEmail
+              ? "It may have been removed, or the link is out of date."
+              : "This link may be out of date. Sign in to browse the cookbooks you have access to."}
+          </div>
+          {authEmail
+            ? <button className="btn primary" onClick={backToBrowse}>Back to cookbook</button>
+            : <a className="btn primary" href={signInUrl()}>Sign in</a>}
+        </div>
+      )}
+      {view === "recipe" && displayRecipe && (
         <ErrorBoundary>
         <RecipeDetail
-          recipe={recipe}
+          recipe={displayRecipe}
           variant={tweaks.recipeStyle}
           allRecipes={recipes}
           onBack={backToBrowse}
@@ -1147,7 +1192,7 @@ function App() {
           profile={profile}
           onEditRecipe={onEditRecipe}
           onDeleteRecipe={onDeleteRecipe}
-          onBuildMealWith={(paired) => buildMealWith(recipe, paired)}
+          onBuildMealWith={(paired) => buildMealWith(displayRecipe, paired)}
           simpleMode={simpleMode}
           userCookbooks={effectiveUserCookbooks}
           activeCookbookId={activeCookbookId}
@@ -1157,7 +1202,7 @@ function App() {
             // tappable link — the cook stays put on the source
             // recipe unless they explicitly tap through.
             try {
-              const res = await fetch(`/api/admin/recipes/${encodeURIComponent(recipe.id)}/copy-to/${encodeURIComponent(destCookbookId)}`, {
+              const res = await fetch(`/api/admin/recipes/${encodeURIComponent(displayRecipe.id)}/copy-to/${encodeURIComponent(destCookbookId)}`, {
                 method: "POST",
                 credentials: "include",
               });
