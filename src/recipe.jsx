@@ -1222,7 +1222,7 @@ function RecipeEditorial({ recipe, scaler, scaled, finalIngs, finalNutrition,
             <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           )}
           <StepsList steps={scaled.steps} recipeId={recipe.id} recipeTitle={recipe.title} sectionOrder={recipe.stepSectionOrder} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
-          {FLAGS.needHelp && !simpleMode && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
+          {FLAGS.needHelp && !simpleMode && authEmail && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
 
@@ -1325,7 +1325,7 @@ function RecipeMagazine({ recipe, scaler, scaled, finalIngs, finalNutrition,
             <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           )}
           <StepsList steps={scaled.steps} recipeId={recipe.id} recipeTitle={recipe.title} sectionOrder={recipe.stepSectionOrder} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
-          {FLAGS.needHelp && !simpleMode && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
+          {FLAGS.needHelp && !simpleMode && authEmail && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
 
@@ -1426,7 +1426,7 @@ function RecipeBinder({ recipe, scaler, scaled, finalIngs, finalNutrition,
             <TimingBar doneBy={doneBy} setDoneBy={setDoneBy} finishTime={finishTime} setFinishTime={setFinishTime} schedule={schedule} />
           )}
           <StepsList steps={scaled.steps} recipeId={recipe.id} recipeTitle={recipe.title} sectionOrder={recipe.stepSectionOrder} doneBy={doneBy} schedule={schedule} finishTime={finishTime} bumpStepStart={bumpStepStart} />
-          {FLAGS.needHelp && !simpleMode && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
+          {FLAGS.needHelp && !simpleMode && authEmail && <NeedHelp recipe={recipe} authEmail={authEmail} servings={scaler.servings} weight={scaler.weight} appliedAdjustments={applied} />}
         </div>
       </div>
 

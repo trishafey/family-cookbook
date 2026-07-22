@@ -715,6 +715,7 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
         onClose={() => setActiveSugg(null)}
         onSaveRecipe={onSaveRecipe}
         onSaveToLab={onSaveToLab}
+        authEmail={authEmail}
       />
 
       <PairingRecipeModal
@@ -732,7 +733,7 @@ export function PairingsSection({ recipe, allRecipes, openRecipe, onSaveRecipe, 
 // PairingSuggestionModal — quick look at an AI companion recipe.
 // User can mark "I made it" and then optionally save to the cookbook.
 // ─────────────────────────────────────────────────────────────
-function PairingSuggestionModal({ suggestion, forRecipe, onClose, onSaveRecipe, onSaveToLab }) {
+function PairingSuggestionModal({ suggestion, forRecipe, onClose, onSaveRecipe, onSaveToLab, authEmail }) {
   const [made, setMade] = useState(false);
   const [savedFeedback, setSavedFeedback] = useState(null); // "cookbook" | "lab" | null
 
@@ -816,22 +817,28 @@ function PairingSuggestionModal({ suggestion, forRecipe, onClose, onSaveRecipe, 
             <div style={{ display: "flex", gap: 8 }}>
               {!made ? (
                 <>
-                  <button className="btn ghost ai" onClick={sendToLab}>
-                    <Icon name="sparkle" size={14} /> Send to The Lab
-                  </button>
+                  {authEmail && (
+                    <button className="btn ghost ai" onClick={sendToLab}>
+                      <Icon name="sparkle" size={14} /> Send to The Lab
+                    </button>
+                  )}
                   <button className="btn primary" onClick={() => setMade(true)}>
                     <Icon name="check" size={14} /> I made it
                   </button>
                 </>
               ) : (
                 <>
-                  <button className="btn ghost ai" onClick={sendToLab}>
-                    <Icon name="sparkle" size={14} /> Send to The Lab
-                  </button>
+                  {authEmail && (
+                    <button className="btn ghost ai" onClick={sendToLab}>
+                      <Icon name="sparkle" size={14} /> Send to The Lab
+                    </button>
+                  )}
                   <button className="btn" onClick={onClose}>Not worthy</button>
-                  <button className="btn accent" onClick={saveToCookbook}>
-                    <Icon name="bookmark" size={14} /> Save to cookbook
-                  </button>
+                  {authEmail && (
+                    <button className="btn accent" onClick={saveToCookbook}>
+                      <Icon name="bookmark" size={14} /> Save to cookbook
+                    </button>
+                  )}
                 </>
               )}
             </div>
